@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model admin {
+  id     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  idarea Int?
+  iduser String? @db.Uuid
+  area   area?   @relation(fields: [idarea], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user   user?   @relation(fields: [iduser], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model area {
+  id      Int       @id @default(autoincrement())
+  name    String?   @db.VarChar
+  admin   admin[]
+  project project[]
+}
+
+model evidence {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  idtask     String    @db.Uuid
+  link       String
+  iduploader String    @db.Uuid
+  uploadedat DateTime? @default(now()) @db.Timestamp(6)
+  task       task      @relation(fields: [idtask], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user       user      @relation(fields: [iduploader], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model logs {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type      String    @db.VarChar
+  createdat DateTime? @default(now()) @db.Timestamp(6)
+  idcreator String    @db.Uuid
+  idproject String?   @db.Uuid
+  idprocess String?   @db.Uuid
+  idtask    String?   @db.Uuid
+  user      user      @relation(fields: [idcreator], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  process   process?  @relation(fields: [idprocess], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project   project?  @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task      task?     @relation(fields: [idtask], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model process {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String?   @db.VarChar
+  description String?   @db.VarChar
+  startdate   DateTime? @db.Timestamp(6)
+  duedate     DateTime? @db.Timestamp(6)
+  editedat    DateTime? @db.Timestamp(6)
+  ideditor    String?   @db.Uuid
+  idproject   String?   @db.Uuid
+  logs        logs[]
+  user        user?     @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project     project?  @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task        task[]
+}
+
+model project {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String?          @db.VarChar
+  description    String?
+  startdate      DateTime?        @db.Timestamp(6)
+  duedate        DateTime?        @db.Timestamp(6)
+  editedat       DateTime?        @db.Timestamp(6)
+  ideditor       String?          @db.Uuid
+  idarea         Int?
+  idunit         Int?
+  logs           logs[]
+  process        process[]
+  area           area?            @relation(fields: [idarea], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user           user?            @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unit           unit?            @relation(fields: [idunit], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_member project_member[]
+}
+
+model project_member {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  idproject String?  @db.Uuid
+  iduser    String?  @db.Uuid
+  idrole    Int?
+  project   project? @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  role      role?    @relation(fields: [idrole], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user      user?    @relation(fields: [iduser], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task      task[]
+}
+
+model role {
+  id             Int              @id @default(autoincrement())
+  name           String?          @db.VarChar
+  project_member project_member[]
+  unit_member    unit_member[]
+}
+
+model task {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String?         @db.VarChar
+  description    String?
+  startdate      DateTime?       @db.Timestamp(6)
+  duedateat      DateTime?       @db.Timestamp(6)
+  status         String?         @db.VarChar
+  editedat       DateTime?       @db.Timestamp(6)
+  ideditor       String?         @db.Uuid
+  idmember       String?         @db.Uuid
+  comment        String?         @db.VarChar
+  idprocess      String          @db.Uuid
+  evidence       evidence[]
+  logs           logs[]
+  user           user?           @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_member project_member? @relation(fields: [idmember], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  process        process         @relation(fields: [idprocess], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model type {
+  id   Int    @id @default(autoincrement())
+  name String @unique @db.VarChar
+  unit unit[]
+}
+
+model unit {
+  id          Int           @id @default(autoincrement())
+  name        String?       @db.VarChar
+  idtype      Int?
+  project     project[]
+  type        type?         @relation(fields: [idtype], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unit_member unit_member[]
+}
+
+model unit_member {
+  id     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  iduser String? @db.Uuid
+  idunit Int?
+  idrole Int?
+  role   role?   @relation(fields: [idrole], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unit   unit?   @relation(fields: [idunit], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user   user?   @relation(fields: [iduser], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model user {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String?          @db.VarChar
+  email          String           @unique @db.VarChar
+  password       String?          @db.VarChar
+  isactive       Boolean?         @default(true)
+  havepassword   Boolean?         @default(false)
+  admin          admin[]
+  evidence       evidence[]
+  logs           logs[]
+  process        process[]
+  project        project[]
+  project_member project_member[]
+  task           task[]
+  unit_member    unit_member[]
+}
