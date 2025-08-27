@@ -28,6 +28,13 @@ CREATE TABLE area (
     name VARCHAR
 );
 
+CREATE TABLE category (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR NOT NULL,
+    description TEXT,
+    idArea INTEGER REFERENCES area(id) NOT NULL
+);
+
 CREATE TABLE unit_member (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     idUser UUID REFERENCES "user"(id),
@@ -49,7 +56,7 @@ CREATE TABLE project (
     dueDate TIMESTAMP,
     editedAt TIMESTAMP,
     idEditor UUID REFERENCES "user"(id),
-    idArea INTEGER REFERENCES area(id),
+    idCategory UUID REFERENCES category(id),
     idUnit INTEGER REFERENCES unit(id)
 );
 
@@ -81,7 +88,7 @@ CREATE TABLE task (
     editedAt TIMESTAMP,
     idEditor UUID REFERENCES "user"(id),
     idMember UUID REFERENCES project_member(id),
-    comment VARCHAR,
+    report text,
     idProcess UUID REFERENCES process(id) NOT NULL
 );
 
@@ -101,4 +108,12 @@ CREATE TABLE logs (
     idProject UUID REFERENCES project(id),
     idProcess UUID REFERENCES process(id),
     idTask UUID REFERENCES task(id)
+);
+
+CREATE TABLE comment (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    id_user UUID REFERENCES "user"(id) NOT NULL,
+    id_task UUID REFERENCES task(id) NOT NULL
 );

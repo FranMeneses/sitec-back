@@ -16,10 +16,10 @@ model admin {
 }
 
 model area {
-  id      Int       @id @default(autoincrement())
-  name    String?   @db.VarChar
-  admin   admin[]
-  project project[]
+  id       Int        @id @default(autoincrement())
+  name     String?    @db.VarChar
+  admin    admin[]
+  category category[]
 }
 
 model evidence {
@@ -69,11 +69,11 @@ model project {
   duedate        DateTime?        @db.Timestamp(6)
   editedat       DateTime?        @db.Timestamp(6)
   ideditor       String?          @db.Uuid
-  idarea         Int?
   idunit         Int?
+  idcategory     String?          @db.Uuid
   logs           logs[]
   process        process[]
-  area           area?            @relation(fields: [idarea], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  category       category?        @relation(fields: [idcategory], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_project_category")
   user           user?            @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
   unit           unit?            @relation(fields: [idunit], references: [id], onDelete: NoAction, onUpdate: NoAction)
   project_member project_member[]
@@ -107,8 +107,9 @@ model task {
   editedat       DateTime?       @db.Timestamp(6)
   ideditor       String?         @db.Uuid
   idmember       String?         @db.Uuid
-  comment        String?         @db.VarChar
   idprocess      String          @db.Uuid
+  report         String?
+  comment        comment[]
   evidence       evidence[]
   logs           logs[]
   user           user?           @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -149,6 +150,7 @@ model user {
   isactive       Boolean?         @default(true)
   havepassword   Boolean?         @default(false)
   admin          admin[]
+  comment        comment[]
   evidence       evidence[]
   logs           logs[]
   process        process[]
@@ -156,4 +158,23 @@ model user {
   project_member project_member[]
   task           task[]
   unit_member    unit_member[]
+}
+
+model category {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @db.VarChar
+  description String?
+  id_area     Int
+  area        area      @relation(fields: [id_area], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project     project[]
+}
+
+model comment {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  text       String
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  id_user    String    @db.Uuid
+  id_task    String    @db.Uuid
+  task       task      @relation(fields: [id_task], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user       user      @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }

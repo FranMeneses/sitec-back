@@ -1,15 +1,35 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './auth/auth.module';
+import { OrganizationModule } from './organization/organization.module';
+import { ProjectModule } from './project/project.module';
+import { ProcessModule } from './process/process.module';
+import { ActivityModule } from './activity/activity.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    PrismaModule,
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      playground: true,
+      introspection: true,
+      sortSchema: true,
+    }),
+    CommonModule,
+    AuthModule,
+    OrganizationModule,
+    ProjectModule,
+    ProcessModule,
+    ActivityModule,
   ],
   controllers: [AppController],
   providers: [AppService],
