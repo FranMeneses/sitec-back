@@ -2,9 +2,24 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input AddProjectMemberInput {
+  projectId: String!
+  roleId: Int!
+  userId: String!
+}
+
 type AuthResponse {
   accessToken: String!
   user: User!
+}
+
+input CreateProjectInput {
+  categoryId: String
+  description: String
+  dueDate: String
+  name: String!
+  startDate: String
+  unitId: Int
 }
 
 input CreateRoleInput {
@@ -23,17 +38,51 @@ input LoginInput {
 }
 
 type Mutation {
+  addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
+  createProject(createProjectInput: CreateProjectInput!): Project!
   createRole(createRoleInput: CreateRoleInput!): Role!
+  deleteProject(id: String!): Boolean!
   deleteRole(id: Int!): Boolean!
   login(loginInput: LoginInput!): AuthResponse!
   register(registerInput: RegisterInput!): AuthResponse!
+  removeProjectMember(projectId: String!, userId: String!): Boolean!
   updateProfile(name: String): User!
+  updateProject(updateProjectInput: UpdateProjectInput!): Project!
   updateRole(updateRoleInput: UpdateRoleInput!): Role!
+}
+
+type Project {
+  categoryId: String
+  createdAt: DateTime!
+  description: String
+  dueDate: DateTime
+  editedAt: DateTime
+  editor: User
+  id: ID!
+  name: String!
+  startDate: DateTime
+  unitId: Float
+  updatedAt: DateTime!
+}
+
+type ProjectMember {
+  createdAt: DateTime!
+  id: ID!
+  project: Project
+  projectId: String
+  role: Role
+  roleId: Int
+  updatedAt: DateTime!
+  user: User
+  userId: String
 }
 
 type Query {
   me: User!
   myRoles: [Role!]!
+  project(id: String!): Project
+  projectMembers(projectId: String!): [ProjectMember!]!
+  projects: [Project!]!
   role(id: Int!): Role
   roles: [Role!]!
   users: [User!]!
@@ -51,6 +100,16 @@ type Role {
   id: Int!
   name: String!
   updatedAt: DateTime!
+}
+
+input UpdateProjectInput {
+  categoryId: String
+  description: String
+  dueDate: String
+  id: String!
+  name: String
+  startDate: String
+  unitId: Int
 }
 
 input UpdateRoleInput {
