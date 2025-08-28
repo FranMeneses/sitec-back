@@ -7,6 +7,11 @@ type AuthResponse {
   user: User!
 }
 
+input CreateRoleInput {
+  description: String
+  name: String!
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -18,12 +23,19 @@ input LoginInput {
 }
 
 type Mutation {
+  createRole(createRoleInput: CreateRoleInput!): Role!
+  deleteRole(id: Int!): Boolean!
   login(loginInput: LoginInput!): AuthResponse!
   register(registerInput: RegisterInput!): AuthResponse!
+  updateProfile(name: String): User!
+  updateRole(updateRoleInput: UpdateRoleInput!): Role!
 }
 
 type Query {
-  me: User
+  me: User!
+  myRoles: [Role!]!
+  role(id: Int!): Role
+  roles: [Role!]!
   users: [User!]!
 }
 
@@ -31,6 +43,20 @@ input RegisterInput {
   email: String!
   name: String!
   password: String!
+}
+
+type Role {
+  createdAt: DateTime!
+  description: String
+  id: Int!
+  name: String!
+  updatedAt: DateTime!
+}
+
+input UpdateRoleInput {
+  description: String
+  id: Int!
+  name: String
 }
 
 type User {

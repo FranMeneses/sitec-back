@@ -106,4 +106,60 @@ export class UserService {
     const validDomains = ['@alumno.ucn.cl', '@ce.ucn.cl', '@ucn.cl'];
     return validDomains.some(domain => email.endsWith(domain));
   }
+
+  async hasRole(userId: string, roleName: string): Promise<boolean> {
+    // Verificar en unit_member
+    const unitMember = await this.prisma.unit_member.findFirst({
+      where: { 
+        iduser: userId,
+        role: { name: roleName }
+      },
+      include: { role: true }
+    });
+
+    if (unitMember) return true;
+
+    // Verificar en project_member
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: { 
+        iduser: userId,
+        role: { name: roleName }
+      },
+      include: { role: true }
+    });
+
+    return !!projectMember;
+  }
+
+  async isAdmin(userId: string): Promise<boolean> {
+    // Verificar si el usuario es admin de alguna área
+    const adminRecord = await this.prisma.admin.findFirst({
+      where: { iduser: userId }
+    });
+
+    return !!adminRecord;
+  }
+
+  async initializeDefaultRoles(): Promise<void> {
+    const defaultRoles = [
+      'admin',
+      'profesor',
+      'estudiante',
+      'coordinador',
+      'director',
+      'secretario'
+    ];
+
+    for (const roleName of defaultRoles) {
+      const existingRole = await this.prisma.role.findFirst({
+        where: { name: roleName }
+      });
+
+      if (!existingRole) {
+        await this.prisma.role.create({
+          data: { name: roleName }
+        });
+      }
+    }
+  }
 }

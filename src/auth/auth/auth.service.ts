@@ -48,6 +48,9 @@ export class AuthService {
   }
 
   async register(registerInput: RegisterInput): Promise<AuthResponse> {
+    // Inicializar roles por defecto si no existen
+    await this.userService.initializeDefaultRoles();
+
     // Validar dominio UCN
     const isValidEmail = await this.userService.isValidUCNEmail(registerInput.email);
     if (!isValidEmail) {

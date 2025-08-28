@@ -5,6 +5,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UserService } from './user/user.service';
 import { AuthService } from './auth/auth.service';
 import { AuthResolver } from './auth/auth.resolver';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RoleService } from './role/role.service';
+import { RoleResolver } from './role/role.resolver';
 
 @Module({
   imports: [
@@ -18,7 +22,15 @@ import { AuthResolver } from './auth/auth.resolver';
       inject: [ConfigService],
     }),
   ],
-  providers: [UserService, AuthService, AuthResolver],
-  exports: [UserService, AuthService],
+  providers: [
+    UserService, 
+    AuthService, 
+    AuthResolver, 
+    JwtStrategy,
+    JwtAuthGuard,
+    RoleService,
+    RoleResolver,
+  ],
+  exports: [UserService, AuthService, JwtAuthGuard],
 })
 export class AuthModule {}
