@@ -20,13 +20,54 @@ type Area {
   name: String
 }
 
+input AssignTaskInput {
+  memberId: String!
+  taskId: String!
+}
+
 type AuthResponse {
   accessToken: String!
   user: User!
 }
 
+type Comment {
+  createdAt: DateTime!
+  id: ID!
+  task: Task
+  taskId: String!
+  text: String!
+  updatedAt: DateTime!
+  user: User
+  userId: String!
+}
+
 input CreateAreaInput {
   name: String!
+}
+
+input CreateCommentInput {
+  taskId: String!
+  text: String!
+}
+
+input CreateEvidenceInput {
+  link: String!
+  taskId: String!
+}
+
+input CreateLogInput {
+  processId: String
+  projectId: String
+  taskId: String
+  type: String!
+}
+
+input CreateProcessInput {
+  description: String
+  dueDate: String
+  name: String!
+  projectId: String!
+  startDate: String
 }
 
 input CreateProjectInput {
@@ -41,6 +82,16 @@ input CreateProjectInput {
 input CreateRoleInput {
   description: String
   name: String!
+}
+
+input CreateTaskInput {
+  description: String
+  dueDate: String
+  memberId: String
+  name: String!
+  processId: String!
+  startDate: String
+  status: String!
 }
 
 input CreateUnitInput {
@@ -59,20 +110,57 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type Evidence {
+  createdAt: DateTime!
+  id: ID!
+  link: String!
+  task: Task
+  taskId: String!
+  updatedAt: DateTime!
+  uploadedAt: DateTime!
+  uploader: User
+  uploaderId: String!
+}
+
 input LoginInput {
   email: String!
   password: String!
 }
 
+type Logs {
+  createdAt: DateTime!
+  creator: User
+  creatorId: String!
+  id: ID!
+  process: Process
+  processId: String
+  project: Project
+  projectId: String
+  task: Task
+  taskId: String
+  type: String!
+  updatedAt: DateTime!
+}
+
 type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
+  assignTask(assignTaskInput: AssignTaskInput!): Task!
   createArea(createAreaInput: CreateAreaInput!): Area!
+  createComment(createCommentInput: CreateCommentInput!): Comment!
+  createEvidence(createEvidenceInput: CreateEvidenceInput!): Evidence!
+  createLog(createLogInput: CreateLogInput!): Logs!
+  createProcess(createProcessInput: CreateProcessInput!): Process!
   createProject(createProjectInput: CreateProjectInput!): Project!
   createRole(createRoleInput: CreateRoleInput!): Role!
+  createTask(createTaskInput: CreateTaskInput!): Task!
   createUnit(createUnitInput: CreateUnitInput!): Unit!
+  deleteComment(id: String!): Boolean!
+  deleteEvidence(id: String!): Boolean!
+  deleteProcess(id: String!): Boolean!
   deleteProject(id: String!): Boolean!
   deleteRole(id: Int!): Boolean!
+  deleteTask(id: String!): Boolean!
   login(loginInput: LoginInput!): AuthResponse!
   register(registerInput: RegisterInput!): AuthResponse!
   removeArea(id: Int!): Area!
@@ -80,11 +168,30 @@ type Mutation {
   removeUnit(id: Int!): Unit!
   removeUnitMember(id: String!): UnitMember!
   updateArea(updateAreaInput: UpdateAreaInput!): Area!
+  updateComment(updateCommentInput: UpdateCommentInput!): Comment!
+  updateEvidence(updateEvidenceInput: UpdateEvidenceInput!): Evidence!
+  updateProcess(updateProcessInput: UpdateProcessInput!): Process!
   updateProfile(name: String): User!
   updateProject(updateProjectInput: UpdateProjectInput!): Project!
   updateRole(updateRoleInput: UpdateRoleInput!): Role!
+  updateTask(updateTaskInput: UpdateTaskInput!): Task!
   updateUnit(updateUnitInput: UpdateUnitInput!): Unit!
   updateUnitMember(updateUnitMemberInput: UpdateUnitMemberInput!): UnitMember!
+}
+
+type Process {
+  createdAt: DateTime!
+  description: String
+  dueDate: DateTime
+  editedAt: DateTime
+  editor: User
+  id: ID!
+  name: String!
+  processTasks: [Task!]!
+  project: Project
+  projectId: String!
+  startDate: DateTime
+  updatedAt: DateTime!
 }
 
 type Project {
@@ -116,13 +223,29 @@ type ProjectMember {
 type Query {
   area(id: Int!): Area!
   areas: [Area!]!
+  commentById(id: String!): Comment
+  comments: [Comment!]!
+  commentsByTask(taskId: String!): [Comment!]!
+  evidence: [Evidence!]!
+  evidenceById(id: String!): Evidence
+  evidenceByTask(taskId: String!): [Evidence!]!
+  logs: [Logs!]!
+  logsByProcess(processId: String!): [Logs!]!
+  logsByProject(projectId: String!): [Logs!]!
+  logsByTask(taskId: String!): [Logs!]!
   me: User!
   myRoles: [Role!]!
+  process(id: String!): Process
+  processes: [Process!]!
+  processesByProject(projectId: String!): [Process!]!
   project(id: String!): Project
   projectMembers(projectId: String!): [ProjectMember!]!
   projects: [Project!]!
   role(id: Int!): Role
   roles: [Role!]!
+  task(id: String!): Task
+  tasks: [Task!]!
+  tasksByProcess(processId: String!): [Task!]!
   type(id: Int!): Type!
   types: [Type!]!
   unit(id: Int!): Unit!
@@ -142,6 +265,24 @@ type Role {
   description: String
   id: Int!
   name: String!
+  updatedAt: DateTime!
+}
+
+type Task {
+  createdAt: DateTime!
+  description: String
+  dueDate: DateTime
+  editedAt: DateTime
+  editor: User
+  id: ID!
+  member: ProjectMember
+  memberId: String
+  name: String!
+  process: Process
+  processId: String!
+  report: String
+  startDate: DateTime
+  status: String!
   updatedAt: DateTime!
 }
 
@@ -170,6 +311,24 @@ input UpdateAreaInput {
   name: String
 }
 
+input UpdateCommentInput {
+  id: String!
+  text: String
+}
+
+input UpdateEvidenceInput {
+  id: String!
+  link: String
+}
+
+input UpdateProcessInput {
+  description: String
+  dueDate: String
+  id: String!
+  name: String
+  startDate: String
+}
+
 input UpdateProjectInput {
   categoryId: String
   description: String
@@ -184,6 +343,17 @@ input UpdateRoleInput {
   description: String
   id: Int!
   name: String
+}
+
+input UpdateTaskInput {
+  description: String
+  dueDate: String
+  id: String!
+  memberId: String
+  name: String
+  report: String
+  startDate: String
+  status: String
 }
 
 input UpdateUnitInput {
