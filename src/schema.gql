@@ -8,9 +8,25 @@ input AddProjectMemberInput {
   userId: String!
 }
 
+type Admin {
+  id: String!
+  idarea: Int
+  iduser: String
+}
+
+type Area {
+  admin: [Admin!]
+  id: Int!
+  name: String
+}
+
 type AuthResponse {
   accessToken: String!
   user: User!
+}
+
+input CreateAreaInput {
+  name: String!
 }
 
 input CreateProjectInput {
@@ -27,6 +43,17 @@ input CreateRoleInput {
   name: String!
 }
 
+input CreateUnitInput {
+  idtype: Int
+  name: String!
+}
+
+input CreateUnitMemberInput {
+  idrole: Int
+  idunit: Int!
+  iduser: String!
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -39,16 +66,25 @@ input LoginInput {
 
 type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
+  addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
+  createArea(createAreaInput: CreateAreaInput!): Area!
   createProject(createProjectInput: CreateProjectInput!): Project!
   createRole(createRoleInput: CreateRoleInput!): Role!
+  createUnit(createUnitInput: CreateUnitInput!): Unit!
   deleteProject(id: String!): Boolean!
   deleteRole(id: Int!): Boolean!
   login(loginInput: LoginInput!): AuthResponse!
   register(registerInput: RegisterInput!): AuthResponse!
+  removeArea(id: Int!): Area!
   removeProjectMember(projectId: String!, userId: String!): Boolean!
+  removeUnit(id: Int!): Unit!
+  removeUnitMember(id: String!): UnitMember!
+  updateArea(updateAreaInput: UpdateAreaInput!): Area!
   updateProfile(name: String): User!
   updateProject(updateProjectInput: UpdateProjectInput!): Project!
   updateRole(updateRoleInput: UpdateRoleInput!): Role!
+  updateUnit(updateUnitInput: UpdateUnitInput!): Unit!
+  updateUnitMember(updateUnitMemberInput: UpdateUnitMemberInput!): UnitMember!
 }
 
 type Project {
@@ -78,6 +114,8 @@ type ProjectMember {
 }
 
 type Query {
+  area(id: Int!): Area!
+  areas: [Area!]!
   me: User!
   myRoles: [Role!]!
   project(id: String!): Project
@@ -85,6 +123,11 @@ type Query {
   projects: [Project!]!
   role(id: Int!): Role
   roles: [Role!]!
+  type(id: Int!): Type!
+  types: [Type!]!
+  unit(id: Int!): Unit!
+  unitMembers(unitId: Int!): [UnitMember!]!
+  units: [Unit!]!
   users: [User!]!
 }
 
@@ -102,6 +145,31 @@ type Role {
   updatedAt: DateTime!
 }
 
+type Type {
+  id: Int!
+  name: String!
+}
+
+type Unit {
+  id: Int!
+  idtype: Int
+  name: String
+  type: Type
+  unit_member: [UnitMember!]
+}
+
+type UnitMember {
+  id: String!
+  idrole: Int
+  idunit: Int
+  iduser: String
+}
+
+input UpdateAreaInput {
+  id: Int!
+  name: String
+}
+
 input UpdateProjectInput {
   categoryId: String
   description: String
@@ -116,6 +184,19 @@ input UpdateRoleInput {
   description: String
   id: Int!
   name: String
+}
+
+input UpdateUnitInput {
+  id: Int!
+  idtype: Int
+  name: String
+}
+
+input UpdateUnitMemberInput {
+  id: String!
+  idrole: Int
+  idunit: Int
+  iduser: String
 }
 
 type User {
