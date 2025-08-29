@@ -2,24 +2,22 @@
   "version": 2,
   "builds": [
     {
-      "src": "public/index.js",
+      "src": "api/index.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/public/index.js"
+      "dest": "/api"
     }
   ],
   "functions": {
-    "public/index.js": {
+    "api/index.ts": {
       "maxDuration": 30
     }
   },
   "env": {
     "NODE_ENV": "production"
-  },
-  "buildCommand": "node vercel-build.js",
-  "outputDirectory": "public"
+  }
 }
