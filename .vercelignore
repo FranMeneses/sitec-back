@@ -9,3 +9,4 @@ README.md
 *.log
 coverage
 .nyc_output
+vercel-build.js
