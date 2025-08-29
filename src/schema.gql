@@ -41,6 +41,11 @@ type Comment {
   userId: String!
 }
 
+input CreateAdminInput {
+  idArea: Int!
+  idUser: String!
+}
+
 input CreateAreaInput {
   name: String!
 }
@@ -92,6 +97,10 @@ input CreateTaskInput {
   processId: String!
   startDate: String
   status: String!
+}
+
+input CreateTypeInput {
+  name: String!
 }
 
 input CreateUnitInput {
@@ -155,6 +164,7 @@ type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
   assignTask(assignTaskInput: AssignTaskInput!): Task!
+  createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
   createComment(createCommentInput: CreateCommentInput!): Comment!
   createEvidence(createEvidenceInput: CreateEvidenceInput!): Evidence!
@@ -163,6 +173,7 @@ type Mutation {
   createProject(createProjectInput: CreateProjectInput!): Project!
   createRole(createRoleInput: CreateRoleInput!): Role!
   createTask(createTaskInput: CreateTaskInput!): Task!
+  createType(createTypeInput: CreateTypeInput!): Type!
   createUnit(createUnitInput: CreateUnitInput!): Unit!
   createUser(createUserInput: CreateUserInput!): User!
   deleteComment(id: String!): Boolean!
@@ -173,8 +184,10 @@ type Mutation {
   deleteTask(id: String!): Boolean!
   login(loginInput: LoginInput!): AuthResponse!
   register(registerInput: RegisterInput!): AuthResponse!
+  removeAdmin(id: String!): String!
   removeArea(id: Int!): Area!
   removeProjectMember(projectId: String!, userId: String!): Boolean!
+  removeType(id: Int!): Type!
   removeUnit(id: Int!): Unit!
   removeUnitMember(id: String!): UnitMember!
   removeUser(id: String!): User!
@@ -234,6 +247,8 @@ type ProjectMember {
 }
 
 type Query {
+  admin(id: String!): Admin!
+  admins: [Admin!]!
   area(id: Int!): Area!
   areas: [Area!]!
   commentById(id: String!): Comment

@@ -4,10 +4,13 @@ import { OrganizationService } from './organization.service';
 import { CreateAreaInput, UpdateAreaInput } from './dto/area.dto';
 import { CreateUnitInput, UpdateUnitInput } from './dto/unit.dto';
 import { CreateUnitMemberInput, UpdateUnitMemberInput } from './dto/unit-member.dto';
+import { CreateTypeInput, UpdateTypeInput } from './dto/type.dto';
+import { CreateAdminInput } from './dto/admin.dto';
 import { Area } from './entities/area.entity';
 import { Unit } from './entities/unit.entity';
 import { UnitMember } from './entities/unit-member.entity';
 import { Type } from './entities/type.entity';
+import { Admin } from './entities/admin.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
@@ -118,6 +121,14 @@ export class OrganizationResolver {
   }
 
   // ===== TYPE RESOLVERS =====
+  @Mutation(() => Type)
+  async createType(
+    @Args('createTypeInput') createTypeInput: CreateTypeInput,
+    @CurrentUser() currentUser: User,
+  ) {
+    return this.organizationService.createType(createTypeInput, currentUser);
+  }
+
   @Query(() => [Type], { name: 'types' })
   async findAllTypes() {
     return this.organizationService.findAllTypes();
@@ -126,5 +137,40 @@ export class OrganizationResolver {
   @Query(() => Type, { name: 'type' })
   async findTypeById(@Args('id', { type: () => Int }) id: number) {
     return this.organizationService.findTypeById(id);
+  }
+
+  @Mutation(() => Type)
+  async removeType(
+    @Args('id', { type: () => Int }) id: number,
+    @CurrentUser() currentUser: User,
+  ) {
+    return this.organizationService.removeType(id, currentUser);
+  }
+
+  // ===== ADMIN RESOLVERS =====
+  @Query(() => [Admin], { name: 'admins' })
+  async findAllAdmins() {
+    return this.organizationService.findAllAdmins();
+  }
+
+  @Query(() => Admin, { name: 'admin' })
+  async findAdminById(@Args('id') id: string) {
+    return this.organizationService.findAdminById(id);
+  }
+
+  @Mutation(() => Admin)
+  async createAdmin(
+    @Args('createAdminInput') createAdminInput: CreateAdminInput,
+    @CurrentUser() currentUser: User,
+  ) {
+    return this.organizationService.createAdmin(createAdminInput, currentUser);
+  }
+
+  @Mutation(() => String)
+  async removeAdmin(
+    @Args('id') id: string,
+    @CurrentUser() currentUser: User,
+  ) {
+    return this.organizationService.removeAdmin(id, currentUser);
   }
 }

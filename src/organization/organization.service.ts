@@ -3,6 +3,8 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { CreateAreaInput, UpdateAreaInput } from './dto/area.dto';
 import { CreateUnitInput, UpdateUnitInput } from './dto/unit.dto';
 import { CreateUnitMemberInput, UpdateUnitMemberInput } from './dto/unit-member.dto';
+import { CreateTypeInput, UpdateTypeInput } from './dto/type.dto';
+import { CreateAdminInput } from './dto/admin.dto';
 import { User } from '../auth/entities/user.entity';
 
 @Injectable()
@@ -291,19 +293,12 @@ export class OrganizationService {
 
   // ===== TYPE METHODS =====
   async findAllTypes() {
-    return this.prisma.type.findMany({
-      include: {
-        unit: true,
-      },
-    });
+    return this.prisma.type.findMany();
   }
 
   async findTypeById(id: number) {
     const type = await this.prisma.type.findUnique({
       where: { id },
-      include: {
-        unit: true,
-      },
     });
 
     if (!type) {
@@ -311,5 +306,194 @@ export class OrganizationService {
     }
 
     return type;
+  }
+
+  async createType(createTypeInput: CreateTypeInput, currentUser: User) {
+    // Verificar si el usuario es admin
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      throw new ForbiddenException('Solo los administradores pueden crear tipos');
+    }
+
+    return this.prisma.type.create({
+      data: {
+        name: createTypeInput.name,
+      },
+    });
+  }
+
+  async removeType(id: number, currentUser: User) {
+    // Verificar si el usuario es admin
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      throw new ForbiddenException('Solo los administradores pueden eliminar tipos');
+    }
+
+    // Verificar que el tipo existe
+    await this.findTypeById(id);
+
+    // Verificar que no esté siendo usado por unidades
+    const unitsUsingType = await this.prisma.unit.findMany({
+      where: { idtype: id },
+    });
+
+    if (unitsUsingType.length > 0) {
+      throw new ForbiddenException('No se puede eliminar el tipo porque está siendo usado por unidades');
+    }
+
+    return this.prisma.type.delete({
+      where: { id },
+    });
+  }
+
+  // ===== ADMIN METHODS =====
+  async findAllAdmins(): Promise<any[]> {
+    const admins = await this.prisma.admin.findMany({
+      include: {
+        area: true,
+        user: true,
+      },
+    });
+
+    return admins.map(admin => ({
+      id: admin.id,
+      idArea: admin.idarea,
+      idUser: admin.iduser,
+      area: admin.area ? {
+        id: admin.area.id,
+        name: admin.area.name,
+      } : null,
+      user: admin.user ? {
+        id: admin.user.id,
+        name: admin.user.name || '',
+        email: admin.user.email,
+        password: admin.user.password || undefined,
+        isActive: admin.user.isactive ?? true,
+        havePassword: admin.user.havepassword ?? false,
+      } : null,
+    }));
+  }
+
+  async findAdminById(id: string): Promise<any> {
+    const admin = await this.prisma.admin.findUnique({
+      where: { id },
+      include: {
+        area: true,
+        user: true,
+      },
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`Administrador con ID ${id} no encontrado`);
+    }
+
+    return {
+      id: admin.id,
+      idArea: admin.idarea,
+      idUser: admin.iduser,
+      area: admin.area ? {
+        id: admin.area.id,
+        name: admin.area.name,
+      } : null,
+      user: admin.user ? {
+        id: admin.user.id,
+        name: admin.user.name || '',
+        email: admin.user.email,
+        password: admin.user.password || undefined,
+        isActive: admin.user.isactive ?? true,
+        havePassword: admin.user.havepassword ?? false,
+      } : null,
+    };
+  }
+
+  async createAdmin(createAdminInput: CreateAdminInput, currentUser: User): Promise<any> {
+    // Verificar si el usuario actual es admin
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      throw new ForbiddenException('Solo los administradores pueden crear otros administradores');
+    }
+
+    // Verificar que el área existe
+    const area = await this.prisma.area.findUnique({
+      where: { id: createAdminInput.idArea },
+    });
+    if (!area) {
+      throw new NotFoundException(`Área con ID ${createAdminInput.idArea} no encontrada`);
+    }
+
+    // Verificar que el usuario existe
+    const user = await this.prisma.user.findUnique({
+      where: { id: createAdminInput.idUser },
+    });
+    if (!user) {
+      throw new NotFoundException(`Usuario con ID ${createAdminInput.idUser} no encontrado`);
+    }
+
+    // Verificar que no sea ya admin de esa área
+    const existingAdmin = await this.prisma.admin.findFirst({
+      where: {
+        idarea: createAdminInput.idArea,
+        iduser: createAdminInput.idUser,
+      },
+    });
+    if (existingAdmin) {
+      throw new ForbiddenException('El usuario ya es administrador de esta área');
+    }
+
+    const admin = await this.prisma.admin.create({
+      data: {
+        idarea: createAdminInput.idArea,
+        iduser: createAdminInput.idUser,
+      },
+      include: {
+        area: true,
+        user: true,
+      },
+    });
+
+    return {
+      id: admin.id,
+      idArea: admin.idarea,
+      idUser: admin.iduser,
+      area: admin.area ? {
+        id: admin.area.id,
+        name: admin.area.name,
+      } : null,
+      user: admin.user ? {
+        id: admin.user.id,
+        name: admin.user.name || '',
+        email: admin.user.email,
+        password: admin.user.password || undefined,
+        isActive: admin.user.isactive ?? true,
+        havePassword: admin.user.havepassword ?? false,
+      } : null,
+    };
+  }
+
+  async removeAdmin(id: string, currentUser: User): Promise<string> {
+    // Verificar si el usuario actual es admin
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      throw new ForbiddenException('Solo los administradores pueden eliminar otros administradores');
+    }
+
+    // Verificar que el admin existe
+    const admin = await this.prisma.admin.findUnique({
+      where: { id },
+    });
+    if (!admin) {
+      throw new NotFoundException(`Administrador con ID ${id} no encontrado`);
+    }
+
+    // Verificar que no se esté eliminando a sí mismo
+    if (admin.iduser === currentUser.id) {
+      throw new ForbiddenException('No puedes eliminar tu propio rol de administrador');
+    }
+
+    await this.prisma.admin.delete({
+      where: { id },
+    });
+
+    return `Administrador con ID ${id} eliminado exitosamente`;
   }
 }
