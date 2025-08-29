@@ -32,6 +32,12 @@ export class ProjectResolver {
     return this.projectService.getProjectMembers(projectId);
   }
 
+  @Query(() => ProjectMember)
+  @UseGuards(JwtAuthGuard)
+  async projectMember(@Args('id') id: string): Promise<ProjectMember> {
+    return this.projectService.getProjectMemberById(id);
+  }
+
   @Query(() => [Project])
   @UseGuards(JwtAuthGuard)
   async findUnitProjects(@Args('idUnit') idUnit: number): Promise<Project[]> {
@@ -48,6 +54,12 @@ export class ProjectResolver {
   @UseGuards(JwtAuthGuard)
   async projectProcessesByProjectId(@Args('idProject') idProject: string): Promise<Process[]> {
     return this.projectService.getProjectProcesses(idProject);
+  }
+
+  @Query(() => [Process])
+  @UseGuards(JwtAuthGuard)
+  async projectProcessesByProcessId(@Args('idProcess') idProcess: string): Promise<Process[]> {
+    return this.projectService.getProjectProcessesByProcessId(idProcess);
   }
 
   @Query(() => [Task])
@@ -109,5 +121,24 @@ export class ProjectResolver {
     @CurrentUser() user: User,
   ): Promise<ProjectMember> {
     return this.projectService.updateProjectMember(updateProjectMemberInput, user.id);
+  }
+
+  @Mutation(() => String)
+  @UseGuards(JwtAuthGuard)
+  async createProjectProcess(
+    @Args('idProject') idProject: string,
+    @Args('idProcess') idProcess: string,
+    @CurrentUser() user: User,
+  ): Promise<string> {
+    return this.projectService.createProjectProcess(idProject, idProcess, user.id);
+  }
+
+  @Mutation(() => String)
+  @UseGuards(JwtAuthGuard)
+  async removeProjectProcess(
+    @Args('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<string> {
+    return this.projectService.removeProjectProcess(id, user.id);
   }
 }

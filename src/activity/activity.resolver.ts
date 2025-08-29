@@ -149,6 +149,24 @@ export class LogsResolver {
     return this.activityService.findLogsByTask(taskId);
   }
 
+  @Query(() => [Logs])
+  @UseGuards(JwtAuthGuard)
+  async findLogsByProjectId(@Args('idProject') idProject: string): Promise<Logs[]> {
+    return this.activityService.findLogsByProject(idProject);
+  }
+
+  @Query(() => [Logs])
+  @UseGuards(JwtAuthGuard)
+  async findLogsByTaskId(@Args('idTask') idTask: string): Promise<Logs[]> {
+    return this.activityService.findLogsByTask(idTask);
+  }
+
+  @Query(() => [Logs])
+  @UseGuards(JwtAuthGuard)
+  async findLogsByProcessId(@Args('idProcess') idProcess: string): Promise<Logs[]> {
+    return this.activityService.findLogsByProcess(idProcess);
+  }
+
   // ==================== LOGS MUTATIONS ====================
 
   @Mutation(() => Logs)

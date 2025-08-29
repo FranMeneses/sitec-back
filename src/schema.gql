@@ -170,7 +170,9 @@ type Mutation {
   createEvidence(createEvidenceInput: CreateEvidenceInput!): Evidence!
   createLog(createLogInput: CreateLogInput!): Logs!
   createProcess(createProcessInput: CreateProcessInput!): Process!
+  createProcessTask(idProcess: String!, idTask: String!): String!
   createProject(createProjectInput: CreateProjectInput!): Project!
+  createProjectProcess(idProcess: String!, idProject: String!): String!
   createRole(createRoleInput: CreateRoleInput!): Role!
   createTask(createTaskInput: CreateTaskInput!): Task!
   createType(createTypeInput: CreateTypeInput!): Type!
@@ -186,7 +188,9 @@ type Mutation {
   register(registerInput: RegisterInput!): AuthResponse!
   removeAdmin(id: String!): String!
   removeArea(id: Int!): Area!
+  removeProcessTask(id: String!): String!
   removeProjectMember(projectId: String!, userId: String!): Boolean!
+  removeProjectProcess(id: String!): String!
   removeType(id: Int!): Type!
   removeUnit(id: Int!): Unit!
   removeUnitMember(id: String!): UnitMember!
@@ -258,6 +262,11 @@ type Query {
   evidenceById(id: String!): Evidence
   evidenceByTask(taskId: String!): [Evidence!]!
   findAreaProjects(idArea: Float!): [Project!]!
+  findByProcessId(idProcess: String!): [Task!]!
+  findByTaskId(idTask: String!): [Task!]!
+  findLogsByProcessId(idProcess: String!): [Logs!]!
+  findLogsByProjectId(idProject: String!): [Logs!]!
+  findLogsByTaskId(idTask: String!): [Logs!]!
   findUnitProjects(idUnit: Float!): [Project!]!
   findUserByEmail(email: String!): User!
   findUsersProject(idUser: String!): [Project!]!
@@ -271,7 +280,9 @@ type Query {
   processes: [Process!]!
   processesByProject(projectId: String!): [Process!]!
   project(id: String!): Project
+  projectMember(id: String!): ProjectMember!
   projectMembers(projectId: String!): [ProjectMember!]!
+  projectProcessesByProcessId(idProcess: String!): [Process!]!
   projectProcessesByProjectId(idProject: String!): [Process!]!
   projects: [Project!]!
   role(id: Int!): Role

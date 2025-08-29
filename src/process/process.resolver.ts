@@ -33,6 +33,12 @@ export class ProcessResolver {
     return this.processService.findProcessesByProject(projectId);
   }
 
+  @Query(() => [Task])
+  @UseGuards(JwtAuthGuard)
+  async findByProcessId(@Args('idProcess') idProcess: string): Promise<Task[]> {
+    return this.processService.findTasksByProcess(idProcess);
+  }
+
   // ==================== PROCESS MUTATIONS ====================
 
   @Mutation(() => Process)
@@ -60,6 +66,25 @@ export class ProcessResolver {
     @CurrentUser() user: User,
   ): Promise<boolean> {
     return this.processService.deleteProcess(id, user.id);
+  }
+
+  @Mutation(() => String)
+  @UseGuards(JwtAuthGuard)
+  async createProcessTask(
+    @Args('idProcess') idProcess: string,
+    @Args('idTask') idTask: string,
+    @CurrentUser() user: User,
+  ): Promise<string> {
+    return this.processService.createProcessTask(idProcess, idTask, user.id);
+  }
+
+  @Mutation(() => String)
+  @UseGuards(JwtAuthGuard)
+  async removeProcessTask(
+    @Args('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<string> {
+    return this.processService.removeProcessTask(id, user.id);
   }
 
   // ==================== RESOLVE FIELDS ====================
@@ -92,6 +117,12 @@ export class TaskResolver {
   @UseGuards(JwtAuthGuard)
   async tasksByProcess(@Args('processId') processId: string): Promise<Task[]> {
     return this.processService.findTasksByProcess(processId);
+  }
+
+  @Query(() => [Task])
+  @UseGuards(JwtAuthGuard)
+  async findByTaskId(@Args('idTask') idTask: string): Promise<Task[]> {
+    return this.processService.findTasksByTaskId(idTask);
   }
 
   // ==================== TASK MUTATIONS ====================

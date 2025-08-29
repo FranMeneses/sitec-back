@@ -229,6 +229,39 @@ export class ProjectService {
     }));
   }
 
+  async getProjectProcessesByProcessId(processId: string): Promise<any[]> {
+    // Obtener el proceso específico y retornar su proyecto asociado
+    const process = await this.prisma.process.findUnique({
+      where: { id: processId },
+      include: {
+        user: true, // editor
+        project: true,
+      },
+    });
+
+    if (!process) {
+      return [];
+    }
+
+    return [{
+      id: process.id,
+      name: process.name || '',
+      description: process.description,
+      startDate: process.startdate,
+      dueDate: process.duedate,
+      editedAt: process.editedat,
+      editor: process.user ? {
+        id: process.user.id,
+        name: process.user.name || '',
+        email: process.user.email,
+        password: process.user.password || undefined,
+        isActive: process.user.isactive ?? true,
+        havePassword: process.user.havepassword ?? false,
+      } : undefined,
+      projectId: process.idproject,
+    }];
+  }
+
   async getProjectTasks(projectId: string): Promise<any[]> {
     // Obtener tareas del proyecto a través de los procesos
     const tasks = await this.prisma.task.findMany({
@@ -289,6 +322,93 @@ export class ProjectService {
         } : undefined,
       } : undefined,
     }));
+  }
+
+  async getProjectMemberById(id: string): Promise<any> {
+    const member = await this.prisma.project_member.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        role: true,
+        project: true,
+      },
+    });
+
+    if (!member) {
+      throw new Error('Project member not found');
+    }
+
+    return this.mapProjectMember(member);
+  }
+
+  async createProjectProcess(idProject: string, idProcess: string, userId: string): Promise<string> {
+    // Verificar que el proyecto existe
+    const project = await this.prisma.project.findUnique({
+      where: { id: idProject },
+    });
+    if (!project) {
+      throw new Error('El proyecto especificado no existe');
+    }
+
+    // Verificar que el proceso existe
+    const process = await this.prisma.process.findUnique({
+      where: { id: idProcess },
+    });
+    if (!process) {
+      throw new Error('El proceso especificado no existe');
+    }
+
+    // Verificar que el usuario es miembro del proyecto
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: idProject,
+        iduser: userId,
+      },
+    });
+    if (!projectMember) {
+      throw new Error('No tienes permisos para crear esta asociación');
+    }
+
+    // Actualizar el proceso para asociarlo al proyecto
+    await this.prisma.process.update({
+      where: { id: idProcess },
+      data: {
+        idproject: idProject,
+        ideditor: userId,
+        editedat: new Date(),
+      },
+    });
+
+    return `Proceso ${idProcess} asociado exitosamente al proyecto ${idProject}`;
+  }
+
+  async removeProjectProcess(id: string, userId: string): Promise<string> {
+    // Verificar que el proceso existe
+    const process = await this.prisma.process.findUnique({
+      where: { id },
+      include: { project: true },
+    });
+    if (!process) {
+      throw new Error('El proceso especificado no existe');
+    }
+
+    // Verificar que el usuario es miembro del proyecto
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: process.idproject,
+        iduser: userId,
+      },
+    });
+    if (!projectMember) {
+      throw new Error('No tienes permisos para eliminar esta asociación');
+    }
+
+    // Eliminar el proceso (esto también elimina la asociación con el proyecto)
+    await this.prisma.process.delete({
+      where: { id },
+    });
+
+    return `Proceso ${id} eliminado exitosamente`;
   }
 
   // ==================== PROJECT PERMISSIONS METHODS ====================

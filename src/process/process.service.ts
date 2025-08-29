@@ -222,6 +222,101 @@ export class ProcessService {
     return tasks.map(task => this.mapTask(task));
   }
 
+  async findTasksByTaskId(taskId: string): Promise<Task[]> {
+    // Esta query retorna la tarea específica con su proceso asociado
+    // Es útil para obtener información completa de una tarea y su proceso
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        user: true, // editor
+        process: true,
+        project_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      return [];
+    }
+
+    return [this.mapTask(task)];
+  }
+
+  async createProcessTask(idProcess: string, idTask: string, userId: string): Promise<string> {
+    // Verificar que el proceso existe
+    const process = await this.prisma.process.findUnique({
+      where: { id: idProcess },
+      include: { project: true },
+    });
+    if (!process) {
+      throw new BadRequestException('El proceso especificado no existe');
+    }
+
+    // Verificar que la tarea existe
+    const task = await this.prisma.task.findUnique({
+      where: { id: idTask },
+    });
+    if (!task) {
+      throw new BadRequestException('La tarea especificada no existe');
+    }
+
+    // Verificar que el usuario es miembro del proyecto
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: process.idproject,
+        iduser: userId,
+      },
+    });
+    if (!projectMember) {
+      throw new ForbiddenException('No tienes permisos para crear esta asociación');
+    }
+
+    // Actualizar la tarea para asociarla al proceso
+    await this.prisma.task.update({
+      where: { id: idTask },
+      data: {
+        idprocess: idProcess,
+        ideditor: userId,
+        editedat: new Date(),
+      },
+    });
+
+    return `Tarea ${idTask} asociada exitosamente al proceso ${idProcess}`;
+  }
+
+  async removeProcessTask(id: string, userId: string): Promise<string> {
+    // Verificar que la tarea existe
+    const task = await this.prisma.task.findUnique({
+      where: { id },
+      include: { process: { include: { project: true } } },
+    });
+    if (!task) {
+      throw new BadRequestException('La tarea especificada no existe');
+    }
+
+    // Verificar que el usuario es miembro del proyecto
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: task.process.idproject,
+        iduser: userId,
+      },
+    });
+    if (!projectMember) {
+      throw new ForbiddenException('No tienes permisos para eliminar esta asociación');
+    }
+
+    // Eliminar la tarea (esto también elimina la asociación con el proceso)
+    await this.prisma.task.delete({
+      where: { id },
+    });
+
+    return `Tarea ${id} eliminada exitosamente`;
+  }
+
   async createTask(createTaskInput: CreateTaskInput, editorId: string): Promise<Task> {
     // Validar que el proceso existe
     const process = await this.prisma.process.findUnique({
