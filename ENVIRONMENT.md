@@ -3,7 +3,10 @@
 ## Variables Requeridas
 
 ### Base de Datos
-- `DATABASE_URL`: URL de conexión a PostgreSQL (ej: postgresql://user:pass@host:port/db)
+- `DATABASE_URL`: URL de conexión a PostgreSQL Neon
+  ```
+  postgresql://username:password@host:port/database?sslmode=require
+  ```
 
 ### JWT
 - `JWT_SECRET`: Clave secreta para firmar tokens JWT
@@ -38,3 +41,10 @@ Para el deploy automático, necesitas configurar estos secrets en tu repositorio
 2. **ORG_ID y PROJECT_ID**:
    - Ve a tu proyecto en Vercel
    - En Settings > General, encontrarás estos IDs
+
+## ⚠️ IMPORTANTE - Seguridad
+
+- **NUNCA** pongas credenciales reales en archivos de código
+- **NUNCA** subas archivos .env con credenciales
+- **SIEMPRE** usa variables de entorno en Vercel
+- **SIEMPRE** usa GitHub Secrets para tokens

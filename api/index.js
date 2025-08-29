@@ -27,8 +27,13 @@ async function bootstrap() {
 }
 
 module.exports = async function handler(req, res) {
-  const app = await bootstrap();
-  const expressApp = app.getHttpAdapter().getInstance();
-  
-  return expressApp(req, res);
+  try {
+    const app = await bootstrap();
+    const expressApp = app.getHttpAdapter().getInstance();
+    
+    return expressApp(req, res);
+  } catch (error) {
+    console.error('Handler error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 };
