@@ -1,9 +1,9 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import express from 'express';
+const { NestFactory } = require('@nestjs/core');
+const { AppModule } = require('../src/app.module');
+const { ExpressAdapter } = require('@nestjs/platform-express');
+const express = require('express');
 
-let app: any;
+let app;
 
 async function bootstrap() {
   if (!app) {
@@ -26,9 +26,9 @@ async function bootstrap() {
   return app;
 }
 
-export default async function handler(req: any, res: any) {
+module.exports = async function handler(req, res) {
   const app = await bootstrap();
   const expressApp = app.getHttpAdapter().getInstance();
   
   return expressApp(req, res);
-}
+};
