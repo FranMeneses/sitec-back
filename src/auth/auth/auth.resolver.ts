@@ -2,8 +2,9 @@ import { Resolver, Mutation, Args, Query } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
-import { LoginInput, RegisterInput, AuthResponse } from '../dto/auth.dto';
+import { LoginInput, RegisterInput, AuthResponse, CreateUserInput, UpdateUserInput } from '../dto/auth.dto';
 import { User } from '../entities/user.entity';
+import { Project } from '../../project/entities/project.entity';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 
@@ -30,12 +31,43 @@ export class AuthResolver {
     return user;
   }
 
+  @Query(() => User)
+  @UseGuards(JwtAuthGuard)
+  async user(@Args('id') id: string): Promise<User> {
+    const user = await this.userService.findById(id);
+    if (!user) {
+      throw new Error(`User with ID ${id} not found`);
+    }
+    return user;
+  }
+
+  @Query(() => User)
+  @UseGuards(JwtAuthGuard)
+  async findUserByEmail(@Args('email') email: string): Promise<User> {
+    const user = await this.userService.findByEmail(email);
+    if (!user) {
+      throw new Error(`User with email ${email} not found`);
+    }
+    return user;
+  }
+
+  @Query(() => [Project])
+  @UseGuards(JwtAuthGuard)
+  async findUsersProject(@Args('idUser') idUser: string): Promise<Project[]> {
+    return this.userService.findUsersProject(idUser);
+  }
+
   @Query(() => [User])
   @UseGuards(JwtAuthGuard)
   async users(@CurrentUser() currentUser: User): Promise<User[]> {
-    // TODO: Agregar guard de admin cuando se implemente roles
-    // Por ahora, cualquier usuario autenticado puede ver esta lista (temporal)
-    return [];
+    // Verificar si el usuario es admin
+    const isUserAdmin = await this.userService.isAdmin(currentUser.id);
+    if (!isUserAdmin) {
+      throw new Error('Access denied. Only administrators can view all users.');
+    }
+    
+    // Obtener todos los usuarios
+    return this.userService.findAllUsers();
   }
 
   @Mutation(() => User)
@@ -47,5 +79,55 @@ export class AuthResolver {
     if (!name) return user;
     
     return this.userService.updateUser(user.id, { name });
+  }
+
+  @Mutation(() => User)
+  @UseGuards(JwtAuthGuard)
+  async createUser(
+    @Args('createUserInput') createUserInput: CreateUserInput,
+    @CurrentUser() currentUser: User,
+  ): Promise<User> {
+    // Verificar si el usuario actual es admin
+    const isUserAdmin = await this.userService.isAdmin(currentUser.id);
+    if (!isUserAdmin) {
+      throw new Error('Access denied. Only administrators can create users.');
+    }
+
+    return this.userService.createUser(createUserInput);
+  }
+
+  @Mutation(() => User)
+  @UseGuards(JwtAuthGuard)
+  async updateUser(
+    @Args('updateUserInput') updateUserInput: UpdateUserInput,
+    @CurrentUser() currentUser: User,
+  ): Promise<User> {
+    // Verificar si el usuario actual es admin
+    const isUserAdmin = await this.userService.isAdmin(currentUser.id);
+    if (!isUserAdmin) {
+      throw new Error('Access denied. Only administrators can update users.');
+    }
+
+    return this.userService.updateUser(updateUserInput.id, updateUserInput);
+  }
+
+  @Mutation(() => User)
+  @UseGuards(JwtAuthGuard)
+  async removeUser(
+    @Args('id') id: string,
+    @CurrentUser() currentUser: User,
+  ): Promise<User> {
+    // Verificar si el usuario actual es admin
+    const isUserAdmin = await this.userService.isAdmin(currentUser.id);
+    if (!isUserAdmin) {
+      throw new Error('Access denied. Only administrators can remove users.');
+    }
+
+    // Verificar que no se esté eliminando a sí mismo
+    if (id === currentUser.id) {
+      throw new Error('Cannot remove your own account.');
+    }
+
+    return this.userService.removeUser(id);
   }
 }

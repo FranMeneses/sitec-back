@@ -105,6 +105,15 @@ input CreateUnitMemberInput {
   iduser: String!
 }
 
+input CreateUserInput {
+  email: String!
+  havePassword: Boolean
+  idArea: String
+  idRole: String
+  name: String!
+  password: String
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -155,6 +164,7 @@ type Mutation {
   createRole(createRoleInput: CreateRoleInput!): Role!
   createTask(createTaskInput: CreateTaskInput!): Task!
   createUnit(createUnitInput: CreateUnitInput!): Unit!
+  createUser(createUserInput: CreateUserInput!): User!
   deleteComment(id: String!): Boolean!
   deleteEvidence(id: String!): Boolean!
   deleteProcess(id: String!): Boolean!
@@ -167,6 +177,7 @@ type Mutation {
   removeProjectMember(projectId: String!, userId: String!): Boolean!
   removeUnit(id: Int!): Unit!
   removeUnitMember(id: String!): UnitMember!
+  removeUser(id: String!): User!
   updateArea(updateAreaInput: UpdateAreaInput!): Area!
   updateComment(updateCommentInput: UpdateCommentInput!): Comment!
   updateEvidence(updateEvidenceInput: UpdateEvidenceInput!): Evidence!
@@ -177,6 +188,7 @@ type Mutation {
   updateTask(updateTaskInput: UpdateTaskInput!): Task!
   updateUnit(updateUnitInput: UpdateUnitInput!): Unit!
   updateUnitMember(updateUnitMemberInput: UpdateUnitMemberInput!): UnitMember!
+  updateUser(updateUserInput: UpdateUserInput!): User!
 }
 
 type Process {
@@ -229,6 +241,8 @@ type Query {
   evidence: [Evidence!]!
   evidenceById(id: String!): Evidence
   evidenceByTask(taskId: String!): [Evidence!]!
+  findUserByEmail(email: String!): User!
+  findUsersProject(idUser: String!): [Project!]!
   logs: [Logs!]!
   logsByProcess(processId: String!): [Logs!]!
   logsByProject(projectId: String!): [Logs!]!
@@ -251,6 +265,7 @@ type Query {
   unit(id: Int!): Unit!
   unitMembers(unitId: Int!): [UnitMember!]!
   units: [Unit!]!
+  user(id: String!): User!
   users: [User!]!
 }
 
@@ -367,6 +382,17 @@ input UpdateUnitMemberInput {
   idrole: Int
   idunit: Int
   iduser: String
+}
+
+input UpdateUserInput {
+  email: String
+  havePassword: Boolean
+  id: String!
+  idArea: String
+  idRole: String
+  isActive: Boolean
+  name: String
+  password: String
 }
 
 type User {

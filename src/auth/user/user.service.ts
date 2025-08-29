@@ -46,6 +46,8 @@ export class UserService {
     email: string;
     password?: string;
     havePassword?: boolean;
+    idRole?: string;
+    idArea?: string;
   }): Promise<User> {
     const hashedPassword = data.password 
       ? await bcrypt.hash(data.password, 12)
@@ -60,6 +62,12 @@ export class UserService {
         isactive: true,
       },
     });
+
+    // Si se especifica un rol, crear la relación unit_member
+    if (data.idRole) {
+      // TODO: Implementar lógica para asignar rol al usuario
+      // Por ahora solo creamos el usuario básico
+    }
 
     return {
       id: user.id,
@@ -86,6 +94,23 @@ export class UserService {
     const user = await this.prisma.user.update({
       where: { id },
       data: updateData,
+    });
+
+    return {
+      id: user.id,
+      name: user.name || '',
+      email: user.email,
+      password: user.password || undefined,
+      isActive: user.isactive ?? true,
+      havePassword: user.havepassword ?? false,
+    };
+  }
+
+  async removeUser(id: string): Promise<User> {
+    // Soft delete: marcar como inactivo en lugar de eliminar físicamente
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: { isactive: false }
     });
 
     return {
@@ -161,5 +186,58 @@ export class UserService {
         });
       }
     }
+  }
+
+  async findUsersProject(idUser: string): Promise<any[]> {
+    // Obtener proyectos donde el usuario es miembro
+    const projectMembers = await this.prisma.project_member.findMany({
+      where: { iduser: idUser },
+      include: {
+        project: {
+          include: {
+            unit: true,
+            category: true,
+            user: true // editor del proyecto
+          }
+        }
+      }
+    });
+
+    // Obtener proyectos donde el usuario es editor
+    const editedProjects = await this.prisma.project.findMany({
+      where: { ideditor: idUser },
+      include: {
+        unit: true,
+        category: true,
+        user: true // editor del proyecto
+      }
+    });
+
+    // Combinar y eliminar duplicados
+    const allProjects = [
+      ...projectMembers.map(pm => pm.project).filter(Boolean), 
+      ...editedProjects
+    ];
+    const uniqueProjects = allProjects.filter((project, index, self) => 
+      project && index === self.findIndex(p => p && p.id === project.id)
+    );
+
+    return uniqueProjects;
+  }
+
+  async findAllUsers(): Promise<User[]> {
+    const users = await this.prisma.user.findMany({
+      where: { isactive: true }, // Solo usuarios activos
+      orderBy: { name: 'asc' }
+    });
+
+    return users.map(user => ({
+      id: user.id,
+      name: user.name || '',
+      email: user.email,
+      password: user.password || undefined,
+      isActive: user.isactive ?? true,
+      havePassword: user.havepassword ?? false,
+    }));
   }
 }
