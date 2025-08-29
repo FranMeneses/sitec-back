@@ -166,6 +166,131 @@ export class ProjectService {
     return true;
   }
 
+  async findUnitProjects(unitId: number): Promise<Project[]> {
+    const projects = await this.prisma.project.findMany({
+      where: { idunit: unitId },
+      include: {
+        user: true, // editor
+        category: true,
+        unit: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return projects.map(project => this.mapProject(project));
+  }
+
+  async findAreaProjects(areaId: number): Promise<Project[]> {
+    // Los proyectos se relacionan con áreas a través de las categorías
+    const projects = await this.prisma.project.findMany({
+      where: {
+        category: {
+          id_area: areaId
+        }
+      },
+      include: {
+        user: true, // editor
+        category: true,
+        unit: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return projects.map(project => this.mapProject(project));
+  }
+
+  async getProjectProcesses(projectId: string): Promise<any[]> {
+    // Obtener procesos del proyecto
+    const processes = await this.prisma.process.findMany({
+      where: { idproject: projectId },
+      include: {
+        user: true, // editor
+        project: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return processes.map(process => ({
+      id: process.id,
+      name: process.name || '',
+      description: process.description,
+      startDate: process.startdate,
+      dueDate: process.duedate,
+      editedAt: process.editedat,
+      editor: process.user ? {
+        id: process.user.id,
+        name: process.user.name || '',
+        email: process.user.email,
+        password: process.user.password || undefined,
+        isActive: process.user.isactive ?? true,
+        havePassword: process.user.havepassword ?? false,
+      } : undefined,
+      projectId: process.idproject,
+    }));
+  }
+
+  async getProjectTasks(projectId: string): Promise<any[]> {
+    // Obtener tareas del proyecto a través de los procesos
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        process: {
+          idproject: projectId
+        }
+      },
+      include: {
+        user: true, // editor
+        process: true,
+        project_member: {
+          include: {
+            user: true,
+            role: true
+          }
+        }
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return tasks.map(task => ({
+      id: task.id,
+      name: task.name || '',
+      description: task.description,
+      startDate: task.startdate,
+      dueDate: task.duedateat,
+      status: task.status,
+      editedAt: task.editedat,
+      report: task.report,
+      editor: task.user ? {
+        id: task.user.id,
+        name: task.user.name || '',
+        email: task.user.email,
+        password: task.user.password || undefined,
+        isActive: task.user.isactive ?? true,
+        havePassword: task.user.havepassword ?? false,
+      } : undefined,
+      processId: task.idprocess,
+      memberId: task.idmember,
+      member: task.project_member ? {
+        id: task.project_member.id,
+        userId: task.project_member.iduser,
+        projectId: task.project_member.idproject,
+        roleId: task.project_member.idrole,
+        user: task.project_member.user ? {
+          id: task.project_member.user.id,
+          name: task.project_member.user.name || '',
+          email: task.project_member.user.email,
+          password: task.project_member.user.password || undefined,
+          isActive: task.project_member.user.isactive ?? true,
+          havePassword: task.project_member.user.havepassword ?? false,
+        } : undefined,
+        role: task.project_member.role ? {
+          id: task.project_member.role.id,
+          name: task.project_member.role.name || '',
+          description: undefined,
+        } : undefined,
+      } : undefined,
+    }));
+  }
+
   // ==================== PROJECT PERMISSIONS METHODS ====================
 
   async isProjectAdmin(projectId: string, userId: string): Promise<boolean> {
@@ -281,6 +406,54 @@ export class ProjectService {
     });
 
     return true;
+  }
+
+  async updateProjectMember(updateProjectMemberInput: { id: string; idRole: number }, requestUserId: string): Promise<ProjectMember> {
+    // Verificar que el miembro existe
+    const member = await this.prisma.project_member.findUnique({
+      where: { id: updateProjectMemberInput.id },
+      include: {
+        user: true,
+        role: true,
+        project: true,
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Miembro del proyecto no encontrado');
+    }
+
+    // Verificar que el miembro tiene un proyecto asociado
+    if (!member.idproject) {
+      throw new BadRequestException('El miembro no tiene un proyecto asociado');
+    }
+
+    // Verificar que el usuario solicitante es admin del proyecto
+    const isAdmin = await this.isProjectAdmin(member.idproject, requestUserId);
+    if (!isAdmin) {
+      throw new ForbiddenException('Solo los administradores del proyecto pueden actualizar miembros');
+    }
+
+    // Verificar que el rol existe
+    const role = await this.prisma.role.findUnique({
+      where: { id: updateProjectMemberInput.idRole },
+    });
+    if (!role) {
+      throw new NotFoundException('Rol no encontrado');
+    }
+
+    // Actualizar el rol del miembro
+    const updatedMember = await this.prisma.project_member.update({
+      where: { id: updateProjectMemberInput.id },
+      data: { idrole: updateProjectMemberInput.idRole },
+      include: {
+        user: true,
+        role: true,
+        project: true,
+      },
+    });
+
+    return this.mapProjectMember(updatedMember);
   }
 
   // ==================== HELPER METHODS ====================

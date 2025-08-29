@@ -3,10 +3,12 @@ import { UseGuards } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { Project } from '../entities/project.entity';
 import { ProjectMember } from '../entities/project-member.entity';
-import { CreateProjectInput, UpdateProjectInput, AddProjectMemberInput } from '../dto/project.dto';
+import { CreateProjectInput, UpdateProjectInput, AddProjectMemberInput, UpdateProjectMemberInput } from '../dto/project.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../auth/entities/user.entity';
+import { Process } from '../../process/entities/process.entity';
+import { Task } from '../../process/entities/task.entity';
 
 @Resolver(() => Project)
 export class ProjectResolver {
@@ -28,6 +30,30 @@ export class ProjectResolver {
   @UseGuards(JwtAuthGuard)
   async projectMembers(@Args('projectId') projectId: string): Promise<ProjectMember[]> {
     return this.projectService.getProjectMembers(projectId);
+  }
+
+  @Query(() => [Project])
+  @UseGuards(JwtAuthGuard)
+  async findUnitProjects(@Args('idUnit') idUnit: number): Promise<Project[]> {
+    return this.projectService.findUnitProjects(idUnit);
+  }
+
+  @Query(() => [Project])
+  @UseGuards(JwtAuthGuard)
+  async findAreaProjects(@Args('idArea') idArea: number): Promise<Project[]> {
+    return this.projectService.findAreaProjects(idArea);
+  }
+
+  @Query(() => [Process])
+  @UseGuards(JwtAuthGuard)
+  async projectProcessesByProjectId(@Args('idProject') idProject: string): Promise<Process[]> {
+    return this.projectService.getProjectProcesses(idProject);
+  }
+
+  @Query(() => [Task])
+  @UseGuards(JwtAuthGuard)
+  async tasksByProjectId(@Args('idProject') idProject: string): Promise<Task[]> {
+    return this.projectService.getProjectTasks(idProject);
   }
 
   @Mutation(() => Project)
@@ -74,5 +100,14 @@ export class ProjectResolver {
     @CurrentUser() user: User,
   ): Promise<boolean> {
     return this.projectService.removeProjectMember(projectId, userId, user.id);
+  }
+
+  @Mutation(() => ProjectMember)
+  @UseGuards(JwtAuthGuard)
+  async updateProjectMember(
+    @Args('updateProjectMemberInput') updateProjectMemberInput: UpdateProjectMemberInput,
+    @CurrentUser() user: User,
+  ): Promise<ProjectMember> {
+    return this.projectService.updateProjectMember(updateProjectMemberInput, user.id);
   }
 }

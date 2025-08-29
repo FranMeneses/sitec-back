@@ -184,6 +184,7 @@ type Mutation {
   updateProcess(updateProcessInput: UpdateProcessInput!): Process!
   updateProfile(name: String): User!
   updateProject(updateProjectInput: UpdateProjectInput!): Project!
+  updateProjectMember(updateProjectMemberInput: UpdateProjectMemberInput!): ProjectMember!
   updateRole(updateRoleInput: UpdateRoleInput!): Role!
   updateTask(updateTaskInput: UpdateTaskInput!): Task!
   updateUnit(updateUnitInput: UpdateUnitInput!): Unit!
@@ -241,6 +242,8 @@ type Query {
   evidence: [Evidence!]!
   evidenceById(id: String!): Evidence
   evidenceByTask(taskId: String!): [Evidence!]!
+  findAreaProjects(idArea: Float!): [Project!]!
+  findUnitProjects(idUnit: Float!): [Project!]!
   findUserByEmail(email: String!): User!
   findUsersProject(idUser: String!): [Project!]!
   logs: [Logs!]!
@@ -254,12 +257,14 @@ type Query {
   processesByProject(projectId: String!): [Process!]!
   project(id: String!): Project
   projectMembers(projectId: String!): [ProjectMember!]!
+  projectProcessesByProjectId(idProject: String!): [Process!]!
   projects: [Project!]!
   role(id: Int!): Role
   roles: [Role!]!
   task(id: String!): Task
   tasks: [Task!]!
   tasksByProcess(processId: String!): [Task!]!
+  tasksByProjectId(idProject: String!): [Task!]!
   type(id: Int!): Type!
   types: [Type!]!
   unit(id: Int!): Unit!
@@ -352,6 +357,11 @@ input UpdateProjectInput {
   name: String
   startDate: String
   unitId: Int
+}
+
+input UpdateProjectMemberInput {
+  id: String!
+  idRole: Int!
 }
 
 input UpdateRoleInput {

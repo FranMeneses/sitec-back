@@ -85,3 +85,14 @@ export class AddProjectMemberInput {
   @IsInt()
   roleId: number;
 }
+
+@InputType()
+export class UpdateProjectMemberInput {
+  @Field()
+  @IsString()
+  id: string;
+
+  @Field(() => Int)
+  @IsInt()
+  idRole: number;
+}
