@@ -15,8 +15,13 @@
 ### CORS
 - `ALLOWED_ORIGINS`: URLs permitidas para CORS (separadas por coma)
   ```
-  https://tudominio.com,https://www.tudominio.com
+  https://frontsanpedro.vercel.app,https://tudominio.com,https://www.tudominio.com
   ```
+  
+  **Nota**: Si no se especifica esta variable, se usará por defecto:
+  - `https://frontsanpedro.vercel.app` (frontend en Vercel)
+  - `http://localhost:3000` (desarrollo local)
+  - `http://localhost:5173` (otros dev servers)
 
 ### Google OAuth (si usas autenticación con Google)
 - `GOOGLE_CLIENT_ID`: ID del cliente de Google OAuth

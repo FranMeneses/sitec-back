@@ -76,7 +76,7 @@ Este proyecto está configurado para desplegar en [Render](https://render.com), 
    - **Name**: `sitec-back` (o el nombre que prefieras)
    - **Environment**: `Node`
    - **Build Command**: `npm install && npm run prisma:generate && npm run build`
-   - **Start Command**: `npm run start:prod`
+   - **Start Command**: `npm run start:prod` ⚠️ **IMPORTANTE**: No usar `npm run start`
 
 4. **Variables de entorno** (configurarlas en Render):
    ```
@@ -84,8 +84,10 @@ Este proyecto está configurado para desplegar en [Render](https://render.com), 
    PORT=10000
    DATABASE_URL=tu_url_de_base_de_datos
    JWT_SECRET=tu_clave_secreta_jwt
-   ALLOWED_ORIGINS=https://tudominio.com,https://www.tudominio.com
+   ALLOWED_ORIGINS=https://frontsanpedro.vercel.app
    ```
+   
+   **Nota**: Si no configuras `ALLOWED_ORIGINS`, se usará por defecto la URL del frontend.
 
 5. **Desplegar**: Haz click en "Create Web Service"
 
