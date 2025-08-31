@@ -4,25 +4,19 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // Configurar CORS para Vercel
+  // Configurar CORS para producción
   app.enableCors({
-    origin: true,
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || true,
     credentials: true,
   });
   
-  // Configurar el puerto para Vercel
+  // Configurar el puerto para Render
   const port = process.env.PORT || 4000;
   
-  // Solo escuchar en desarrollo local
-  if (process.env.NODE_ENV !== 'production') {
-    await app.listen(port);
-    console.log(`Application is running on: http://localhost:${port}`);
-  }
+  await app.listen(port);
+  console.log(`Application is running on port: ${port}`);
   
   return app;
 }
 
-// Para Vercel serverless
-const app = bootstrap();
-
-export default app;
+bootstrap();

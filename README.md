@@ -59,16 +59,57 @@ $ npm run test:cov
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Render (Recomendado)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Este proyecto está configurado para desplegar en [Render](https://render.com), una plataforma que soporta Node.js de forma nativa.
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+#### Pasos para desplegar en Render:
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+1. **Crear cuenta en Render**: Ve a [render.com](https://render.com) y crea una cuenta
+
+2. **Conectar tu repositorio**: 
+   - Haz push de tu código a GitHub
+   - En Render, crea un nuevo "Web Service"
+   - Conecta tu repositorio
+
+3. **Configurar el servicio**:
+   - **Name**: `sitec-back` (o el nombre que prefieras)
+   - **Environment**: `Node`
+   - **Build Command**: `npm install && npm run prisma:generate && npm run build`
+   - **Start Command**: `npm run start:prod`
+
+4. **Variables de entorno** (configurarlas en Render):
+   ```
+   NODE_ENV=production
+   PORT=10000
+   DATABASE_URL=tu_url_de_base_de_datos
+   JWT_SECRET=tu_clave_secreta_jwt
+   ALLOWED_ORIGINS=https://tudominio.com,https://www.tudominio.com
+   ```
+
+5. **Desplegar**: Haz click en "Create Web Service"
+
+#### Despliegue automático con GitHub Actions
+
+Este proyecto incluye un workflow de GitHub Actions que despliega automáticamente a Render cada vez que haces push a la rama `main` o `master`.
+
+**Configurar secrets en GitHub** (Settings > Secrets and variables > Actions):
+
+- `RENDER_API_KEY`: Tu API key de Render
+- `RENDER_SERVICE_ID`: El ID de tu servicio en Render
+
+**Para obtener estos valores**:
+- **RENDER_API_KEY**: Ve a tu perfil en Render > Account Settings > API Keys
+- **RENDER_SERVICE_ID**: En tu servicio de Render, ve a Settings > General > Service ID
+
+#### Notas importantes:
+- Asegúrate de que tu base de datos esté accesible desde Render
+- El puerto se configura automáticamente por Render
+- Las migraciones de Prisma se ejecutan automáticamente durante el build
+
+### Otros métodos de despliegue
+
+Para otras plataformas, consulta la [documentación de despliegue de NestJS](https://docs.nestjs.com/deployment).
 
 ## Resources
 
