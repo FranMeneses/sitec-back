@@ -281,6 +281,7 @@ type Query {
   logsByProject(projectId: String!): [Logs!]!
   logsByTask(taskId: String!): [Logs!]!
   me: User!
+  myAreaTypes: [Type!]!
   myRoles: [Role!]!
   process(id: String!): Process
   processes: [Process!]!

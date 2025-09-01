@@ -65,8 +65,8 @@ export class OrganizationResolver {
   }
 
   @Query(() => [Unit], { name: 'units' })
-  async findAllUnits() {
-    return this.organizationService.findAllUnits();
+  async findAllUnits(@CurrentUser() currentUser: User) {
+    return this.organizationService.findAllUnits(currentUser);
   }
 
   @Query(() => Unit, { name: 'unit' })
@@ -130,8 +130,13 @@ export class OrganizationResolver {
   }
 
   @Query(() => [Type], { name: 'types' })
-  async findAllTypes() {
-    return this.organizationService.findAllTypes();
+  async findAllTypes(@CurrentUser() currentUser: User) {
+    return this.organizationService.findAllTypes(currentUser);
+  }
+
+  @Query(() => [Type], { name: 'myAreaTypes' })
+  async getMyAreaTypes(@CurrentUser() currentUser: User) {
+    return this.organizationService.getMyAreaTypes(currentUser);
   }
 
   @Query(() => Type, { name: 'type' })
@@ -173,4 +178,6 @@ export class OrganizationResolver {
   ) {
     return this.organizationService.removeAdmin(id, currentUser);
   }
+
+
 }

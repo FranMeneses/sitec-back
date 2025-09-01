@@ -98,6 +98,23 @@ export class OrganizationService {
       throw new ForbiddenException('Solo los administradores pueden crear unidades');
     }
 
+    // Obtener el área del admin
+    const adminArea = await this.getAdminArea(currentUser.id);
+    if (!adminArea) {
+      throw new ForbiddenException('Admin no asociado a ningún área');
+    }
+
+    // Verificar que el tipo de unidad existe
+    if (createUnitInput.idtype) {
+      const type = await this.prisma.type.findUnique({
+        where: { id: createUnitInput.idtype }
+      });
+
+      if (!type) {
+        throw new NotFoundException(`Tipo con ID ${createUnitInput.idtype} no encontrado`);
+      }
+    }
+
     return this.prisma.unit.create({
       data: {
         name: createUnitInput.name,
@@ -111,8 +128,55 @@ export class OrganizationService {
     });
   }
 
-  async findAllUnits() {
+  async findAllUnits(currentUser?: User) {
+    // Si no hay usuario o no es admin, mostrar todas las unidades
+    if (!currentUser) {
+      return this.prisma.unit.findMany({
+        include: {
+          type: true,
+          project: true,
+          unit_member: true,
+        },
+      });
+    }
+
+    // Verificar si el usuario es admin
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      // Si no es admin, mostrar solo las unidades donde es miembro
+      return this.prisma.unit.findMany({
+        where: {
+          unit_member: {
+            some: {
+              iduser: currentUser.id
+            }
+          }
+        },
+        include: {
+          type: true,
+          project: true,
+          unit_member: true,
+        },
+      });
+    }
+
+    // Si es admin, mostrar solo las unidades de su área
+    const adminArea = await this.getAdminArea(currentUser.id);
+    if (!adminArea) {
+      throw new ForbiddenException('Admin no asociado a ningún área');
+    }
+
+    // Obtener unidades que pertenecen a proyectos de la categoría del área del admin
     return this.prisma.unit.findMany({
+      where: {
+        project: {
+          some: {
+            category: {
+              id_area: adminArea
+            }
+          }
+        }
+      },
       include: {
         type: true,
         project: true,
@@ -292,8 +356,53 @@ export class OrganizationService {
   }
 
   // ===== TYPE METHODS =====
-  async findAllTypes() {
-    return this.prisma.type.findMany();
+  async findAllTypes(currentUser?: User) {
+    // Si no hay usuario, mostrar todos los tipos
+    if (!currentUser) {
+      return this.prisma.type.findMany();
+    }
+
+    // Verificar si el usuario es admin
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      // Si no es admin, mostrar todos los tipos
+      return this.prisma.type.findMany();
+    }
+
+    // Si es admin, mostrar solo los tipos que están siendo usados en su área
+    const adminArea = await this.getAdminArea(currentUser.id);
+    if (!adminArea) {
+      throw new ForbiddenException('Admin no asociado a ningún área');
+    }
+
+    // Obtener tipos que están siendo usados por unidades de proyectos de la categoría del área del admin
+    // También incluir tipos que no están siendo usados (para que pueda crear nuevas unidades con nuevos tipos)
+    const typesInUse = await this.prisma.type.findMany({
+      where: {
+        unit: {
+          some: {
+            project: {
+              some: {
+                category: {
+                  id_area: adminArea
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Obtener todos los tipos para que el admin pueda crear nuevas unidades con tipos existentes
+    const allTypes = await this.prisma.type.findMany();
+    
+    // Combinar y eliminar duplicados
+    const combinedTypes = [...typesInUse, ...allTypes];
+    const uniqueTypes = combinedTypes.filter((type, index, self) => 
+      index === self.findIndex(t => t.id === type.id)
+    );
+
+    return uniqueTypes;
   }
 
   async findTypeById(id: number) {
@@ -315,6 +424,22 @@ export class OrganizationService {
       throw new ForbiddenException('Solo los administradores pueden crear tipos');
     }
 
+    // Obtener el área del admin
+    const adminArea = await this.getAdminArea(currentUser.id);
+    if (!adminArea) {
+      throw new ForbiddenException('Admin no asociado a ningún área');
+    }
+
+    // Verificar que el nombre del tipo no exista ya
+    const existingType = await this.prisma.type.findUnique({
+      where: { name: createTypeInput.name }
+    });
+
+    if (existingType) {
+      throw new ForbiddenException('Ya existe un tipo con ese nombre');
+    }
+
+    // Crear el tipo (los tipos son globales pero se usan en unidades del área del admin)
     return this.prisma.type.create({
       data: {
         name: createTypeInput.name,
@@ -495,5 +620,58 @@ export class OrganizationService {
     });
 
     return `Administrador con ID ${id} eliminado exitosamente`;
+  }
+
+  // ===== HELPER METHODS FOR ADMIN AREA =====
+  private async getAdminArea(userId: string): Promise<number | null> {
+    // Obtener el área del admin
+    const adminRecord = await this.prisma.admin.findFirst({
+      where: { iduser: userId },
+      select: { idarea: true }
+    });
+
+    return adminRecord?.idarea || null;
+  }
+
+  private async isAdminOfArea(userId: string, areaId: number): Promise<boolean> {
+    // Verificar si el usuario es admin de un área específica
+    const adminRecord = await this.prisma.admin.findFirst({
+      where: { 
+        iduser: userId,
+        idarea: areaId
+      }
+    });
+
+    return !!adminRecord;
+  }
+
+  // ===== AREA-SPECIFIC TYPE METHODS =====
+  async getTypesByArea(areaId: number): Promise<any[]> {
+    // Obtener tipos que están siendo usados en unidades de proyectos de una área específica
+    return this.prisma.type.findMany({
+      where: {
+        unit: {
+          some: {
+            project: {
+              some: {
+                category: {
+                  id_area: areaId
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  async getMyAreaTypes(currentUser: User): Promise<any[]> {
+    // Obtener tipos del área del admin actual
+    const adminArea = await this.getAdminArea(currentUser.id);
+    if (!adminArea) {
+      throw new ForbiddenException('Admin no asociado a ningún área');
+    }
+
+    return this.getTypesByArea(adminArea);
   }
 }
