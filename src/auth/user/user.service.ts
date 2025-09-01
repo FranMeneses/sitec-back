@@ -128,7 +128,7 @@ export class UserService {
   }
 
   async isValidUCNEmail(email: string): Promise<boolean> {
-    const validDomains = ['@alumno.ucn.cl', '@ce.ucn.cl', '@ucn.cl'];
+    const validDomains = ['@alumnos.ucn.cl', '@ce.ucn.cl', '@ucn.cl'];
     return validDomains.some(domain => email.endsWith(domain));
   }
 

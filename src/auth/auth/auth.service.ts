@@ -54,7 +54,7 @@ export class AuthService {
     // Validar dominio UCN
     const isValidEmail = await this.userService.isValidUCNEmail(registerInput.email);
     if (!isValidEmail) {
-      throw new BadRequestException('Solo se permiten correos de dominios UCN (@alumno.ucn.cl, @ce.ucn.cl, @ucn.cl)');
+      throw new BadRequestException('Solo se permiten correos de dominios UCN (@alumnos.ucn.cl, @ce.ucn.cl, @ucn.cl)');
     }
 
     // Verificar si el usuario ya existe
