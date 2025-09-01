@@ -9,10 +9,12 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RoleService } from './role/role.service';
 import { RoleResolver } from './role/role.resolver';
+import { SystemRoleModule } from './system-role/system-role.module';
 
 @Module({
   imports: [
     PassportModule,
+    SystemRoleModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

@@ -38,12 +38,15 @@ export class AuthService {
       throw new UnauthorizedException('Usuario inactivo');
     }
 
+    // Obtener usuario con roles para incluir en la respuesta
+    const userWithRoles = await this.userService.findByIdWithRoles(user.id);
+    
     const payload = { sub: user.id, email: user.email };
     const accessToken = this.jwtService.sign(payload);
 
     return {
       accessToken,
-      user,
+      user: userWithRoles, // Incluye roles del sistema
     };
   }
 
@@ -71,17 +74,20 @@ export class AuthService {
       havePassword: true,
     });
 
+    // Obtener usuario con roles para incluir en la respuesta
+    const userWithRoles = await this.userService.findByIdWithRoles(user.id);
+
     // Generar token
     const payload = { sub: user.id, email: user.email };
     const accessToken = this.jwtService.sign(payload);
 
     return {
       accessToken,
-      user,
+      user: userWithRoles, // Incluye roles del sistema
     };
   }
 
-  async validateGoogleUser(profile: any): Promise<User> {
+  async validateGoogleUser(profile: any): Promise<any> {
     const email = profile.emails[0].value;
     
     // Validar dominio UCN
@@ -102,10 +108,11 @@ export class AuthService {
       });
     }
 
-    return user;
+    // Retornar usuario con roles
+    return await this.userService.findByIdWithRoles(user.id);
   }
 
-  async generateJwtToken(user: User): Promise<string> {
+  async generateJwtToken(user: User | any): Promise<string> {
     const payload = { sub: user.id, email: user.email };
     return this.jwtService.sign(payload);
   }

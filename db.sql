@@ -117,3 +117,32 @@ CREATE TABLE comment (
     id_user UUID REFERENCES "user"(id) NOT NULL,
     id_task UUID REFERENCES task(id) NOT NULL
 );
+
+CREATE TABLE process_member (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    idprocess UUID NOT NULL REFERENCES process(id) ON DELETE CASCADE,
+    iduser UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    idrole Int NOT NULL REFERENCES role(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(idprocess, iduser)
+);
+
+CREATE TABLE task_member (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    idtask UUID NOT NULL REFERENCES task(id) ON DELETE CASCADE,
+    iduser UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    idrole Int NOT NULL REFERENCES role(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(idtask, iduser)
+);
+
+CREATE TABLE system_role (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    role_id Int NOT NULL REFERENCES role(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(user_id)
+);

@@ -168,6 +168,7 @@ type Mutation {
   createArea(createAreaInput: CreateAreaInput!): Area!
   createComment(createCommentInput: CreateCommentInput!): Comment!
   createEvidence(createEvidenceInput: CreateEvidenceInput!): Evidence!
+  createFirstSuperAdmin(email: String!, name: String!, password: String!): AuthResponse!
   createLog(createLogInput: CreateLogInput!): Logs!
   createProcess(createProcessInput: CreateProcessInput!): Process!
   createProcessTask(idProcess: String!, idTask: String!): String!
@@ -195,6 +196,7 @@ type Mutation {
   removeUnit(id: Int!): Unit!
   removeUnitMember(id: String!): UnitMember!
   removeUser(id: String!): User!
+  removeUserSystemRole(userId: String!): SuccessResponse!
   updateArea(updateAreaInput: UpdateAreaInput!): Area!
   updateComment(updateCommentInput: UpdateCommentInput!): Comment!
   updateEvidence(updateEvidenceInput: UpdateEvidenceInput!): Evidence!
@@ -207,6 +209,7 @@ type Mutation {
   updateUnit(updateUnitInput: UpdateUnitInput!): Unit!
   updateUnitMember(updateUnitMemberInput: UpdateUnitMemberInput!): UnitMember!
   updateUser(updateUserInput: UpdateUserInput!): User!
+  updateUserSystemRole(roleId: Float!, userId: String!): SuccessResponse!
 }
 
 type Process {
@@ -255,6 +258,7 @@ type Query {
   admins: [Admin!]!
   area(id: Int!): Area!
   areas: [Area!]!
+  checkSuperAdminExists: Boolean!
   commentById(id: String!): Comment
   comments: [Comment!]!
   commentsByTask(taskId: String!): [Comment!]!
@@ -270,6 +274,8 @@ type Query {
   findUnitProjects(idUnit: Float!): [Project!]!
   findUserByEmail(email: String!): User!
   findUsersProject(idUser: String!): [Project!]!
+  getAllSystemRoles: [SystemRoleResponse!]!
+  getUserSystemRole(userId: String!): SystemRoleResponse
   logs: [Logs!]!
   logsByProcess(processId: String!): [Logs!]!
   logsByProject(projectId: String!): [Logs!]!
@@ -312,6 +318,24 @@ type Role {
   id: Int!
   name: String!
   updatedAt: DateTime!
+}
+
+type RoleInfo {
+  id: Int!
+  name: String!
+}
+
+type SuccessResponse {
+  message: String!
+  success: Boolean!
+}
+
+type SystemRoleResponse {
+  email: String!
+  id: String!
+  isActive: Boolean!
+  name: String!
+  role: RoleInfo!
 }
 
 type Task {

@@ -47,18 +47,19 @@ model logs {
 }
 
 model process {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String?   @db.VarChar
-  description String?   @db.VarChar
-  startdate   DateTime? @db.Timestamp(6)
-  duedate     DateTime? @db.Timestamp(6)
-  editedat    DateTime? @db.Timestamp(6)
-  ideditor    String?   @db.Uuid
-  idproject   String?   @db.Uuid
-  logs        logs[]
-  user        user?     @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  project     project?  @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  task        task[]
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String?          @db.VarChar
+  description    String?          @db.VarChar
+  startdate      DateTime?        @db.Timestamp(6)
+  duedate        DateTime?        @db.Timestamp(6)
+  editedat       DateTime?        @db.Timestamp(6)
+  ideditor       String?          @db.Uuid
+  idproject      String?          @db.Uuid
+  logs           logs[]
+  user           user?            @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project        project?         @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  process_member process_member[]
+  task           task[]
 }
 
 model project {
@@ -93,7 +94,10 @@ model project_member {
 model role {
   id             Int              @id @default(autoincrement())
   name           String?          @db.VarChar
+  process_member process_member[]
   project_member project_member[]
+  system_role    system_role[]
+  task_member    task_member[]
   unit_member    unit_member[]
 }
 
@@ -115,6 +119,7 @@ model task {
   user           user?           @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
   project_member project_member? @relation(fields: [idmember], references: [id], onDelete: NoAction, onUpdate: NoAction)
   process        process         @relation(fields: [idprocess], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task_member    task_member[]
 }
 
 model type {
@@ -154,9 +159,12 @@ model user {
   evidence       evidence[]
   logs           logs[]
   process        process[]
+  process_member process_member[]
   project        project[]
   project_member project_member[]
+  system_role    system_role?
   task           task[]
+  task_member    task_member[]
   unit_member    unit_member[]
 }
 
@@ -177,4 +185,39 @@ model comment {
   id_task    String    @db.Uuid
   task       task      @relation(fields: [id_task], references: [id], onDelete: NoAction, onUpdate: NoAction)
   user       user      @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model process_member {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  idprocess   String    @db.Uuid
+  iduser      String    @db.Uuid
+  idrole      Int
+  assigned_at DateTime? @default(now()) @db.Timestamp(6)
+  process     process   @relation(fields: [idprocess], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role        role      @relation(fields: [idrole], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user        user      @relation(fields: [iduser], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([idprocess, iduser])
+}
+
+model task_member {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  idtask      String    @db.Uuid
+  iduser      String    @db.Uuid
+  idrole      Int
+  assigned_at DateTime? @default(now()) @db.Timestamp(6)
+  role        role      @relation(fields: [idrole], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  task        task      @relation(fields: [idtask], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user        user      @relation(fields: [iduser], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([idtask, iduser])
+}
+
+model system_role {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @unique @db.Uuid
+  role_id    Int
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  role       role      @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       user      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }

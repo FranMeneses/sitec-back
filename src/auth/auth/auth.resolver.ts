@@ -25,6 +25,33 @@ export class AuthResolver {
     return this.authService.register(registerInput);
   }
 
+  @Mutation(() => AuthResponse)
+  async createFirstSuperAdmin(
+    @Args('name') name: string,
+    @Args('email') email: string,
+    @Args('password') password: string,
+  ): Promise<AuthResponse> {
+    // Crear el primer super_admin
+    const user = await this.userService.createSuperAdmin({
+      name,
+      email,
+      password,
+    });
+
+    // Generar token
+    const accessToken = await this.authService.generateJwtToken(user);
+
+    return {
+      accessToken,
+      user,
+    };
+  }
+
+  @Query(() => Boolean)
+  async checkSuperAdminExists(): Promise<boolean> {
+    return this.userService.checkSuperAdminExists();
+  }
+
   @Query(() => User)
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() user: User): Promise<User> {

@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { User } from '../entities/user.entity';
+import { SystemRoleService } from '../system-role/system-role.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private systemRoleService: SystemRoleService,
+  ) {}
 
   async findByEmail(email: string): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
@@ -41,6 +45,31 @@ export class UserService {
     };
   }
 
+  async findByIdWithRoles(id: string): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        system_role: {
+          include: {
+            role: true
+          }
+        }
+      }
+    });
+    
+    if (!user) return null;
+    
+    return {
+      id: user.id,
+      name: user.name || '',
+      email: user.email,
+      password: user.password || undefined,
+      isActive: user.isactive ?? true,
+      havePassword: user.havepassword ?? false,
+      roles: user.system_role ? [user.system_role.role] : []
+    };
+  }
+
   async createUser(data: {
     name: string;
     email: string;
@@ -63,10 +92,13 @@ export class UserService {
       },
     });
 
-    // Si se especifica un rol, crear la relación unit_member
-    if (data.idRole) {
-      // TODO: Implementar lógica para asignar rol al usuario
-      // Por ahora solo creamos el usuario básico
+    // Asignar automáticamente el rol "user" al usuario
+    try {
+      await this.systemRoleService.assignDefaultRole(user.id);
+    } catch (error) {
+      // Si falla la asignación del rol, eliminar el usuario creado
+      await this.prisma.user.delete({ where: { id: user.id } });
+      throw new Error(`Error al crear usuario: ${error.message}`);
     }
 
     return {
@@ -123,6 +155,55 @@ export class UserService {
     };
   }
 
+  async createSuperAdmin(data: {
+    name: string;
+    email: string;
+    password: string;
+  }): Promise<User> {
+    // Verificar que no exista otro super_admin
+    const existingSuperAdmin = await this.prisma.system_role.findFirst({
+      where: {
+        role: { name: 'super_admin' }
+      }
+    });
+
+    if (existingSuperAdmin) {
+      throw new Error('Ya existe un super_admin en el sistema');
+    }
+
+    // Crear el usuario
+    const user = await this.createUser({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      havePassword: true,
+    });
+
+    // Asignar rol super_admin
+    const superAdminRole = await this.prisma.role.findFirst({
+      where: { name: 'super_admin' }
+    });
+
+    if (!superAdminRole) {
+      throw new Error('Rol super_admin no encontrado');
+    }
+
+    // Actualizar el system_role del usuario a super_admin
+    await this.systemRoleService.updateUserSystemRole(user.id, superAdminRole.id);
+
+    return user;
+  }
+
+  async checkSuperAdminExists(): Promise<boolean> {
+    const existingSuperAdmin = await this.prisma.system_role.findFirst({
+      where: {
+        role: { name: 'super_admin' }
+      }
+    });
+
+    return !!existingSuperAdmin;
+  }
+
   async validatePassword(password: string, hashedPassword: string): Promise<boolean> {
     return bcrypt.compare(password, hashedPassword);
   }
@@ -167,12 +248,9 @@ export class UserService {
 
   async initializeDefaultRoles(): Promise<void> {
     const defaultRoles = [
+      'super_admin',
       'admin',
-      'profesor',
-      'estudiante',
-      'coordinador',
-      'director',
-      'secretario'
+      'user'
     ];
 
     for (const roleName of defaultRoles) {
