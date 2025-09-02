@@ -50,9 +50,17 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    // Admin tiene permisos de organización
-    if (this.hasRole(user, 'admin') && ['area', 'unit'].includes(resource)) {
-      return true;
+    // Admin tiene permisos de organización y hereda permisos de roles inferiores
+    if (this.hasRole(user, 'admin')) {
+      // Permisos específicos de admin
+      if (['area', 'unit', 'category'].includes(resource)) {
+        return true;
+      }
+      
+      // Herencia de permisos de roles inferiores
+      if (['project', 'process', 'task'].includes(resource)) {
+        return true; // El admin puede realizar acciones en estos recursos dentro de su área
+      }
     }
 
     // Usuario básico solo puede leer

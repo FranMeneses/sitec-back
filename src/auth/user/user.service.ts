@@ -252,6 +252,29 @@ export class UserService {
     return !!adminRecord;
   }
 
+  async isSuperAdmin(userId: string): Promise<boolean> {
+    // Verificar si el usuario es super_admin
+    const systemRole = await this.prisma.system_role.findFirst({
+      where: { 
+        user_id: userId,
+        role: { name: 'super_admin' }
+      },
+      include: { role: true }
+    });
+
+    return !!systemRole;
+  }
+
+  async getAdminArea(userId: string): Promise<number | null> {
+    // Obtener el área del admin
+    const adminRecord = await this.prisma.admin.findFirst({
+      where: { iduser: userId },
+      select: { idarea: true }
+    });
+
+    return adminRecord?.idarea || null;
+  }
+
   async initializeDefaultRoles(): Promise<void> {
     const defaultRoles = [
       'super_admin',
@@ -686,9 +709,133 @@ export class UserService {
     return !!unitMember;
   }
 
+  // ==================== ADMIN INHERITANCE METHODS ====================
+
+  async canAdminPerformTaskAction(userId: string, taskId: string, action: string): Promise<boolean> {
+    // Verificar si es admin
+    const isAdmin = await this.isAdmin(userId);
+    if (!isAdmin) return false;
+
+    // Obtener el área del admin
+    const adminArea = await this.getAdminArea(userId);
+    if (!adminArea) return false;
+
+    // Verificar que la tarea pertenece a un proyecto con categoría del área del admin
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        process: {
+          include: {
+            project: {
+              include: {
+                category: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!task || !task.process.project || !task.process.project.category) return false;
+    
+    return task.process.project.category.id_area === adminArea;
+  }
+
+  async canAdminPerformProcessAction(userId: string, processId: string, action: string): Promise<boolean> {
+    // Verificar si es admin
+    const isAdmin = await this.isAdmin(userId);
+    if (!isAdmin) return false;
+
+    // Obtener el área del admin
+    const adminArea = await this.getAdminArea(userId);
+    if (!adminArea) return false;
+
+    // Verificar que el proceso pertenece a un proyecto con categoría del área del admin
+    const process = await this.prisma.process.findUnique({
+      where: { id: processId },
+      include: {
+        project: {
+          include: {
+            category: true
+          }
+        }
+      }
+    });
+
+    if (!process || !process.project || !process.project.category) return false;
+    
+    return process.project.category.id_area === adminArea;
+  }
+
+  async canAdminPerformProjectAction(userId: string, projectId: string, action: string): Promise<boolean> {
+    // Verificar si es admin
+    const isAdmin = await this.isAdmin(userId);
+    if (!isAdmin) return false;
+
+    // Obtener el área del admin
+    const adminArea = await this.getAdminArea(userId);
+    if (!adminArea) return false;
+
+    // Verificar que el proyecto tiene categoría del área del admin
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        category: true
+      }
+    });
+
+    if (!project || !project.category) return false;
+    
+    return project.category.id_area === adminArea;
+  }
+
+  async canAdminPerformUnitAction(userId: string, unitId: number, action: string): Promise<boolean> {
+    // Verificar si es admin
+    const isAdmin = await this.isAdmin(userId);
+    if (!isAdmin) return false;
+
+    // Obtener el área del admin
+    const adminArea = await this.getAdminArea(userId);
+    if (!adminArea) return false;
+
+    // Verificar que la unidad tiene proyectos con categorías del área del admin
+    // o que el admin es unit_member de esa unidad
+    const unit = await this.prisma.unit.findUnique({
+      where: { id: unitId },
+      include: {
+        project: {
+          include: {
+            category: true
+          }
+        },
+        unit_member: {
+          where: { iduser: userId }
+        }
+      }
+    });
+
+    if (!unit) return false;
+
+    // Si es unit_member de la unidad, puede realizar acciones
+    if (unit.unit_member.length > 0) return true;
+
+    // Si la unidad tiene proyectos con categorías del área del admin, puede realizar acciones
+    return unit.project.some(project => 
+      project.category && project.category.id_area === adminArea
+    );
+  }
+
   // ==================== HIERARCHICAL PERMISSION METHODS ====================
 
   async canPerformTaskAction(userId: string, taskId: string, action: string): Promise<boolean> {
+    // Verificar si es super_admin (tiene todos los permisos)
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+    if (isSuperAdmin) return true;
+
+    // Verificar si es admin y puede realizar la acción en su área
+    const canAdminPerform = await this.canAdminPerformTaskAction(userId, taskId, action);
+    if (canAdminPerform) return true;
+
     // Verificar si es task_member de la tarea específica
     const isTaskMember = await this.isTaskMember(userId, taskId);
     if (isTaskMember) return true;
@@ -737,6 +884,14 @@ export class UserService {
   }
 
   async canPerformProcessAction(userId: string, processId: string, action: string): Promise<boolean> {
+    // Verificar si es super_admin (tiene todos los permisos)
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+    if (isSuperAdmin) return true;
+
+    // Verificar si es admin y puede realizar la acción en su área
+    const canAdminPerform = await this.canAdminPerformProcessAction(userId, processId, action);
+    if (canAdminPerform) return true;
+
     // Verificar si es process_member del proceso específico
     const isProcessMember = await this.isProcessMember(userId, processId);
     if (isProcessMember) return true;
@@ -767,6 +922,14 @@ export class UserService {
   }
 
   async canPerformProjectAction(userId: string, projectId: string, action: string): Promise<boolean> {
+    // Verificar si es super_admin (tiene todos los permisos)
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+    if (isSuperAdmin) return true;
+
+    // Verificar si es admin y puede realizar la acción en su área
+    const canAdminPerform = await this.canAdminPerformProjectAction(userId, projectId, action);
+    if (canAdminPerform) return true;
+
     // Verificar si es project_member del proyecto específico
     const isProjectMember = await this.isProjectMember(userId, projectId);
     if (isProjectMember) return true;

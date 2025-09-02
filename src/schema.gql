@@ -307,6 +307,7 @@ type ProjectMember {
 type Query {
   admin(id: String!): Admin!
   admins: [Admin!]!
+  allCategoriesForAdmin: [Category!]!
   area(id: Int!): Area!
   areas: [Area!]!
   availableUsersForUnit(unitId: Int!): [User!]!

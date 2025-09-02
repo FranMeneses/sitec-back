@@ -11,6 +11,7 @@ import { Unit } from './entities/unit.entity';
 import { UnitMember } from './entities/unit-member.entity';
 import { Type } from './entities/type.entity';
 import { Admin } from './entities/admin.entity';
+import { Category } from '../project/entities/category.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
@@ -30,8 +31,8 @@ export class OrganizationResolver {
   }
 
   @Query(() => [Area], { name: 'areas' })
-  async findAllAreas() {
-    return this.organizationService.findAllAreas();
+  async findAllAreas(@CurrentUser() currentUser: User) {
+    return this.organizationService.findAllAreas(currentUser);
   }
 
   @Query(() => Area, { name: 'area' })
@@ -148,6 +149,11 @@ export class OrganizationResolver {
   @Query(() => [Type], { name: 'myAreaTypes' })
   async getMyAreaTypes(@CurrentUser() currentUser: User) {
     return this.organizationService.getMyAreaTypes(currentUser);
+  }
+
+  @Query(() => [Category], { name: 'allCategoriesForAdmin' })
+  async findAllCategoriesForAdmin(@CurrentUser() currentUser: User) {
+    return this.organizationService.findAllCategoriesForAdmin(currentUser);
   }
 
   @Query(() => Type, { name: 'type' })
