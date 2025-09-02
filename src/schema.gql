@@ -332,6 +332,14 @@ type SuccessResponse {
   success: Boolean!
 }
 
+type SystemRole {
+  createdAt: DateTime!
+  id: ID!
+  role: Role!
+  roleId: Float!
+  userId: String!
+}
+
 type SystemRoleResponse {
   email: String!
   id: String!
@@ -465,5 +473,6 @@ type User {
   isActive: Boolean!
   name: String!
   password: String
+  systemRole: SystemRole
   updatedAt: DateTime!
 }

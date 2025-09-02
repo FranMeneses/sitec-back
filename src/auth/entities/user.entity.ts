@@ -1,4 +1,23 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
+import { Role } from './role.entity';
+
+@ObjectType()
+export class SystemRole {
+  @Field(() => ID)
+  id: string;
+
+  @Field()
+  userId: string;
+
+  @Field()
+  roleId: number;
+
+  @Field()
+  createdAt: Date;
+
+  @Field(() => Role)
+  role: Role;
+}
 
 @ObjectType()
 export class User {
@@ -19,6 +38,9 @@ export class User {
 
   @Field()
   havePassword: boolean;
+
+  @Field(() => SystemRole, { nullable: true })
+  systemRole?: SystemRole;
 
   @Field()
   createdAt?: Date;

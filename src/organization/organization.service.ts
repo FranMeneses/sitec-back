@@ -948,6 +948,7 @@ export class OrganizationService {
       password: user.password || undefined,
       isActive: user.isactive ?? true,
       havePassword: user.havepassword ?? false,
+      systemRole: undefined, // Los roles se incluyen cuando se consulta específicamente
       createdAt: undefined,
       updatedAt: undefined
     }));
