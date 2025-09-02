@@ -29,3 +29,11 @@ export class UpdateAdminInput {
   @IsString()
   idUser?: string;
 }
+
+@InputType()
+export class AssignSuperAdminInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  idUser: string;
+}

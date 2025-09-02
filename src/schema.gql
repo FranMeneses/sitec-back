@@ -26,6 +26,10 @@ input AssignProcessMemberInput {
   userId: String!
 }
 
+input AssignSuperAdminInput {
+  idUser: String!
+}
+
 input AssignTaskInput {
   memberId: String!
   taskId: String!
@@ -192,6 +196,7 @@ type Mutation {
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
   assignProcessMember(assignProcessMemberInput: AssignProcessMemberInput!): Boolean!
   assignProjectMemberAsUnitMember(addProjectMemberInput: AddProjectMemberInput!, projectId: String!): Boolean!
+  assignSuperAdmin(assignSuperAdminInput: AssignSuperAdminInput!): String!
   assignTask(assignTaskInput: AssignTaskInput!): Task!
   assignTaskMember(assignTaskMemberInput: AssignTaskMemberInput!): Boolean!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!

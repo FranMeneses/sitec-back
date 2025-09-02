@@ -709,6 +709,14 @@ export class UserService {
     return !!unitMember;
   }
 
+  // ==================== SUPER ADMIN METHODS ====================
+
+  async canSuperAdminPerformAction(userId: string, resourceId: string, action: string, resourceType: string): Promise<boolean> {
+    // Super admin puede realizar cualquier acción en cualquier recurso
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+    return isSuperAdmin;
+  }
+
   // ==================== ADMIN INHERITANCE METHODS ====================
 
   async canAdminPerformTaskAction(userId: string, taskId: string, action: string): Promise<boolean> {

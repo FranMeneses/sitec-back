@@ -5,7 +5,7 @@ import { CreateAreaInput, UpdateAreaInput } from './dto/area.dto';
 import { CreateUnitInput, UpdateUnitInput } from './dto/unit.dto';
 import { CreateUnitMemberInput, UpdateUnitMemberInput } from './dto/unit-member.dto';
 import { CreateTypeInput, UpdateTypeInput } from './dto/type.dto';
-import { CreateAdminInput } from './dto/admin.dto';
+import { CreateAdminInput, AssignSuperAdminInput } from './dto/admin.dto';
 import { Area } from './entities/area.entity';
 import { Unit } from './entities/unit.entity';
 import { UnitMember } from './entities/unit-member.entity';
@@ -194,6 +194,15 @@ export class OrganizationResolver {
     @CurrentUser() currentUser: User,
   ) {
     return this.organizationService.removeAdmin(id, currentUser);
+  }
+
+  @Mutation(() => String)
+  async assignSuperAdmin(
+    @Args('assignSuperAdminInput') assignSuperAdminInput: AssignSuperAdminInput,
+    @CurrentUser() currentUser: User,
+  ) {
+    const result = await this.organizationService.assignSuperAdmin(assignSuperAdminInput, currentUser);
+    return `Super administrador asignado exitosamente al usuario ${result.user?.name || result.userId}`;
   }
 
 

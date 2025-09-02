@@ -4,7 +4,7 @@ import { CreateAreaInput, UpdateAreaInput } from './dto/area.dto';
 import { CreateUnitInput, UpdateUnitInput } from './dto/unit.dto';
 import { CreateUnitMemberInput, UpdateUnitMemberInput } from './dto/unit-member.dto';
 import { CreateTypeInput, UpdateTypeInput } from './dto/type.dto';
-import { CreateAdminInput } from './dto/admin.dto';
+import { CreateAdminInput, AssignSuperAdminInput } from './dto/admin.dto';
 import { User } from '../auth/entities/user.entity';
 
 @Injectable()
@@ -13,10 +13,10 @@ export class OrganizationService {
 
   // ===== AREA METHODS =====
   async createArea(createAreaInput: CreateAreaInput, currentUser: User) {
-    // Verificar si el usuario es admin
-    const isAdmin = await this.isUserAdmin(currentUser.id);
-    if (!isAdmin) {
-      throw new ForbiddenException('Solo los administradores pueden crear áreas');
+    // Verificar si el usuario es super_admin (solo super_admin puede crear áreas)
+    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
+    if (!isSuperAdmin) {
+      throw new ForbiddenException('Solo los super administradores pueden crear áreas');
     }
 
     return this.prisma.area.create({
@@ -75,10 +75,10 @@ export class OrganizationService {
   }
 
   async updateArea(updateAreaInput: UpdateAreaInput, currentUser: User) {
-    // Verificar si el usuario es admin
-    const isAdmin = await this.isUserAdmin(currentUser.id);
-    if (!isAdmin) {
-      throw new ForbiddenException('Solo los administradores pueden actualizar áreas');
+    // Verificar si el usuario es super_admin (solo super_admin puede editar áreas)
+    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
+    if (!isSuperAdmin) {
+      throw new ForbiddenException('Solo los super administradores pueden actualizar áreas');
     }
 
     await this.findAreaById(updateAreaInput.id);
@@ -96,10 +96,10 @@ export class OrganizationService {
   }
 
   async removeArea(id: number, currentUser: User) {
-    // Verificar si el usuario es admin
-    const isAdmin = await this.isUserAdmin(currentUser.id);
-    if (!isAdmin) {
-      throw new ForbiddenException('Solo los administradores pueden eliminar áreas');
+    // Verificar si el usuario es super_admin (solo super_admin puede eliminar áreas)
+    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
+    if (!isSuperAdmin) {
+      throw new ForbiddenException('Solo los super administradores pueden eliminar áreas');
     }
 
     await this.findAreaById(id);
@@ -174,6 +174,27 @@ export class OrganizationService {
           type: true,
           project: true,
           unit_member: true,
+        },
+      });
+    }
+
+    // Verificar si el usuario es super_admin (puede ver todo)
+    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
+    if (isSuperAdmin) {
+      return this.prisma.unit.findMany({
+        include: {
+          type: true,
+          project: {
+            include: {
+              category: true
+            }
+          },
+          unit_member: {
+            include: {
+              user: true,
+              role: true
+            }
+          },
         },
       });
     }
@@ -898,6 +919,69 @@ export class OrganizationService {
     return `Administrador con ID ${id} eliminado exitosamente`;
   }
 
+  async assignSuperAdmin(assignSuperAdminInput: AssignSuperAdminInput, currentUser: User): Promise<any> {
+    // Verificar si el usuario actual es super_admin (solo super_admin puede asignar super_admin)
+    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
+    if (!isSuperAdmin) {
+      throw new ForbiddenException('Solo los super administradores pueden asignar otros super administradores');
+    }
+
+    // Verificar que el usuario existe
+    const user = await this.prisma.user.findUnique({
+      where: { id: assignSuperAdminInput.idUser },
+    });
+    if (!user) {
+      throw new NotFoundException(`Usuario con ID ${assignSuperAdminInput.idUser} no encontrado`);
+    }
+
+    // Verificar que no sea ya super_admin
+    const existingSuperAdmin = await this.prisma.system_role.findFirst({
+      where: {
+        user_id: assignSuperAdminInput.idUser,
+        role: { name: 'super_admin' }
+      },
+      include: { role: true }
+    });
+    if (existingSuperAdmin) {
+      throw new ForbiddenException('El usuario ya es super administrador');
+    }
+
+    // Obtener el rol super_admin
+    const superAdminRole = await this.prisma.role.findFirst({
+      where: { name: 'super_admin' }
+    });
+    if (!superAdminRole) {
+      throw new NotFoundException('Rol super_admin no encontrado');
+    }
+
+    // Asignar el rol super_admin al usuario
+    const systemRole = await this.prisma.system_role.create({
+      data: {
+        user_id: assignSuperAdminInput.idUser,
+        role_id: superAdminRole.id,
+      },
+      include: {
+        role: true,
+        user: true,
+      },
+    });
+
+    return {
+      id: systemRole.id,
+      userId: systemRole.user_id,
+      roleId: systemRole.role_id,
+      createdAt: systemRole.created_at,
+      role: systemRole.role,
+      user: systemRole.user ? {
+        id: systemRole.user.id,
+        name: systemRole.user.name || '',
+        email: systemRole.user.email,
+        isActive: systemRole.user.isactive ?? true,
+        havePassword: systemRole.user.havepassword ?? false,
+      } : null,
+    };
+  }
+
   // ===== HELPER METHODS FOR ADMIN AREA =====
   private async getAdminArea(userId: string): Promise<number | null> {
     // Obtener el área del admin
@@ -961,7 +1045,7 @@ export class OrganizationService {
       throw new ForbiddenException('Solo los administradores pueden ver todas las categorías');
     }
 
-    // Los admins pueden ver todas las categorías del sistema
+    // Los admins y super_admins pueden ver todas las categorías del sistema
     return this.prisma.category.findMany({
       include: {
         area: true,
@@ -972,40 +1056,54 @@ export class OrganizationService {
 
   // ===== USER MANAGEMENT METHODS =====
   async getAvailableUsersForUnit(unitId: number, currentUser: User): Promise<User[]> {
-    // Verificar si el usuario es admin
+    // Verificar si el usuario es admin o super_admin
     const isAdmin = await this.isUserAdmin(currentUser.id);
-    if (!isAdmin) {
+    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
+    
+    if (!isAdmin && !isSuperAdmin) {
       throw new ForbiddenException('Solo los administradores pueden ver usuarios disponibles');
     }
 
-    // Obtener el área del admin
-    const adminArea = await this.getAdminArea(currentUser.id);
-    if (!adminArea) {
-      throw new ForbiddenException('Admin no asociado a ningún área');
-    }
+    // Si es super_admin, puede ver usuarios de cualquier unidad
+    if (isSuperAdmin) {
+      // Verificar que la unidad existe
+      const unit = await this.prisma.unit.findUnique({
+        where: { id: unitId }
+      });
 
-    // Verificar que la unidad esté en el área del admin
-    const unit = await this.prisma.unit.findUnique({
-      where: { id: unitId },
-      include: {
-        project: {
-          include: {
-            category: true
+      if (!unit) {
+        throw new NotFoundException(`Unidad con ID ${unitId} no encontrada`);
+      }
+    } else {
+      // Si es admin, verificar que la unidad esté en su área
+      const adminArea = await this.getAdminArea(currentUser.id);
+      if (!adminArea) {
+        throw new ForbiddenException('Admin no asociado a ningún área');
+      }
+
+      // Verificar que la unidad esté en el área del admin
+      const unit = await this.prisma.unit.findUnique({
+        where: { id: unitId },
+        include: {
+          project: {
+            include: {
+              category: true
+            }
           }
         }
+      });
+
+      if (!unit) {
+        throw new NotFoundException(`Unidad con ID ${unitId} no encontrada`);
       }
-    });
 
-    if (!unit) {
-      throw new NotFoundException(`Unidad con ID ${unitId} no encontrada`);
-    }
+      const unitInAdminArea = unit.project.some(project => 
+        project.category && project.category.id_area === adminArea
+      );
 
-    const unitInAdminArea = unit.project.some(project => 
-      project.category && project.category.id_area === adminArea
-    );
-
-    if (!unitInAdminArea) {
-      throw new ForbiddenException('Solo puedes ver usuarios disponibles para unidades de tu área');
+      if (!unitInAdminArea) {
+        throw new ForbiddenException('Solo puedes ver usuarios disponibles para unidades de tu área');
+      }
     }
 
     // Obtener todos los usuarios activos
