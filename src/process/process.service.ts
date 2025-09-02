@@ -546,6 +546,24 @@ export class ProcessService {
       },
     });
 
+    // Obtener el rol 'task_member' para asignarlo al creador
+    const taskMemberRole = await this.prisma.role.findFirst({
+      where: { name: 'task_member' }
+    });
+
+    if (!taskMemberRole) {
+      throw new BadRequestException('Rol task_member no encontrado en el sistema');
+    }
+
+    // Agregar automáticamente al creador como task_member de la tarea
+    await this.prisma.task_member.create({
+      data: {
+        idtask: task.id,
+        iduser: processMemberId,
+        idrole: taskMemberRole.id,
+      },
+    });
+
     return this.mapTask(task);
   }
 

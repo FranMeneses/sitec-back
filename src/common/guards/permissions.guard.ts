@@ -75,6 +75,11 @@ export class PermissionsGuard implements CanActivate {
       return await this.checkProjectMemberPermissions(user, action, resource);
     }
 
+    // Unit member tiene permisos amplios en sus unidades asignadas
+    if (this.hasRole(user, 'unit_member')) {
+      return await this.checkUnitMemberPermissions(user, action, resource);
+    }
+
     return false;
   }
 
@@ -171,6 +176,87 @@ export class PermissionsGuard implements CanActivate {
     }
 
     // Project member puede asignar y remover task_members (heredado)
+    if (action === 'create' && resource === 'task_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    if (action === 'delete' && resource === 'task_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    return false;
+  }
+
+  private async checkUnitMemberPermissions(user: any, action: string, resource: string): Promise<boolean> {
+    // Unit member puede leer proyectos, procesos, tareas y categorías
+    if (action === 'read' && ['project', 'process', 'task', 'category'].includes(resource)) {
+      return true;
+    }
+
+    // Unit member puede crear proyectos en sus unidades
+    if (action === 'create' && resource === 'project') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede actualizar proyectos en sus unidades
+    if (action === 'update' && resource === 'project') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede crear categorías
+    if (action === 'create' && resource === 'category') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede actualizar categorías
+    if (action === 'update' && resource === 'category') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede crear procesos (heredado de project_member)
+    if (action === 'create' && resource === 'process') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede actualizar procesos (heredado de project_member)
+    if (action === 'update' && resource === 'process') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede crear tareas (heredado de process_member)
+    if (action === 'create' && resource === 'task') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede actualizar tareas (heredado de process_member)
+    if (action === 'update' && resource === 'task') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede crear comentarios y evidencias (heredado)
+    if (action === 'create' && ['comment', 'evidence'].includes(resource)) {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede asignar y remover project_members
+    if (action === 'create' && resource === 'project_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    if (action === 'delete' && resource === 'project_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede asignar y remover process_members (heredado)
+    if (action === 'create' && resource === 'process_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    if (action === 'delete' && resource === 'process_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Unit member puede asignar y remover task_members (heredado)
     if (action === 'create' && resource === 'task_member') {
       return true; // La validación específica se hará en el servicio
     }

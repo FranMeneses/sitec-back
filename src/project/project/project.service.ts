@@ -67,13 +67,13 @@ export class ProjectService {
       }
     }
 
-    // Obtener el rol 'admin' para asignarlo al creador
-    const adminRole = await this.prisma.role.findFirst({
-      where: { name: 'admin' }
+    // Obtener el rol 'project_member' para asignarlo al creador
+    const projectMemberRole = await this.prisma.role.findFirst({
+      where: { name: 'project_member' }
     });
 
-    if (!adminRole) {
-      throw new BadRequestException('Rol admin no encontrado en el sistema');
+    if (!projectMemberRole) {
+      throw new BadRequestException('Rol project_member no encontrado en el sistema');
     }
 
     const project = await this.prisma.project.create({
@@ -94,12 +94,12 @@ export class ProjectService {
       },
     });
 
-    // Agregar automáticamente al creador como admin del proyecto
+    // Agregar automáticamente al creador como project_member del proyecto
     await this.prisma.project_member.create({
       data: {
         idproject: project.id,
         iduser: editorId,
-        idrole: adminRole.id,
+        idrole: projectMemberRole.id,
       },
     });
 
@@ -662,6 +662,24 @@ export class ProjectService {
       },
     });
 
+    // Obtener el rol 'process_member' para asignarlo al creador
+    const processMemberRole = await this.prisma.role.findFirst({
+      where: { name: 'process_member' }
+    });
+
+    if (!processMemberRole) {
+      throw new BadRequestException('Rol process_member no encontrado en el sistema');
+    }
+
+    // Agregar automáticamente al creador como process_member del proceso
+    await this.prisma.process_member.create({
+      data: {
+        idprocess: process.id,
+        iduser: projectMemberId,
+        idrole: processMemberRole.id,
+      },
+    });
+
     return this.mapProcess(process);
   }
 
@@ -858,5 +876,132 @@ export class ProjectService {
       } : undefined,
       project: process.project ? this.mapProject(process.project) : undefined,
     };
+  }
+
+  // ==================== CATEGORY METHODS ====================
+
+  async findAllCategories(): Promise<Category[]> {
+    const categories = await this.prisma.category.findMany({
+      include: {
+        area: true,
+        project: true,
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    return categories.map(category => ({
+      id: category.id,
+      name: category.name,
+      description: category.description || undefined,
+      areaId: category.id_area,
+      createdAt: undefined, // No hay campo created_at en el esquema
+      updatedAt: undefined, // No hay campo updated_at en el esquema
+    }));
+  }
+
+  async findCategoryById(id: string): Promise<Category | null> {
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: {
+        area: true,
+        project: true,
+      }
+    });
+
+    if (!category) return null;
+
+    return {
+      id: category.id,
+      name: category.name,
+      description: category.description || undefined,
+      areaId: category.id_area,
+      createdAt: undefined,
+      updatedAt: undefined,
+    };
+  }
+
+  async createCategory(createCategoryInput: CreateCategoryInput, editorId: string): Promise<Category> {
+    // Verificar que el área existe
+    const area = await this.prisma.area.findUnique({
+      where: { id: createCategoryInput.areaId }
+    });
+
+    if (!area) {
+      throw new BadRequestException('El área especificada no existe');
+    }
+
+    const category = await this.prisma.category.create({
+      data: {
+        name: createCategoryInput.name,
+        description: createCategoryInput.description,
+        id_area: createCategoryInput.areaId,
+      },
+      include: {
+        area: true,
+        project: true,
+      }
+    });
+
+    return {
+      id: category.id,
+      name: category.name,
+      description: category.description || undefined,
+      areaId: category.id_area,
+      createdAt: undefined,
+      updatedAt: undefined,
+    };
+  }
+
+  async updateCategory(updateCategoryInput: UpdateCategoryInput, editorId: string): Promise<Category> {
+    const existingCategory = await this.findCategoryById(updateCategoryInput.id);
+    if (!existingCategory) {
+      throw new NotFoundException(`Categoría con ID ${updateCategoryInput.id} no encontrada`);
+    }
+
+    const updateData: any = {};
+
+    if (updateCategoryInput.name) updateData.name = updateCategoryInput.name;
+    if (updateCategoryInput.description !== undefined) updateData.description = updateCategoryInput.description;
+    if (updateCategoryInput.areaId) updateData.id_area = updateCategoryInput.areaId;
+
+    const category = await this.prisma.category.update({
+      where: { id: updateCategoryInput.id },
+      data: updateData,
+      include: {
+        area: true,
+        project: true,
+      }
+    });
+
+    return {
+      id: category.id,
+      name: category.name,
+      description: category.description || undefined,
+      areaId: category.id_area,
+      createdAt: undefined,
+      updatedAt: undefined,
+    };
+  }
+
+  async deleteCategory(id: string, userId: string): Promise<boolean> {
+    const category = await this.findCategoryById(id);
+    if (!category) {
+      throw new NotFoundException(`Categoría con ID ${id} no encontrada`);
+    }
+
+    // Verificar que no tenga proyectos asociados
+    const projectsCount = await this.prisma.project.count({
+      where: { idcategory: id }
+    });
+
+    if (projectsCount > 0) {
+      throw new BadRequestException('No se puede eliminar la categoría porque tiene proyectos asociados');
+    }
+
+    await this.prisma.category.delete({
+      where: { id }
+    });
+
+    return true;
   }
 }

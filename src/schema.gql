@@ -42,6 +42,15 @@ type AuthResponse {
   user: User!
 }
 
+type Category {
+  areaId: Int!
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  name: String!
+  updatedAt: DateTime!
+}
+
 type Comment {
   createdAt: DateTime!
   id: ID!
@@ -59,6 +68,12 @@ input CreateAdminInput {
 }
 
 input CreateAreaInput {
+  name: String!
+}
+
+input CreateCategoryInput {
+  areaId: Int!
+  description: String
   name: String!
 }
 
@@ -176,10 +191,12 @@ type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
   assignProcessMember(assignProcessMemberInput: AssignProcessMemberInput!): Boolean!
+  assignProjectMemberAsUnitMember(addProjectMemberInput: AddProjectMemberInput!, projectId: String!): Boolean!
   assignTask(assignTaskInput: AssignTaskInput!): Task!
   assignTaskMember(assignTaskMemberInput: AssignTaskMemberInput!): Boolean!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
+  createCategoryAsUnitMember(createCategoryInput: CreateCategoryInput!): Category!
   createComment(createCommentInput: CreateCommentInput!): Comment!
   createEvidence(createEvidenceInput: CreateEvidenceInput!): Evidence!
   createFirstSuperAdmin(email: String!, name: String!, password: String!): AuthResponse!
@@ -188,6 +205,7 @@ type Mutation {
   createProcessAsProjectMember(createProcessInput: CreateProcessInput!): Process!
   createProcessTask(idProcess: String!, idTask: String!): String!
   createProject(createProjectInput: CreateProjectInput!): Project!
+  createProjectAsUnitMember(createProjectInput: CreateProjectInput!): Project!
   createProjectProcess(idProcess: String!, idProject: String!): String!
   createRole(createRoleInput: CreateRoleInput!): Role!
   createTask(createTaskInput: CreateTaskInput!): Task!
@@ -208,6 +226,7 @@ type Mutation {
   removeProcessMember(removeProcessMemberInput: RemoveProcessMemberInput!): Boolean!
   removeProcessTask(id: String!): String!
   removeProjectMember(projectId: String!, userId: String!): Boolean!
+  removeProjectMemberAsUnitMember(projectId: String!, userId: String!): Boolean!
   removeProjectProcess(id: String!): String!
   removeTaskMember(removeTaskMemberInput: RemoveTaskMemberInput!): Boolean!
   removeType(id: Int!): Type!
@@ -216,12 +235,14 @@ type Mutation {
   removeUser(id: String!): User!
   removeUserSystemRole(userId: String!): SuccessResponse!
   updateArea(updateAreaInput: UpdateAreaInput!): Area!
+  updateCategoryAsUnitMember(updateCategoryInput: UpdateCategoryInput!): Category!
   updateComment(updateCommentInput: UpdateCommentInput!): Comment!
   updateEvidence(updateEvidenceInput: UpdateEvidenceInput!): Evidence!
   updateProcess(updateProcessInput: UpdateProcessInput!): Process!
   updateProcessAsProjectMember(description: String, dueDate: String, name: String, processId: String!, startDate: String): Process!
   updateProfile(name: String): User!
   updateProject(updateProjectInput: UpdateProjectInput!): Project!
+  updateProjectAsUnitMember(projectId: String!, updateProjectInput: UpdateProjectInput!): Project!
   updateProjectMember(updateProjectMemberInput: UpdateProjectMemberInput!): ProjectMember!
   updateRole(updateRoleInput: UpdateRoleInput!): Role!
   updateTask(updateTaskInput: UpdateTaskInput!): Task!
@@ -305,9 +326,11 @@ type Query {
   findUnitProjects(idUnit: Float!): [Project!]!
   findUserByEmail(email: String!): User!
   findUsersProject(idUser: String!): [Project!]!
+  getAllCategoriesAsUnitMember: [Category!]!
   getAllSystemRoles: [SystemRoleResponse!]!
   getProcessTasksAsMember(processId: String!): [Task!]!
   getProjectProcessesAsMember(projectId: String!): [Process!]!
+  getUnitProjectsAsMember(unitId: Float!): [Project!]!
   getUserSystemRole(userId: String!): SystemRoleResponse
   logs: [Logs!]!
   logsByProcess(processId: String!): [Logs!]!
@@ -319,6 +342,7 @@ type Query {
   myProcessMemberships: [ProcessMember!]!
   myProjectMemberships: [ProjectMember!]!
   myRoles: [Role!]!
+  myUnitMemberships: [UnitMember!]!
   process(id: String!): Process
   processes: [Process!]!
   processesByProject(projectId: String!): [Process!]!
@@ -433,6 +457,13 @@ type UnitMember {
 
 input UpdateAreaInput {
   id: Int!
+  name: String
+}
+
+input UpdateCategoryInput {
+  areaId: Int
+  description: String
+  id: String!
   name: String
 }
 

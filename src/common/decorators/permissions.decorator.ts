@@ -22,6 +22,7 @@ export const PERMISSIONS = {
   TASK: 'task',
   EVIDENCE: 'evidence',
   COMMENT: 'comment',
+  CATEGORY: 'category',
 } as const;
 
 // Combinaciones comunes

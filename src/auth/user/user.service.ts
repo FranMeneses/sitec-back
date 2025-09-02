@@ -574,6 +574,118 @@ export class UserService {
     return await this.isProjectMember(userId, projectId);
   }
 
+  // ==================== UNIT_MEMBER METHODS ====================
+
+  async findUserUnitMemberships(userId: string): Promise<any[]> {
+    // Obtener todas las unidades donde el usuario es unit_member
+    const unitMembers = await this.prisma.unit_member.findMany({
+      where: { iduser: userId },
+      include: {
+        unit: {
+          include: {
+            type: true,
+            project: {
+              include: {
+                category: true,
+                user: true, // editor del proyecto
+                process: {
+                  include: {
+                    user: true, // editor del proceso
+                    task: {
+                      include: {
+                        user: true, // editor de la tarea
+                        project_member: {
+                          include: {
+                            user: true,
+                            role: true,
+                          }
+                        },
+                        task_member: {
+                          include: {
+                            user: true,
+                            role: true,
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        role: true,
+      },
+      orderBy: { id: 'desc' }
+    });
+
+    return unitMembers.map(um => ({
+      id: um.id,
+      assignedAt: null, // unit_member no tiene assigned_at en el esquema
+      role: um.role,
+      unit: um.unit,
+    }));
+  }
+
+  async isUnitMember(userId: string, unitId: number): Promise<boolean> {
+    const unitMember = await this.prisma.unit_member.findFirst({
+      where: {
+        iduser: userId,
+        idunit: unitId,
+      },
+    });
+
+    return !!unitMember;
+  }
+
+  async canViewAllProjectsInUnit(userId: string, unitId: number): Promise<boolean> {
+    // Un unit_member puede ver todos los proyectos de su unidad
+    return await this.isUnitMember(userId, unitId);
+  }
+
+  async canCreateProjectInUnit(userId: string, unitId: number): Promise<boolean> {
+    // Un unit_member puede crear proyectos en su unidad
+    return await this.isUnitMember(userId, unitId);
+  }
+
+  async canEditProjectInUnit(userId: string, unitId: number): Promise<boolean> {
+    // Un unit_member puede editar proyectos de su unidad
+    return await this.isUnitMember(userId, unitId);
+  }
+
+  async canAssignProjectMembers(userId: string, unitId: number): Promise<boolean> {
+    // Un unit_member puede asignar miembros a proyectos de su unidad
+    return await this.isUnitMember(userId, unitId);
+  }
+
+  async canRemoveProjectMembers(userId: string, unitId: number): Promise<boolean> {
+    // Un unit_member puede remover miembros de proyectos de su unidad
+    return await this.isUnitMember(userId, unitId);
+  }
+
+  async canViewAllCategories(userId: string): Promise<boolean> {
+    // Un unit_member puede ver todas las categorías
+    return await this.hasUnitMembership(userId);
+  }
+
+  async canCreateCategory(userId: string): Promise<boolean> {
+    // Un unit_member puede crear categorías
+    return await this.hasUnitMembership(userId);
+  }
+
+  async canEditCategory(userId: string): Promise<boolean> {
+    // Un unit_member puede editar categorías
+    return await this.hasUnitMembership(userId);
+  }
+
+  private async hasUnitMembership(userId: string): Promise<boolean> {
+    const unitMember = await this.prisma.unit_member.findFirst({
+      where: { iduser: userId },
+    });
+
+    return !!unitMember;
+  }
+
   // ==================== HIERARCHICAL PERMISSION METHODS ====================
 
   async canPerformTaskAction(userId: string, taskId: string, action: string): Promise<boolean> {
@@ -603,6 +715,24 @@ export class UserService {
       }
     }
 
+    // Verificar si es unit_member de la unidad del proyecto de la tarea
+    if (task) {
+      const process = await this.prisma.process.findUnique({
+        where: { id: task.idprocess },
+        select: { idproject: true }
+      });
+      if (process && process.idproject) {
+        const project = await this.prisma.project.findUnique({
+          where: { id: process.idproject },
+          select: { idunit: true }
+        });
+        if (project && project.idunit) {
+          const isUnitMember = await this.isUnitMember(userId, project.idunit);
+          if (isUnitMember) return true;
+        }
+      }
+    }
+
     return false;
   }
 
@@ -619,6 +749,36 @@ export class UserService {
     if (process && process.idproject) {
       const isProjectMember = await this.isProjectMember(userId, process.idproject);
       if (isProjectMember) return true;
+    }
+
+    // Verificar si es unit_member de la unidad del proyecto del proceso
+    if (process && process.idproject) {
+      const project = await this.prisma.project.findUnique({
+        where: { id: process.idproject },
+        select: { idunit: true }
+      });
+      if (project && project.idunit) {
+        const isUnitMember = await this.isUnitMember(userId, project.idunit);
+        if (isUnitMember) return true;
+      }
+    }
+
+    return false;
+  }
+
+  async canPerformProjectAction(userId: string, projectId: string, action: string): Promise<boolean> {
+    // Verificar si es project_member del proyecto específico
+    const isProjectMember = await this.isProjectMember(userId, projectId);
+    if (isProjectMember) return true;
+
+    // Verificar si es unit_member de la unidad del proyecto
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { idunit: true }
+    });
+    if (project && project.idunit) {
+      const isUnitMember = await this.isUnitMember(userId, project.idunit);
+      if (isUnitMember) return true;
     }
 
     return false;
