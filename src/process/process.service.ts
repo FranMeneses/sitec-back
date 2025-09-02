@@ -491,6 +491,191 @@ export class ProcessService {
     return this.mapTask(task);
   }
 
+  // ==================== PROCESS_MEMBER METHODS ====================
+
+  async createTaskAsProcessMember(createTaskInput: CreateTaskInput, processMemberId: string): Promise<Task> {
+    // Validar que el proceso existe
+    const process = await this.prisma.process.findUnique({
+      where: { id: createTaskInput.processId },
+      include: { project: true },
+    });
+    if (!process) {
+      throw new BadRequestException('El proceso especificado no existe');
+    }
+
+    // Validar que el usuario es process_member de este proceso
+    const isProcessMember = await this.userService.isProcessMember(processMemberId, createTaskInput.processId);
+    if (!isProcessMember) {
+      throw new ForbiddenException('No tienes permisos para crear tareas en este proceso');
+    }
+
+    // Validar que el miembro asignado existe (si se proporciona)
+    if (createTaskInput.memberId) {
+      const assignedMember = await this.prisma.project_member.findFirst({
+        where: {
+          idproject: process.idproject,
+          iduser: createTaskInput.memberId,
+        },
+      });
+      if (!assignedMember) {
+        throw new BadRequestException('El miembro asignado no pertenece al proyecto');
+      }
+    }
+
+    const task = await this.prisma.task.create({
+      data: {
+        name: createTaskInput.name,
+        description: createTaskInput.description,
+        startdate: createTaskInput.startDate ? new Date(createTaskInput.startDate) : null,
+        duedateat: createTaskInput.dueDate ? new Date(createTaskInput.dueDate) : null,
+        status: createTaskInput.status,
+        ideditor: processMemberId,
+        idmember: createTaskInput.memberId,
+        idprocess: createTaskInput.processId,
+        editedat: new Date(),
+      },
+      include: {
+        user: true,
+        process: true,
+        project_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return this.mapTask(task);
+  }
+
+  async assignTaskMember(taskId: string, userId: string, roleId: number, processMemberId: string): Promise<boolean> {
+    // Validar que la tarea existe
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { process: true },
+    });
+    if (!task) {
+      throw new BadRequestException('La tarea especificada no existe');
+    }
+
+    // Validar que el usuario es process_member del proceso
+    const isProcessMember = await this.userService.isProcessMember(processMemberId, task.idprocess);
+    if (!isProcessMember) {
+      throw new ForbiddenException('No tienes permisos para asignar miembros a tareas en este proceso');
+    }
+
+    // Validar que el usuario a asignar pertenece al proyecto
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: task.process.idproject,
+        iduser: userId,
+      },
+    });
+    if (!projectMember) {
+      throw new BadRequestException('El usuario no pertenece al proyecto');
+    }
+
+    // Verificar que no esté ya asignado
+    const existingTaskMember = await this.prisma.task_member.findFirst({
+      where: {
+        idtask: taskId,
+        iduser: userId,
+      },
+    });
+    if (existingTaskMember) {
+      throw new BadRequestException('El usuario ya está asignado a esta tarea');
+    }
+
+    // Crear la asignación
+    await this.prisma.task_member.create({
+      data: {
+        idtask: taskId,
+        iduser: userId,
+        idrole: roleId,
+        assigned_at: new Date(),
+      },
+    });
+
+    return true;
+  }
+
+  async removeTaskMember(taskId: string, userId: string, processMemberId: string): Promise<boolean> {
+    // Validar que la tarea existe
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { process: true },
+    });
+    if (!task) {
+      throw new BadRequestException('La tarea especificada no existe');
+    }
+
+    // Validar que el usuario es process_member del proceso
+    const isProcessMember = await this.userService.isProcessMember(processMemberId, task.idprocess);
+    if (!isProcessMember) {
+      throw new ForbiddenException('No tienes permisos para remover miembros de tareas en este proceso');
+    }
+
+    // Verificar que el task_member existe
+    const taskMember = await this.prisma.task_member.findFirst({
+      where: {
+        idtask: taskId,
+        iduser: userId,
+      },
+    });
+    if (!taskMember) {
+      throw new BadRequestException('El usuario no está asignado a esta tarea');
+    }
+
+    // Remover la asignación
+    await this.prisma.task_member.delete({
+      where: { id: taskMember.id },
+    });
+
+    return true;
+  }
+
+  async getProcessTasksAsMember(processId: string, processMemberId: string): Promise<Task[]> {
+    // Validar que el usuario es process_member del proceso
+    const isProcessMember = await this.userService.isProcessMember(processMemberId, processId);
+    if (!isProcessMember) {
+      throw new ForbiddenException('No tienes permisos para ver las tareas de este proceso');
+    }
+
+    const tasks = await this.prisma.task.findMany({
+      where: { idprocess: processId },
+      include: {
+        user: true,
+        process: true,
+        project_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+        task_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+        comment: {
+          include: {
+            user: true,
+          },
+        },
+        evidence: {
+          include: {
+            user: true,
+          },
+        },
+      },
+      orderBy: { editedat: 'desc' },
+    });
+
+    return tasks.map(task => this.mapTask(task));
+  }
+
   async deleteTask(id: string, userId: string): Promise<boolean> {
     // Validar que la tarea existe
     const existingTask = await this.prisma.task.findUnique({

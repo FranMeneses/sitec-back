@@ -25,6 +25,12 @@ input AssignTaskInput {
   taskId: String!
 }
 
+input AssignTaskMemberInput {
+  roleId: Int!
+  taskId: String!
+  userId: String!
+}
+
 type AuthResponse {
   accessToken: String!
   user: User!
@@ -164,6 +170,7 @@ type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
   assignTask(assignTaskInput: AssignTaskInput!): Task!
+  assignTaskMember(assignTaskMemberInput: AssignTaskMemberInput!): Boolean!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
   createComment(createCommentInput: CreateCommentInput!): Comment!
@@ -176,6 +183,7 @@ type Mutation {
   createProjectProcess(idProcess: String!, idProject: String!): String!
   createRole(createRoleInput: CreateRoleInput!): Role!
   createTask(createTaskInput: CreateTaskInput!): Task!
+  createTaskAsProcessMember(createTaskInput: CreateTaskInput!): Task!
   createType(createTypeInput: CreateTypeInput!): Type!
   createUnit(createUnitInput: CreateUnitInput!): Unit!
   createUser(createUserInput: CreateUserInput!): User!
@@ -192,6 +200,7 @@ type Mutation {
   removeProcessTask(id: String!): String!
   removeProjectMember(projectId: String!, userId: String!): Boolean!
   removeProjectProcess(id: String!): String!
+  removeTaskMember(removeTaskMemberInput: RemoveTaskMemberInput!): Boolean!
   removeType(id: Int!): Type!
   removeUnit(id: Int!): Unit!
   removeUnitMember(id: String!): UnitMember!
@@ -226,6 +235,17 @@ type Process {
   projectId: String!
   startDate: DateTime
   updatedAt: DateTime!
+}
+
+type ProcessMember {
+  assignedAt: DateTime
+  id: ID!
+  process: Process
+  processId: String!
+  role: Role
+  roleId: Int!
+  user: User
+  userId: String!
 }
 
 type Project {
@@ -277,6 +297,7 @@ type Query {
   findUserByEmail(email: String!): User!
   findUsersProject(idUser: String!): [Project!]!
   getAllSystemRoles: [SystemRoleResponse!]!
+  getProcessTasksAsMember(processId: String!): [Task!]!
   getUserSystemRole(userId: String!): SystemRoleResponse
   logs: [Logs!]!
   logsByProcess(processId: String!): [Logs!]!
@@ -285,6 +306,7 @@ type Query {
   me: User!
   myAreaTypes: [Type!]!
   myAssignedTasks: [Task!]!
+  myProcessMemberships: [ProcessMember!]!
   myRoles: [Role!]!
   process(id: String!): Process
   processes: [Process!]!
@@ -314,6 +336,11 @@ input RegisterInput {
   email: String!
   name: String!
   password: String!
+}
+
+input RemoveTaskMemberInput {
+  taskId: String!
+  userId: String!
 }
 
 type Role {

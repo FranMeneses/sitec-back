@@ -410,4 +410,83 @@ export class UserService {
     return await this.isTaskMember(userId, taskId);
   }
 
+  // ==================== PROCESS_MEMBER METHODS ====================
+
+  async findUserProcessMemberships(userId: string): Promise<any[]> {
+    // Obtener todos los procesos donde el usuario es process_member
+    const processMembers = await this.prisma.process_member.findMany({
+      where: { iduser: userId },
+      include: {
+        process: {
+          include: {
+            project: {
+              include: {
+                unit: true,
+                category: true,
+              }
+            },
+            user: true, // editor del proceso
+            task: {
+              include: {
+                user: true, // editor de la tarea
+                project_member: {
+                  include: {
+                    user: true,
+                    role: true,
+                  }
+                },
+                task_member: {
+                  include: {
+                    user: true,
+                    role: true,
+                  }
+                }
+              }
+            }
+          }
+        },
+        role: true,
+      },
+      orderBy: { assigned_at: 'desc' }
+    });
+
+    return processMembers.map(pm => ({
+      id: pm.id,
+      assignedAt: pm.assigned_at,
+      role: pm.role,
+      process: pm.process,
+    }));
+  }
+
+  async isProcessMember(userId: string, processId: string): Promise<boolean> {
+    const processMember = await this.prisma.process_member.findFirst({
+      where: {
+        iduser: userId,
+        idprocess: processId,
+      },
+    });
+
+    return !!processMember;
+  }
+
+  async canCreateTaskInProcess(userId: string, processId: string): Promise<boolean> {
+    // Un process_member puede crear tareas en sus procesos asignados
+    return await this.isProcessMember(userId, processId);
+  }
+
+  async canViewAllTasksInProcess(userId: string, processId: string): Promise<boolean> {
+    // Un process_member puede ver todas las tareas de sus procesos asignados
+    return await this.isProcessMember(userId, processId);
+  }
+
+  async canAssignTaskMembers(userId: string, processId: string): Promise<boolean> {
+    // Un process_member puede asignar miembros a tareas de sus procesos
+    return await this.isProcessMember(userId, processId);
+  }
+
+  async canRemoveTaskMembers(userId: string, processId: string): Promise<boolean> {
+    // Un process_member puede remover miembros de tareas de sus procesos
+    return await this.isProcessMember(userId, processId);
+  }
+
 }

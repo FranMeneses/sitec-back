@@ -65,6 +65,11 @@ export class PermissionsGuard implements CanActivate {
       return await this.checkTaskMemberPermissions(user, action, resource);
     }
 
+    // Process member tiene permisos amplios en sus procesos asignados
+    if (this.hasRole(user, 'process_member')) {
+      return await this.checkProcessMemberPermissions(user, action, resource);
+    }
+
     return false;
   }
 
@@ -81,6 +86,39 @@ export class PermissionsGuard implements CanActivate {
 
     // Task member puede crear comentarios y evidencias en sus tareas
     if (action === 'create' && ['comment', 'evidence'].includes(resource)) {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    return false;
+  }
+
+  private async checkProcessMemberPermissions(user: any, action: string, resource: string): Promise<boolean> {
+    // Process member puede leer procesos y tareas
+    if (action === 'read' && ['process', 'task'].includes(resource)) {
+      return true;
+    }
+
+    // Process member puede crear tareas en sus procesos
+    if (action === 'create' && resource === 'task') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Process member puede actualizar tareas en sus procesos
+    if (action === 'update' && resource === 'task') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Process member puede crear comentarios y evidencias
+    if (action === 'create' && ['comment', 'evidence'].includes(resource)) {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Process member puede asignar y remover task_members
+    if (action === 'create' && resource === 'task_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    if (action === 'delete' && resource === 'task_member') {
       return true; // La validación específica se hará en el servicio
     }
 
