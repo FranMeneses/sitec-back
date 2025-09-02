@@ -258,6 +258,7 @@ type Query {
   admins: [Admin!]!
   area(id: Int!): Area!
   areas: [Area!]!
+  availableUsersForUnit(unitId: Int!): [User!]!
   checkSuperAdminExists: Boolean!
   commentById(id: String!): Comment
   comments: [Comment!]!

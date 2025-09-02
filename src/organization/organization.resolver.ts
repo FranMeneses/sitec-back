@@ -116,8 +116,19 @@ export class OrganizationResolver {
   }
 
   @Query(() => [UnitMember], { name: 'unitMembers' })
-  async findUnitMembers(@Args('unitId', { type: () => Int }) unitId: number) {
-    return this.organizationService.findUnitMembers(unitId);
+  async findUnitMembers(
+    @Args('unitId', { type: () => Int }) unitId: number,
+    @CurrentUser() currentUser: User
+  ) {
+    return this.organizationService.findUnitMembers(unitId, currentUser);
+  }
+
+  @Query(() => [User], { name: 'availableUsersForUnit' })
+  async getAvailableUsersForUnit(
+    @Args('unitId', { type: () => Int }) unitId: number,
+    @CurrentUser() currentUser: User
+  ) {
+    return this.organizationService.getAvailableUsersForUnit(unitId, currentUser);
   }
 
   // ===== TYPE RESOLVERS =====

@@ -241,10 +241,71 @@ export class OrganizationService {
 
   // ===== UNIT MEMBER METHODS =====
   async addUnitMember(createUnitMemberInput: CreateUnitMemberInput, currentUser: User) {
-    // Verificar si el usuario es admin de la unidad
-    const isUnitAdmin = await this.isUserUnitAdmin(currentUser.id, createUnitMemberInput.idunit);
-    if (!isUnitAdmin) {
-      throw new ForbiddenException('Solo los administradores de la unidad pueden agregar miembros');
+    // Verificar si el usuario es admin (de cualquier área)
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      throw new ForbiddenException('Solo los administradores pueden agregar miembros a unidades');
+    }
+
+    // Obtener el área del admin
+    const adminArea = await this.getAdminArea(currentUser.id);
+    if (!adminArea) {
+      throw new ForbiddenException('Admin no asociado a ningún área');
+    }
+
+    // Verificar que la unidad esté en el área del admin
+    const unit = await this.prisma.unit.findUnique({
+      where: { id: createUnitMemberInput.idunit },
+      include: {
+        project: {
+          include: {
+            category: true
+          }
+        }
+      }
+    });
+
+    if (!unit) {
+      throw new NotFoundException(`Unidad con ID ${createUnitMemberInput.idunit} no encontrada`);
+    }
+
+    // Verificar que la unidad pertenezca a un proyecto de la categoría del área del admin
+    const unitInAdminArea = unit.project.some(project => 
+      project.category && project.category.id_area === adminArea
+    );
+
+    if (!unitInAdminArea) {
+      throw new ForbiddenException('Solo puedes agregar miembros a unidades de tu área');
+    }
+
+    // Verificar que el usuario a agregar existe
+    const userToAdd = await this.prisma.user.findUnique({
+      where: { id: createUnitMemberInput.iduser }
+    });
+
+    if (!userToAdd) {
+      throw new NotFoundException(`Usuario con ID ${createUnitMemberInput.iduser} no encontrado`);
+    }
+
+    // Verificar que el rol existe
+    const role = await this.prisma.role.findUnique({
+      where: { id: createUnitMemberInput.idrole }
+    });
+
+    if (!role) {
+      throw new NotFoundException(`Rol con ID ${createUnitMemberInput.idrole} no encontrado`);
+    }
+
+    // Verificar que no sea ya miembro de esa unidad
+    const existingMember = await this.prisma.unit_member.findFirst({
+      where: {
+        iduser: createUnitMemberInput.iduser,
+        idunit: createUnitMemberInput.idunit
+      }
+    });
+
+    if (existingMember) {
+      throw new ForbiddenException('El usuario ya es miembro de esta unidad');
     }
 
     return this.prisma.unit_member.create({
@@ -262,9 +323,32 @@ export class OrganizationService {
   }
 
   async updateUnitMember(updateUnitMemberInput: UpdateUnitMemberInput, currentUser: User) {
-    // Verificar si el usuario es admin de la unidad
+    // Verificar si el usuario es admin (de cualquier área)
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      throw new ForbiddenException('Solo los administradores pueden actualizar miembros de unidades');
+    }
+
+    // Obtener el área del admin
+    const adminArea = await this.getAdminArea(currentUser.id);
+    if (!adminArea) {
+      throw new ForbiddenException('Admin no asociado a ningún área');
+    }
+
+    // Obtener el miembro a actualizar
     const member = await this.prisma.unit_member.findUnique({
       where: { id: updateUnitMemberInput.id },
+      include: {
+        unit: {
+          include: {
+            project: {
+              include: {
+                category: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!member) {
@@ -275,9 +359,39 @@ export class OrganizationService {
       throw new NotFoundException('El miembro no está asignado a ninguna unidad');
     }
 
-    const isUnitAdmin = await this.isUserUnitAdmin(currentUser.id, member.idunit);
-    if (!isUnitAdmin) {
-      throw new ForbiddenException('Solo los administradores de la unidad pueden actualizar miembros');
+    // Verificar que la unidad esté en el área del admin
+    if (!member.unit) {
+      throw new NotFoundException('La unidad asociada al miembro no existe');
+    }
+
+    const unitInAdminArea = member.unit.project.some(project => 
+      project.category && project.category.id_area === adminArea
+    );
+
+    if (!unitInAdminArea) {
+      throw new ForbiddenException('Solo puedes actualizar miembros de unidades de tu área');
+    }
+
+    // Verificar que el usuario a actualizar existe
+    if (updateUnitMemberInput.iduser) {
+      const userToUpdate = await this.prisma.user.findUnique({
+        where: { id: updateUnitMemberInput.iduser }
+      });
+
+      if (!userToUpdate) {
+        throw new NotFoundException(`Usuario con ID ${updateUnitMemberInput.iduser} no encontrado`);
+      }
+    }
+
+    // Verificar que el rol existe
+    if (updateUnitMemberInput.idrole) {
+      const role = await this.prisma.role.findUnique({
+        where: { id: updateUnitMemberInput.idrole }
+      });
+
+      if (!role) {
+        throw new NotFoundException(`Rol con ID ${updateUnitMemberInput.idrole} no encontrado`);
+      }
     }
 
     return this.prisma.unit_member.update({
@@ -296,22 +410,52 @@ export class OrganizationService {
   }
 
   async removeUnitMember(id: string, currentUser: User) {
+    // Verificar si el usuario es admin (de cualquier área)
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      throw new ForbiddenException('Solo los administradores pueden eliminar miembros de unidades');
+    }
+
+    // Obtener el área del admin
+    const adminArea = await this.getAdminArea(currentUser.id);
+    if (!adminArea) {
+      throw new ForbiddenException('Admin no asociado a ningún área');
+    }
+
     const member = await this.prisma.unit_member.findUnique({
       where: { id },
+      include: {
+        unit: {
+          include: {
+            project: {
+              include: {
+                category: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!member) {
       throw new NotFoundException(`Miembro de unidad con ID ${id} no encontrado`);
     }
 
-    // Verificar si el usuario es admin de la unidad
     if (!member.idunit) {
       throw new NotFoundException('El miembro no está asignado a ninguna unidad');
     }
 
-    const isUnitAdmin = await this.isUserUnitAdmin(currentUser.id, member.idunit);
-    if (!isUnitAdmin) {
-      throw new ForbiddenException('Solo los administradores de la unidad pueden eliminar miembros');
+    // Verificar que la unidad esté en el área del admin
+    if (!member.unit) {
+      throw new NotFoundException('La unidad asociada al miembro no existe');
+    }
+
+    const unitInAdminArea = member.unit.project.some(project => 
+      project.category && project.category.id_area === adminArea
+    );
+
+    if (!unitInAdminArea) {
+      throw new ForbiddenException('Solo puedes eliminar miembros de unidades de tu área');
     }
 
     return this.prisma.unit_member.delete({
@@ -319,7 +463,74 @@ export class OrganizationService {
     });
   }
 
-  async findUnitMembers(unitId: number) {
+  async findUnitMembers(unitId: number, currentUser?: User) {
+    // Si no hay usuario, mostrar todos los miembros
+    if (!currentUser) {
+      return this.prisma.unit_member.findMany({
+        where: { idunit: unitId },
+        include: {
+          user: true,
+          unit: true,
+          role: true,
+        },
+      });
+    }
+
+    // Verificar si el usuario es admin
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      // Si no es admin, mostrar solo si es miembro de la unidad
+      const isMember = await this.prisma.unit_member.findFirst({
+        where: {
+          idunit: unitId,
+          iduser: currentUser.id
+        }
+      });
+
+      if (!isMember) {
+        throw new ForbiddenException('No tienes permisos para ver los miembros de esta unidad');
+      }
+
+      return this.prisma.unit_member.findMany({
+        where: { idunit: unitId },
+        include: {
+          user: true,
+          unit: true,
+          role: true,
+        },
+      });
+    }
+
+    // Si es admin, verificar que la unidad esté en su área
+    const adminArea = await this.getAdminArea(currentUser.id);
+    if (!adminArea) {
+      throw new ForbiddenException('Admin no asociado a ningún área');
+    }
+
+    // Verificar que la unidad esté en el área del admin
+    const unit = await this.prisma.unit.findUnique({
+      where: { id: unitId },
+      include: {
+        project: {
+          include: {
+            category: true
+          }
+        }
+      }
+    });
+
+    if (!unit) {
+      throw new NotFoundException(`Unidad con ID ${unitId} no encontrada`);
+    }
+
+    const unitInAdminArea = unit.project.some(project => 
+      project.category && project.category.id_area === adminArea
+    );
+
+    if (!unitInAdminArea) {
+      throw new ForbiddenException('Solo puedes ver miembros de unidades de tu área');
+    }
+
     return this.prisma.unit_member.findMany({
       where: { idunit: unitId },
       include: {
@@ -673,5 +884,72 @@ export class OrganizationService {
     }
 
     return this.getTypesByArea(adminArea);
+  }
+
+  // ===== USER MANAGEMENT METHODS =====
+  async getAvailableUsersForUnit(unitId: number, currentUser: User): Promise<User[]> {
+    // Verificar si el usuario es admin
+    const isAdmin = await this.isUserAdmin(currentUser.id);
+    if (!isAdmin) {
+      throw new ForbiddenException('Solo los administradores pueden ver usuarios disponibles');
+    }
+
+    // Obtener el área del admin
+    const adminArea = await this.getAdminArea(currentUser.id);
+    if (!adminArea) {
+      throw new ForbiddenException('Admin no asociado a ningún área');
+    }
+
+    // Verificar que la unidad esté en el área del admin
+    const unit = await this.prisma.unit.findUnique({
+      where: { id: unitId },
+      include: {
+        project: {
+          include: {
+            category: true
+          }
+        }
+      }
+    });
+
+    if (!unit) {
+      throw new NotFoundException(`Unidad con ID ${unitId} no encontrada`);
+    }
+
+    const unitInAdminArea = unit.project.some(project => 
+      project.category && project.category.id_area === adminArea
+    );
+
+    if (!unitInAdminArea) {
+      throw new ForbiddenException('Solo puedes ver usuarios disponibles para unidades de tu área');
+    }
+
+    // Obtener todos los usuarios activos
+    const allUsers = await this.prisma.user.findMany({
+      where: { isactive: true }
+    });
+
+    // Obtener usuarios que ya son miembros de esta unidad
+    const existingMembers = await this.prisma.unit_member.findMany({
+      where: { idunit: unitId },
+      select: { iduser: true }
+    });
+
+    const existingMemberIds = existingMembers.map(member => member.iduser);
+
+    // Filtrar usuarios que no son miembros de esta unidad
+    const availableUsers = allUsers.filter(user => !existingMemberIds.includes(user.id));
+
+    // Mapear los campos de Prisma a la entidad User de GraphQL
+    return availableUsers.map(user => ({
+      id: user.id,
+      name: user.name || '',
+      email: user.email,
+      password: user.password || undefined,
+      isActive: user.isactive ?? true,
+      havePassword: user.havepassword ?? false,
+      createdAt: undefined,
+      updatedAt: undefined
+    }));
   }
 }
