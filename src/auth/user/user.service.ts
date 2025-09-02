@@ -66,7 +66,13 @@ export class UserService {
       password: user.password || undefined,
       isActive: user.isactive ?? true,
       havePassword: user.havepassword ?? false,
-      roles: user.system_role ? [user.system_role.role] : []
+      systemRole: user.system_role ? {
+        id: user.system_role.id,
+        userId: user.system_role.user_id,
+        roleId: user.system_role.role_id,
+        createdAt: user.system_role.created_at,
+        role: user.system_role.role
+      } : null
     };
   }
 
