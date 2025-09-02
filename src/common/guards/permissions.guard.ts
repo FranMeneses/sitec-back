@@ -2,12 +2,16 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@
 import { Reflector } from '@nestjs/core';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { GqlExecutionContext } from '@nestjs/graphql';
+import { UserService } from '../../auth/user/user.service';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private userService: UserService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredPermission = this.reflector.getAllAndOverride<{ action: string; resource: string }>(
       PERMISSIONS_KEY,
       [context.getHandler(), context.getClass()],
@@ -29,7 +33,7 @@ export class PermissionsGuard implements CanActivate {
     const { action, resource } = requiredPermission;
 
     // Verificar permisos básicos del usuario
-    const hasPermission = this.checkBasicPermission(user, action, resource);
+    const hasPermission = await this.checkBasicPermission(user, action, resource);
 
     if (!hasPermission) {
       throw new ForbiddenException(
@@ -40,7 +44,7 @@ export class PermissionsGuard implements CanActivate {
     return true;
   }
 
-  private checkBasicPermission(user: any, action: string, resource: string): boolean {
+  private async checkBasicPermission(user: any, action: string, resource: string): Promise<boolean> {
     // Super admin tiene todos los permisos
     if (this.hasRole(user, 'super_admin')) {
       return true;
@@ -54,6 +58,30 @@ export class PermissionsGuard implements CanActivate {
     // Usuario básico solo puede leer
     if (this.hasRole(user, 'user') && action === 'read') {
       return true;
+    }
+
+    // Task member tiene permisos limitados en sus tareas asignadas
+    if (this.hasRole(user, 'task_member')) {
+      return await this.checkTaskMemberPermissions(user, action, resource);
+    }
+
+    return false;
+  }
+
+  private async checkTaskMemberPermissions(user: any, action: string, resource: string): Promise<boolean> {
+    // Task member puede leer sus tareas asignadas
+    if (action === 'read' && resource === 'task') {
+      return true;
+    }
+
+    // Task member puede actualizar reporte y estado de sus tareas
+    if (action === 'update' && resource === 'task') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Task member puede crear comentarios y evidencias en sus tareas
+    if (action === 'create' && ['comment', 'evidence'].includes(resource)) {
+      return true; // La validación específica se hará en el servicio
     }
 
     return false;

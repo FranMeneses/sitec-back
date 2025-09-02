@@ -325,4 +325,89 @@ export class UserService {
     }));
   }
 
+  // ==================== TASK_MEMBER METHODS ====================
+
+  async findUserAssignedTasks(userId: string): Promise<any[]> {
+    // Obtener todas las tareas donde el usuario es task_member
+    const taskMembers = await this.prisma.task_member.findMany({
+      where: { iduser: userId },
+      include: {
+        task: {
+          include: {
+            process: {
+              include: {
+                project: {
+                  include: {
+                    unit: true,
+                    category: true,
+                  }
+                }
+              }
+            },
+            user: true, // editor
+            project_member: {
+              include: {
+                user: true,
+                role: true,
+              }
+            },
+            comment: {
+              include: {
+                user: true,
+              },
+              orderBy: { created_at: 'desc' }
+            },
+            evidence: {
+              include: {
+                user: true, // uploader
+              },
+              orderBy: { uploadedat: 'desc' }
+            },
+            task_member: {
+              include: {
+                user: true,
+                role: true,
+              }
+            }
+          }
+        },
+        role: true,
+      },
+      orderBy: { assigned_at: 'desc' }
+    });
+
+    return taskMembers.map(tm => ({
+      id: tm.id,
+      assignedAt: tm.assigned_at,
+      role: tm.role,
+      task: tm.task,
+    }));
+  }
+
+  async isTaskMember(userId: string, taskId: string): Promise<boolean> {
+    const taskMember = await this.prisma.task_member.findFirst({
+      where: {
+        iduser: userId,
+        idtask: taskId,
+      },
+    });
+
+    return !!taskMember;
+  }
+
+  async canEditTask(userId: string, taskId: string): Promise<boolean> {
+    // Un task_member puede editar solo el reporte y estado de sus tareas asignadas
+    return await this.isTaskMember(userId, taskId);
+  }
+
+  async canAddCommentToTask(userId: string, taskId: string): Promise<boolean> {
+    // Un task_member puede agregar comentarios a sus tareas asignadas
+    return await this.isTaskMember(userId, taskId);
+  }
+
+  async canAddEvidenceToTask(userId: string, taskId: string): Promise<boolean> {
+    // Un task_member puede agregar evidencias a sus tareas asignadas
+    return await this.isTaskMember(userId, taskId);
+  }
+
 }

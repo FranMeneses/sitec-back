@@ -206,6 +206,7 @@ type Mutation {
   updateProjectMember(updateProjectMemberInput: UpdateProjectMemberInput!): ProjectMember!
   updateRole(updateRoleInput: UpdateRoleInput!): Role!
   updateTask(updateTaskInput: UpdateTaskInput!): Task!
+  updateTaskAsMember(updateTaskAsMemberInput: UpdateTaskAsMemberInput!): Task!
   updateUnit(updateUnitInput: UpdateUnitInput!): Unit!
   updateUnitMember(updateUnitMemberInput: UpdateUnitMemberInput!): UnitMember!
   updateUser(updateUserInput: UpdateUserInput!): User!
@@ -283,6 +284,7 @@ type Query {
   logsByTask(taskId: String!): [Logs!]!
   me: User!
   myAreaTypes: [Type!]!
+  myAssignedTasks: [Task!]!
   myRoles: [Role!]!
   process(id: String!): Process
   processes: [Process!]!
@@ -428,6 +430,12 @@ input UpdateRoleInput {
   description: String
   id: Int!
   name: String
+}
+
+input UpdateTaskAsMemberInput {
+  id: String!
+  report: String
+  status: String
 }
 
 input UpdateTaskInput {

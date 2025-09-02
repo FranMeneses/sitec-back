@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { UserService } from '../auth/user/user.service';
 import { Process } from './entities/process.entity';
 import { Task } from './entities/task.entity';
 import { CreateProcessInput, UpdateProcessInput } from './dto/process.dto';
@@ -7,7 +8,10 @@ import { CreateTaskInput, UpdateTaskInput, AssignTaskInput, TaskStatus } from '.
 
 @Injectable()
 export class ProcessService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private userService: UserService,
+  ) {}
 
   // ==================== PROCESS METHODS ====================
 
@@ -425,6 +429,53 @@ export class ProcessService {
         report: updateTaskInput.report,
         editedat: new Date(),
       },
+      include: {
+        user: true,
+        process: true,
+        project_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return this.mapTask(task);
+  }
+
+  async updateTaskAsMember(updateTaskInput: { id: string; status?: string; report?: string }, memberId: string): Promise<Task> {
+    // Validar que la tarea existe
+    const existingTask = await this.prisma.task.findUnique({
+      where: { id: updateTaskInput.id },
+      include: { process: { include: { project: true } } },
+    });
+    if (!existingTask) {
+      throw new NotFoundException('Tarea no encontrada');
+    }
+
+    // Validar que el usuario es task_member de esta tarea
+    const isTaskMember = await this.userService.isTaskMember(memberId, updateTaskInput.id);
+    if (!isTaskMember) {
+      throw new ForbiddenException('No tienes permisos para editar esta tarea');
+    }
+
+    // Solo permitir actualizar status y report
+    const updateData: any = {
+      editedat: new Date(),
+    };
+
+    if (updateTaskInput.status !== undefined) {
+      updateData.status = updateTaskInput.status;
+    }
+
+    if (updateTaskInput.report !== undefined) {
+      updateData.report = updateTaskInput.report;
+    }
+
+    const task = await this.prisma.task.update({
+      where: { id: updateTaskInput.id },
+      data: updateData,
       include: {
         user: true,
         process: true,

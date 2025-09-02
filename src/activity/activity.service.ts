@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { UserService } from '../auth/user/user.service';
 import { Evidence } from './entities/evidence.entity';
 import { Comment } from './entities/comment.entity';
 import { Logs } from './entities/logs.entity';
@@ -9,7 +10,10 @@ import { CreateLogInput, LogType } from './dto/logs.dto';
 
 @Injectable()
 export class ActivityService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private userService: UserService,
+  ) {}
 
   // ==================== EVIDENCE METHODS ====================
 
@@ -61,14 +65,17 @@ export class ActivityService {
       throw new BadRequestException('La tarea especificada no existe');
     }
 
-    // Validar que el usuario es miembro del proyecto
+    // Validar permisos: puede ser project_member o task_member
     const projectMember = await this.prisma.project_member.findFirst({
       where: {
         idproject: task.process.idproject,
         iduser: uploaderId,
       },
     });
-    if (!projectMember) {
+
+    const isTaskMember = await this.userService.isTaskMember(uploaderId, createEvidenceInput.taskId);
+
+    if (!projectMember && !isTaskMember) {
       throw new ForbiddenException('No tienes permisos para subir evidencias en esta tarea');
     }
 
@@ -209,14 +216,17 @@ export class ActivityService {
       throw new BadRequestException('La tarea especificada no existe');
     }
 
-    // Validar que el usuario es miembro del proyecto
+    // Validar permisos: puede ser project_member o task_member
     const projectMember = await this.prisma.project_member.findFirst({
       where: {
         idproject: task.process.idproject,
         iduser: userId,
       },
     });
-    if (!projectMember) {
+
+    const isTaskMember = await this.userService.isTaskMember(userId, createCommentInput.taskId);
+
+    if (!projectMember && !isTaskMember) {
       throw new ForbiddenException('No tienes permisos para comentar en esta tarea');
     }
 
