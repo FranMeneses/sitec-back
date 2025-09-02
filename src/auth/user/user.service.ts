@@ -489,4 +489,139 @@ export class UserService {
     return await this.isProcessMember(userId, processId);
   }
 
+  // ==================== PROJECT_MEMBER METHODS ====================
+
+  async findUserProjectMemberships(userId: string): Promise<any[]> {
+    // Obtener todos los proyectos donde el usuario es project_member
+    const projectMembers = await this.prisma.project_member.findMany({
+      where: { iduser: userId },
+      include: {
+        project: {
+          include: {
+            unit: true,
+            category: true,
+            user: true, // editor del proyecto
+            process: {
+              include: {
+                user: true, // editor del proceso
+                task: {
+                  include: {
+                    user: true, // editor de la tarea
+                    project_member: {
+                      include: {
+                        user: true,
+                        role: true,
+                      }
+                    },
+                    task_member: {
+                      include: {
+                        user: true,
+                        role: true,
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        role: true,
+      },
+      orderBy: { id: 'desc' }
+    });
+
+    return projectMembers.map(pm => ({
+      id: pm.id,
+      assignedAt: null, // project_member no tiene assigned_at en el esquema
+      role: pm.role,
+      project: pm.project,
+    }));
+  }
+
+  async isProjectMember(userId: string, projectId: string): Promise<boolean> {
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        iduser: userId,
+        idproject: projectId,
+      },
+    });
+
+    return !!projectMember;
+  }
+
+  async canCreateProcessInProject(userId: string, projectId: string): Promise<boolean> {
+    // Un project_member puede crear procesos en sus proyectos asignados
+    return await this.isProjectMember(userId, projectId);
+  }
+
+  async canViewAllProcessesInProject(userId: string, projectId: string): Promise<boolean> {
+    // Un project_member puede ver todos los procesos de sus proyectos asignados
+    return await this.isProjectMember(userId, projectId);
+  }
+
+  async canEditProcessInProject(userId: string, projectId: string): Promise<boolean> {
+    // Un project_member puede editar procesos de sus proyectos asignados
+    return await this.isProjectMember(userId, projectId);
+  }
+
+  async canAssignProcessMembers(userId: string, projectId: string): Promise<boolean> {
+    // Un project_member puede asignar miembros a procesos de sus proyectos
+    return await this.isProjectMember(userId, projectId);
+  }
+
+  async canRemoveProcessMembers(userId: string, projectId: string): Promise<boolean> {
+    // Un project_member puede remover miembros de procesos de sus proyectos
+    return await this.isProjectMember(userId, projectId);
+  }
+
+  // ==================== HIERARCHICAL PERMISSION METHODS ====================
+
+  async canPerformTaskAction(userId: string, taskId: string, action: string): Promise<boolean> {
+    // Verificar si es task_member de la tarea específica
+    const isTaskMember = await this.isTaskMember(userId, taskId);
+    if (isTaskMember) return true;
+
+    // Verificar si es process_member del proceso de la tarea
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { idprocess: true }
+    });
+    if (task) {
+      const isProcessMember = await this.isProcessMember(userId, task.idprocess);
+      if (isProcessMember) return true;
+    }
+
+    // Verificar si es project_member del proyecto de la tarea
+    if (task) {
+      const process = await this.prisma.process.findUnique({
+        where: { id: task.idprocess },
+        select: { idproject: true }
+      });
+      if (process && process.idproject) {
+        const isProjectMember = await this.isProjectMember(userId, process.idproject);
+        if (isProjectMember) return true;
+      }
+    }
+
+    return false;
+  }
+
+  async canPerformProcessAction(userId: string, processId: string, action: string): Promise<boolean> {
+    // Verificar si es process_member del proceso específico
+    const isProcessMember = await this.isProcessMember(userId, processId);
+    if (isProcessMember) return true;
+
+    // Verificar si es project_member del proyecto del proceso
+    const process = await this.prisma.process.findUnique({
+      where: { id: processId },
+      select: { idproject: true }
+    });
+    if (process && process.idproject) {
+      const isProjectMember = await this.isProjectMember(userId, process.idproject);
+      if (isProjectMember) return true;
+    }
+
+    return false;
+  }
+
 }

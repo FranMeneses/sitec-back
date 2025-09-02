@@ -70,6 +70,11 @@ export class PermissionsGuard implements CanActivate {
       return await this.checkProcessMemberPermissions(user, action, resource);
     }
 
+    // Project member tiene permisos amplios en sus proyectos asignados
+    if (this.hasRole(user, 'project_member')) {
+      return await this.checkProjectMemberPermissions(user, action, resource);
+    }
+
     return false;
   }
 
@@ -114,6 +119,58 @@ export class PermissionsGuard implements CanActivate {
     }
 
     // Process member puede asignar y remover task_members
+    if (action === 'create' && resource === 'task_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    if (action === 'delete' && resource === 'task_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    return false;
+  }
+
+  private async checkProjectMemberPermissions(user: any, action: string, resource: string): Promise<boolean> {
+    // Project member puede leer proyectos, procesos y tareas
+    if (action === 'read' && ['project', 'process', 'task'].includes(resource)) {
+      return true;
+    }
+
+    // Project member puede crear procesos en sus proyectos
+    if (action === 'create' && resource === 'process') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Project member puede actualizar procesos en sus proyectos
+    if (action === 'update' && resource === 'process') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Project member puede crear tareas (heredado de process_member)
+    if (action === 'create' && resource === 'task') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Project member puede actualizar tareas (heredado de process_member)
+    if (action === 'update' && resource === 'task') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Project member puede crear comentarios y evidencias (heredado)
+    if (action === 'create' && ['comment', 'evidence'].includes(resource)) {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Project member puede asignar y remover process_members
+    if (action === 'create' && resource === 'process_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    if (action === 'delete' && resource === 'process_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Project member puede asignar y remover task_members (heredado)
     if (action === 'create' && resource === 'task_member') {
       return true; // La validación específica se hará en el servicio
     }

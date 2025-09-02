@@ -1,14 +1,21 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { UserService } from '../../auth/user/user.service';
 import { Project } from '../entities/project.entity';
 import { Category } from '../entities/category.entity';
 import { ProjectMember } from '../entities/project-member.entity';
 import { CreateProjectInput, UpdateProjectInput, AddProjectMemberInput } from '../dto/project.dto';
 import { CreateCategoryInput, UpdateCategoryInput } from '../dto/category.dto';
+import { CreateProcessInput } from '../../process/dto/process.dto';
+import { Process } from '../../process/entities/process.entity';
+import { AssignProcessMemberInput, RemoveProcessMemberInput } from '../dto/project-member.dto';
 
 @Injectable()
 export class ProjectService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private userService: UserService,
+  ) {}
 
   // ==================== PROJECT METHODS ====================
 
@@ -619,6 +626,237 @@ export class ProjectService {
         description: undefined,
       } : undefined,
       project: member.project ? this.mapProject(member.project) : undefined,
+    };
+  }
+
+  // ==================== PROJECT_MEMBER METHODS ====================
+
+  async createProcessAsProjectMember(createProcessInput: CreateProcessInput, projectMemberId: string): Promise<Process> {
+    // Validar que el proyecto existe
+    const project = await this.prisma.project.findUnique({
+      where: { id: createProcessInput.projectId },
+    });
+    if (!project) {
+      throw new BadRequestException('El proyecto especificado no existe');
+    }
+
+    // Validar que el usuario es project_member de este proyecto
+    const isProjectMember = await this.userService.isProjectMember(projectMemberId, createProcessInput.projectId);
+    if (!isProjectMember) {
+      throw new ForbiddenException('No tienes permisos para crear procesos en este proyecto');
+    }
+
+    const process = await this.prisma.process.create({
+      data: {
+        name: createProcessInput.name,
+        description: createProcessInput.description,
+        startdate: createProcessInput.startDate ? new Date(createProcessInput.startDate) : null,
+        duedate: createProcessInput.dueDate ? new Date(createProcessInput.dueDate) : null,
+        ideditor: projectMemberId,
+        idproject: createProcessInput.projectId,
+        editedat: new Date(),
+      },
+      include: {
+        user: true,
+        project: true,
+      },
+    });
+
+    return this.mapProcess(process);
+  }
+
+  async updateProcessAsProjectMember(processId: string, updateData: Partial<CreateProcessInput>, projectMemberId: string): Promise<Process> {
+    // Validar que el proceso existe
+    const existingProcess = await this.prisma.process.findUnique({
+      where: { id: processId },
+      include: { project: true },
+    });
+    if (!existingProcess) {
+      throw new NotFoundException('Proceso no encontrado');
+    }
+
+    // Validar que el usuario es project_member del proyecto
+    if (!existingProcess.idproject) {
+      throw new BadRequestException('El proceso no tiene un proyecto asociado');
+    }
+    const isProjectMember = await this.userService.isProjectMember(projectMemberId, existingProcess.idproject);
+    if (!isProjectMember) {
+      throw new ForbiddenException('No tienes permisos para editar procesos en este proyecto');
+    }
+
+    const process = await this.prisma.process.update({
+      where: { id: processId },
+      data: {
+        name: updateData.name,
+        description: updateData.description,
+        startdate: updateData.startDate ? new Date(updateData.startDate) : null,
+        duedate: updateData.dueDate ? new Date(updateData.dueDate) : null,
+        ideditor: projectMemberId,
+        editedat: new Date(),
+      },
+      include: {
+        user: true,
+        project: true,
+      },
+    });
+
+    return this.mapProcess(process);
+  }
+
+  async assignProcessMember(processId: string, userId: string, roleId: number, projectMemberId: string): Promise<boolean> {
+    // Validar que el proceso existe
+    const process = await this.prisma.process.findUnique({
+      where: { id: processId },
+      include: { project: true },
+    });
+    if (!process) {
+      throw new BadRequestException('El proceso especificado no existe');
+    }
+
+    // Validar que el usuario es project_member del proyecto
+    if (!process.idproject) {
+      throw new BadRequestException('El proceso no tiene un proyecto asociado');
+    }
+    const isProjectMember = await this.userService.isProjectMember(projectMemberId, process.idproject);
+    if (!isProjectMember) {
+      throw new ForbiddenException('No tienes permisos para asignar miembros a procesos en este proyecto');
+    }
+
+    // Validar que el usuario a asignar pertenece al proyecto
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: process.idproject,
+        iduser: userId,
+      },
+    });
+    if (!projectMember) {
+      throw new BadRequestException('El usuario no pertenece al proyecto');
+    }
+
+    // Verificar que no esté ya asignado
+    const existingProcessMember = await this.prisma.process_member.findFirst({
+      where: {
+        idprocess: processId,
+        iduser: userId,
+      },
+    });
+    if (existingProcessMember) {
+      throw new BadRequestException('El usuario ya está asignado a este proceso');
+    }
+
+    // Crear la asignación
+    await this.prisma.process_member.create({
+      data: {
+        idprocess: processId,
+        iduser: userId,
+        idrole: roleId,
+        assigned_at: new Date(),
+      },
+    });
+
+    return true;
+  }
+
+  async removeProcessMember(processId: string, userId: string, projectMemberId: string): Promise<boolean> {
+    // Validar que el proceso existe
+    const process = await this.prisma.process.findUnique({
+      where: { id: processId },
+      include: { project: true },
+    });
+    if (!process) {
+      throw new BadRequestException('El proceso especificado no existe');
+    }
+
+    // Validar que el usuario es project_member del proyecto
+    if (!process.idproject) {
+      throw new BadRequestException('El proceso no tiene un proyecto asociado');
+    }
+    const isProjectMember = await this.userService.isProjectMember(projectMemberId, process.idproject);
+    if (!isProjectMember) {
+      throw new ForbiddenException('No tienes permisos para remover miembros de procesos en este proyecto');
+    }
+
+    // Verificar que el process_member existe
+    const processMember = await this.prisma.process_member.findFirst({
+      where: {
+        idprocess: processId,
+        iduser: userId,
+      },
+    });
+    if (!processMember) {
+      throw new BadRequestException('El usuario no está asignado a este proceso');
+    }
+
+    // Remover la asignación
+    await this.prisma.process_member.delete({
+      where: { id: processMember.id },
+    });
+
+    return true;
+  }
+
+  async getProjectProcessesAsMember(projectId: string, projectMemberId: string): Promise<Process[]> {
+    // Validar que el usuario es project_member del proyecto
+    const isProjectMember = await this.userService.isProjectMember(projectMemberId, projectId);
+    if (!isProjectMember) {
+      throw new ForbiddenException('No tienes permisos para ver los procesos de este proyecto');
+    }
+
+    const processes = await this.prisma.process.findMany({
+      where: { idproject: projectId },
+      include: {
+        user: true,
+        project: true,
+        task: {
+          include: {
+            user: true,
+            project_member: {
+              include: {
+                user: true,
+                role: true,
+              },
+            },
+            task_member: {
+              include: {
+                user: true,
+                role: true,
+              },
+            },
+          },
+        },
+        process_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: { editedat: 'desc' },
+    });
+
+    return processes.map(process => this.mapProcess(process));
+  }
+
+  // ==================== HELPER METHODS ====================
+
+  private mapProcess(process: any): Process {
+    return {
+      id: process.id,
+      name: process.name || '',
+      description: process.description || '',
+      startDate: process.startdate,
+      dueDate: process.duedate,
+      editedAt: process.editedat,
+      projectId: process.idproject,
+      editor: process.user ? {
+        id: process.user.id,
+        name: process.user.name || '',
+        email: process.user.email,
+        password: process.user.password || undefined,
+        isActive: process.user.isactive ?? true,
+        havePassword: process.user.havepassword ?? false,
+      } : undefined,
+      project: process.project ? this.mapProject(process.project) : undefined,
     };
   }
 }

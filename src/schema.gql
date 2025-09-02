@@ -20,6 +20,12 @@ type Area {
   name: String
 }
 
+input AssignProcessMemberInput {
+  processId: String!
+  roleId: Int!
+  userId: String!
+}
+
 input AssignTaskInput {
   memberId: String!
   taskId: String!
@@ -169,6 +175,7 @@ type Logs {
 type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
+  assignProcessMember(assignProcessMemberInput: AssignProcessMemberInput!): Boolean!
   assignTask(assignTaskInput: AssignTaskInput!): Task!
   assignTaskMember(assignTaskMemberInput: AssignTaskMemberInput!): Boolean!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
@@ -178,6 +185,7 @@ type Mutation {
   createFirstSuperAdmin(email: String!, name: String!, password: String!): AuthResponse!
   createLog(createLogInput: CreateLogInput!): Logs!
   createProcess(createProcessInput: CreateProcessInput!): Process!
+  createProcessAsProjectMember(createProcessInput: CreateProcessInput!): Process!
   createProcessTask(idProcess: String!, idTask: String!): String!
   createProject(createProjectInput: CreateProjectInput!): Project!
   createProjectProcess(idProcess: String!, idProject: String!): String!
@@ -197,6 +205,7 @@ type Mutation {
   register(registerInput: RegisterInput!): AuthResponse!
   removeAdmin(id: String!): String!
   removeArea(id: Int!): Area!
+  removeProcessMember(removeProcessMemberInput: RemoveProcessMemberInput!): Boolean!
   removeProcessTask(id: String!): String!
   removeProjectMember(projectId: String!, userId: String!): Boolean!
   removeProjectProcess(id: String!): String!
@@ -210,6 +219,7 @@ type Mutation {
   updateComment(updateCommentInput: UpdateCommentInput!): Comment!
   updateEvidence(updateEvidenceInput: UpdateEvidenceInput!): Evidence!
   updateProcess(updateProcessInput: UpdateProcessInput!): Process!
+  updateProcessAsProjectMember(description: String, dueDate: String, name: String, processId: String!, startDate: String): Process!
   updateProfile(name: String): User!
   updateProject(updateProjectInput: UpdateProjectInput!): Project!
   updateProjectMember(updateProjectMemberInput: UpdateProjectMemberInput!): ProjectMember!
@@ -263,15 +273,14 @@ type Project {
 }
 
 type ProjectMember {
-  createdAt: DateTime!
+  assignedAt: DateTime
   id: ID!
   project: Project
-  projectId: String
+  projectId: String!
   role: Role
-  roleId: Int
-  updatedAt: DateTime!
+  roleId: Int!
   user: User
-  userId: String
+  userId: String!
 }
 
 type Query {
@@ -298,6 +307,7 @@ type Query {
   findUsersProject(idUser: String!): [Project!]!
   getAllSystemRoles: [SystemRoleResponse!]!
   getProcessTasksAsMember(processId: String!): [Task!]!
+  getProjectProcessesAsMember(projectId: String!): [Process!]!
   getUserSystemRole(userId: String!): SystemRoleResponse
   logs: [Logs!]!
   logsByProcess(processId: String!): [Logs!]!
@@ -307,6 +317,7 @@ type Query {
   myAreaTypes: [Type!]!
   myAssignedTasks: [Task!]!
   myProcessMemberships: [ProcessMember!]!
+  myProjectMemberships: [ProjectMember!]!
   myRoles: [Role!]!
   process(id: String!): Process
   processes: [Process!]!
@@ -336,6 +347,11 @@ input RegisterInput {
   email: String!
   name: String!
   password: String!
+}
+
+input RemoveProcessMemberInput {
+  processId: String!
+  userId: String!
 }
 
 input RemoveTaskMemberInput {
