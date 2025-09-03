@@ -421,6 +421,15 @@ export class ProjectService {
   // ==================== PROJECT PERMISSIONS METHODS ====================
 
   async isProjectAdmin(projectId: string, userId: string): Promise<boolean> {
+    // Super admin puede hacer cualquier cosa
+    const isSuperAdmin = await this.userService.isSuperAdmin(userId);
+    if (isSuperAdmin) return true;
+
+    // Admin del sistema puede hacer cualquier cosa
+    const isAdmin = await this.userService.isAdmin(userId);
+    if (isAdmin) return true;
+
+    // Verificar si es project_member con rol admin
     const adminRole = await this.prisma.role.findFirst({
       where: { name: 'admin' }
     });

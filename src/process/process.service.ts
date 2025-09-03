@@ -13,6 +13,28 @@ export class ProcessService {
     private userService: UserService,
   ) {}
 
+  // ==================== HELPER METHODS ====================
+
+  private async canAccessProject(projectId: string, userId: string): Promise<boolean> {
+    // Super admin puede hacer cualquier cosa
+    const isSuperAdmin = await this.userService.isSuperAdmin(userId);
+    if (isSuperAdmin) return true;
+
+    // Admin del sistema puede hacer cualquier cosa
+    const isAdmin = await this.userService.isAdmin(userId);
+    if (isAdmin) return true;
+
+    // Verificar si es project_member
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: projectId,
+        iduser: userId,
+      },
+    });
+
+    return !!projectMember;
+  }
+
   // ==================== PROCESS METHODS ====================
 
   async findAllProcesses(userId?: string): Promise<Process[]> {
@@ -62,14 +84,9 @@ export class ProcessService {
       throw new BadRequestException('El proyecto especificado no existe');
     }
 
-    // Validar que el usuario es miembro del proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: createProcessInput.projectId,
-        iduser: editorId,
-      },
-    });
-    if (!projectMember) {
+    // Validar que el usuario puede acceder al proyecto
+    const canAccess = await this.canAccessProject(createProcessInput.projectId, editorId);
+    if (!canAccess) {
       throw new ForbiddenException('No tienes permisos para crear procesos en este proyecto');
     }
 
@@ -102,14 +119,12 @@ export class ProcessService {
       throw new NotFoundException('Proceso no encontrado');
     }
 
-    // Validar que el usuario es miembro del proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: existingProcess.idproject,
-        iduser: editorId,
-      },
-    });
-    if (!projectMember) {
+    // Validar que el usuario puede acceder al proyecto
+    if (!existingProcess.idproject) {
+      throw new BadRequestException('El proceso no está asociado a un proyecto');
+    }
+    const canAccess = await this.canAccessProject(existingProcess.idproject, editorId);
+    if (!canAccess) {
       throw new ForbiddenException('No tienes permisos para editar este proceso');
     }
 
@@ -142,14 +157,12 @@ export class ProcessService {
       throw new NotFoundException('Proceso no encontrado');
     }
 
-    // Validar que el usuario es miembro del proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: existingProcess.idproject,
-        iduser: userId,
-      },
-    });
-    if (!projectMember) {
+    // Validar que el usuario puede acceder al proyecto
+    if (!existingProcess.idproject) {
+      throw new BadRequestException('El proceso no está asociado a un proyecto');
+    }
+    const canAccess = await this.canAccessProject(existingProcess.idproject, userId);
+    if (!canAccess) {
       throw new ForbiddenException('No tienes permisos para eliminar este proceso');
     }
 
