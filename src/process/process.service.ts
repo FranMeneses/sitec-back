@@ -35,6 +35,182 @@ export class ProcessService {
     return !!projectMember;
   }
 
+  private validateProcessDates(startDate?: string, dueDate?: string): void {
+    if (startDate && dueDate) {
+      const start = new Date(startDate);
+      const due = new Date(dueDate);
+      
+      if (due < start) {
+        throw new BadRequestException('La fecha de vencimiento del proceso no puede ser anterior a la fecha de inicio');
+      }
+    }
+  }
+
+  private async validateProcessDatesAgainstProject(
+    projectId: string, 
+    startDate?: string, 
+    dueDate?: string
+  ): Promise<void> {
+    // Obtener las fechas del proyecto
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { startdate: true, duedate: true }
+    });
+
+    if (!project) {
+      throw new BadRequestException('El proyecto especificado no existe');
+    }
+
+    // Validar fechas del proceso entre sí
+    this.validateProcessDates(startDate, dueDate);
+
+    // Si el proyecto tiene fechas definidas, validar que el proceso esté dentro del rango
+    if (project.startdate && startDate) {
+      const projectStart = new Date(project.startdate);
+      const processStart = new Date(startDate);
+      
+      if (processStart < projectStart) {
+        throw new BadRequestException('La fecha de inicio del proceso no puede ser anterior a la fecha de inicio del proyecto');
+      }
+    }
+
+    if (project.duedate && dueDate) {
+      const projectDue = new Date(project.duedate);
+      const processDue = new Date(dueDate);
+      
+      if (processDue > projectDue) {
+        throw new BadRequestException('La fecha de vencimiento del proceso no puede ser posterior a la fecha de vencimiento del proyecto');
+      }
+    }
+
+    // Validar que si el proceso tiene fechas, estén dentro del rango del proyecto
+    if (project.startdate && project.duedate) {
+      const projectStart = new Date(project.startdate);
+      const projectDue = new Date(project.duedate);
+      
+      if (startDate) {
+        const processStart = new Date(startDate);
+        if (processStart < projectStart || processStart > projectDue) {
+          throw new BadRequestException('La fecha de inicio del proceso debe estar dentro del rango de fechas del proyecto');
+        }
+      }
+      
+      if (dueDate) {
+        const processDue = new Date(dueDate);
+        if (processDue < projectStart || processDue > projectDue) {
+          throw new BadRequestException('La fecha de vencimiento del proceso debe estar dentro del rango de fechas del proyecto');
+        }
+      }
+    }
+  }
+
+  private async validateProcessDatesForUpdate(
+    existingProcess: any, 
+    startDate?: string, 
+    dueDate?: string
+  ): Promise<void> {
+    // Usar las fechas del input o las existentes
+    const finalStartDate = startDate || existingProcess.startdate?.toISOString();
+    const finalDueDate = dueDate || existingProcess.duedate?.toISOString();
+    
+    // Validar contra el proyecto
+    if (existingProcess.idproject) {
+      await this.validateProcessDatesAgainstProject(
+        existingProcess.idproject, 
+        finalStartDate, 
+        finalDueDate
+      );
+    }
+  }
+
+  private validateTaskDates(startDate?: string, dueDate?: string): void {
+    if (startDate && dueDate) {
+      const start = new Date(startDate);
+      const due = new Date(dueDate);
+      
+      if (due < start) {
+        throw new BadRequestException('La fecha de vencimiento de la tarea no puede ser anterior a la fecha de inicio');
+      }
+    }
+  }
+
+  private async validateTaskDatesAgainstProcess(
+    processId: string, 
+    startDate?: string, 
+    dueDate?: string
+  ): Promise<void> {
+    // Obtener las fechas del proceso
+    const process = await this.prisma.process.findUnique({
+      where: { id: processId },
+      select: { startdate: true, duedate: true }
+    });
+
+    if (!process) {
+      throw new BadRequestException('El proceso especificado no existe');
+    }
+
+    // Validar fechas de la tarea entre sí
+    this.validateTaskDates(startDate, dueDate);
+
+    // Si el proceso tiene fechas definidas, validar que la tarea esté dentro del rango
+    if (process.startdate && startDate) {
+      const processStart = new Date(process.startdate);
+      const taskStart = new Date(startDate);
+      
+      if (taskStart < processStart) {
+        throw new BadRequestException('La fecha de inicio de la tarea no puede ser anterior a la fecha de inicio del proceso');
+      }
+    }
+
+    if (process.duedate && dueDate) {
+      const processDue = new Date(process.duedate);
+      const taskDue = new Date(dueDate);
+      
+      if (taskDue > processDue) {
+        throw new BadRequestException('La fecha de vencimiento de la tarea no puede ser posterior a la fecha de vencimiento del proceso');
+      }
+    }
+
+    // Validar que si la tarea tiene fechas, estén dentro del rango del proceso
+    if (process.startdate && process.duedate) {
+      const processStart = new Date(process.startdate);
+      const processDue = new Date(process.duedate);
+      
+      if (startDate) {
+        const taskStart = new Date(startDate);
+        if (taskStart < processStart || taskStart > processDue) {
+          throw new BadRequestException('La fecha de inicio de la tarea debe estar dentro del rango de fechas del proceso');
+        }
+      }
+      
+      if (dueDate) {
+        const taskDue = new Date(dueDate);
+        if (taskDue < processStart || taskDue > processDue) {
+          throw new BadRequestException('La fecha de vencimiento de la tarea debe estar dentro del rango de fechas del proceso');
+        }
+      }
+    }
+  }
+
+  private async validateTaskDatesForUpdate(
+    existingTask: any, 
+    startDate?: string, 
+    dueDate?: string
+  ): Promise<void> {
+    // Usar las fechas del input o las existentes
+    const finalStartDate = startDate || existingTask.startdate?.toISOString();
+    const finalDueDate = dueDate || existingTask.duedateat?.toISOString();
+    
+    // Validar contra el proceso
+    if (existingTask.idprocess) {
+      await this.validateTaskDatesAgainstProcess(
+        existingTask.idprocess, 
+        finalStartDate, 
+        finalDueDate
+      );
+    }
+  }
+
   // ==================== PROCESS METHODS ====================
 
   async findAllProcesses(userId?: string): Promise<Process[]> {
@@ -84,6 +260,13 @@ export class ProcessService {
       throw new BadRequestException('El proyecto especificado no existe');
     }
 
+    // Validar fechas del proceso contra el proyecto
+    await this.validateProcessDatesAgainstProject(
+      createProcessInput.projectId,
+      createProcessInput.startDate,
+      createProcessInput.dueDate
+    );
+
     // Validar que el usuario puede acceder al proyecto
     const canAccess = await this.canAccessProject(createProcessInput.projectId, editorId);
     if (!canAccess) {
@@ -118,6 +301,13 @@ export class ProcessService {
     if (!existingProcess) {
       throw new NotFoundException('Proceso no encontrado');
     }
+
+    // Validar fechas del proceso (considerando fechas existentes)
+    await this.validateProcessDatesForUpdate(
+      existingProcess,
+      updateProcessInput.startDate,
+      updateProcessInput.dueDate
+    );
 
     // Validar que el usuario puede acceder al proyecto
     if (!existingProcess.idproject) {
@@ -344,6 +534,13 @@ export class ProcessService {
       throw new BadRequestException('El proceso especificado no existe');
     }
 
+    // Validar fechas de la tarea contra el proceso
+    await this.validateTaskDatesAgainstProcess(
+      createTaskInput.processId,
+      createTaskInput.startDate,
+      createTaskInput.dueDate
+    );
+
     // Validar que el usuario es miembro del proyecto
     const projectMember = await this.prisma.project_member.findFirst({
       where: {
@@ -404,6 +601,13 @@ export class ProcessService {
     if (!existingTask) {
       throw new NotFoundException('Tarea no encontrada');
     }
+
+    // Validar fechas de la tarea (considerando fechas existentes)
+    await this.validateTaskDatesForUpdate(
+      existingTask,
+      updateTaskInput.startDate,
+      updateTaskInput.dueDate
+    );
 
     // Validar que el usuario es miembro del proyecto
     const projectMember = await this.prisma.project_member.findFirst({
@@ -515,6 +719,13 @@ export class ProcessService {
     if (!process) {
       throw new BadRequestException('El proceso especificado no existe');
     }
+
+    // Validar fechas de la tarea contra el proceso
+    await this.validateTaskDatesAgainstProcess(
+      createTaskInput.processId,
+      createTaskInput.startDate,
+      createTaskInput.dueDate
+    );
 
     // Validar que el usuario es process_member de este proceso
     const isProcessMember = await this.userService.isProcessMember(processMemberId, createTaskInput.processId);

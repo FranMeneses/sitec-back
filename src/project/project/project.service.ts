@@ -17,6 +17,31 @@ export class ProjectService {
     private userService: UserService,
   ) {}
 
+  // ==================== HELPER METHODS ====================
+
+  private validateProjectDates(startDate?: string, dueDate?: string): void {
+    if (startDate && dueDate) {
+      const start = new Date(startDate);
+      const due = new Date(dueDate);
+      
+      if (due < start) {
+        throw new BadRequestException('La fecha de vencimiento no puede ser anterior a la fecha de inicio');
+      }
+    }
+  }
+
+  private validateProjectDatesForUpdate(
+    existingProject: Project, 
+    startDate?: string, 
+    dueDate?: string
+  ): void {
+    // Usar las fechas del input o las existentes
+    const finalStartDate = startDate || existingProject.startDate?.toISOString();
+    const finalDueDate = dueDate || existingProject.dueDate?.toISOString();
+    
+    this.validateProjectDates(finalStartDate, finalDueDate);
+  }
+
   // ==================== PROJECT METHODS ====================
 
   async findAllProjects(userId?: string): Promise<Project[]> {
@@ -47,6 +72,9 @@ export class ProjectService {
   }
 
   async createProject(createProjectInput: CreateProjectInput, editorId: string): Promise<Project> {
+    // Validar fechas del proyecto
+    this.validateProjectDates(createProjectInput.startDate, createProjectInput.dueDate);
+
     // Validar que la categoría existe (si se proporciona)
     if (createProjectInput.categoryId) {
       const category = await this.prisma.category.findUnique({
@@ -111,6 +139,13 @@ export class ProjectService {
     if (!existingProject) {
       throw new NotFoundException(`Proyecto con ID ${updateProjectInput.id} no encontrado`);
     }
+
+    // Validar fechas del proyecto (considerando fechas existentes)
+    this.validateProjectDatesForUpdate(
+      existingProject, 
+      updateProjectInput.startDate, 
+      updateProjectInput.dueDate
+    );
 
     // Validar que la categoría existe (si se actualiza)
     if (updateProjectInput.categoryId) {
