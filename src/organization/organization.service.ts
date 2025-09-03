@@ -5,11 +5,15 @@ import { CreateUnitInput, UpdateUnitInput } from './dto/unit.dto';
 import { CreateUnitMemberInput, UpdateUnitMemberInput } from './dto/unit-member.dto';
 import { CreateTypeInput, UpdateTypeInput } from './dto/type.dto';
 import { CreateAdminInput, AssignSuperAdminInput } from './dto/admin.dto';
+import { SystemRoleService } from '../auth/system-role/system-role.service';
 import { User } from '../auth/entities/user.entity';
 
 @Injectable()
 export class OrganizationService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private systemRoleService: SystemRoleService,
+  ) {}
 
   // ===== AREA METHODS =====
   async createArea(createAreaInput: CreateAreaInput, currentUser: User) {
@@ -871,6 +875,15 @@ export class OrganizationService {
       },
     });
 
+    // Actualizar el system_role del usuario a "admin"
+    const adminRole = await this.prisma.role.findFirst({
+      where: { name: 'admin' }
+    });
+
+    if (adminRole) {
+      await this.systemRoleService.updateUserSystemRole(createAdminInput.idUser, adminRole.id);
+    }
+
     return {
       id: admin.id,
       idArea: admin.idarea,
@@ -916,6 +929,22 @@ export class OrganizationService {
       where: { id },
     });
 
+    // Verificar si el usuario tiene otros roles de admin en otras áreas
+    const otherAdminRoles = await this.prisma.admin.findFirst({
+      where: { iduser: admin.iduser }
+    });
+
+    // Si no tiene otros roles de admin, revertir su system_role a "user"
+    if (!otherAdminRoles && admin.iduser) {
+      const userRole = await this.prisma.role.findFirst({
+        where: { name: 'user' }
+      });
+
+      if (userRole) {
+        await this.systemRoleService.updateUserSystemRole(admin.iduser, userRole.id);
+      }
+    }
+
     return `Administrador con ID ${id} eliminado exitosamente`;
   }
 
@@ -954,17 +983,21 @@ export class OrganizationService {
       throw new NotFoundException('Rol super_admin no encontrado');
     }
 
-    // Asignar el rol super_admin al usuario
-    const systemRole = await this.prisma.system_role.create({
-      data: {
-        user_id: assignSuperAdminInput.idUser,
-        role_id: superAdminRole.id,
-      },
+    // Asignar el rol super_admin al usuario usando SystemRoleService
+    await this.systemRoleService.updateUserSystemRole(assignSuperAdminInput.idUser, superAdminRole.id);
+
+    // Obtener el system_role actualizado para la respuesta
+    const systemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: assignSuperAdminInput.idUser },
       include: {
         role: true,
         user: true,
       },
     });
+
+    if (!systemRole) {
+      throw new Error('Error al actualizar el rol del usuario');
+    }
 
     return {
       id: systemRole.id,
