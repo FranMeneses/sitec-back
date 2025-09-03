@@ -53,11 +53,65 @@ export class UserService {
           include: {
             role: true
           }
-        }
+        },
+        unit_member: {
+          include: {
+            role: true
+          }
+        },
+        project_member: {
+          include: {
+            role: true
+          }
+        },
+        process_member: {
+          include: {
+            role: true
+          }
+        },
+        task_member: {
+          include: {
+            role: true
+          }
+        },
+        admin: true
       }
     });
     
     if (!user) return null;
+    
+    // Recopilar todos los roles del usuario
+    const allRoles: any[] = [];
+    
+    // Agregar system_role si existe
+    if (user.system_role?.role) {
+      allRoles.push(user.system_role.role);
+    }
+    
+    // Agregar roles de unit_member
+    user.unit_member.forEach(um => {
+      if (um.role) allRoles.push(um.role);
+    });
+    
+    // Agregar roles de project_member
+    user.project_member.forEach(pm => {
+      if (pm.role) allRoles.push(pm.role);
+    });
+    
+    // Agregar roles de process_member
+    user.process_member.forEach(pm => {
+      if (pm.role) allRoles.push(pm.role);
+    });
+    
+    // Agregar roles de task_member
+    user.task_member.forEach(tm => {
+      if (tm.role) allRoles.push(tm.role);
+    });
+    
+    // Eliminar duplicados basado en ID
+    const uniqueRoles = allRoles.filter((role, index, self) => 
+      index === self.findIndex(r => r.id === role.id)
+    );
     
     return {
       id: user.id,
@@ -72,7 +126,9 @@ export class UserService {
         roleId: user.system_role.role_id,
         createdAt: user.system_role.created_at,
         role: user.system_role.role
-      } : null
+      } : null,
+      roles: uniqueRoles, // Todos los roles del usuario
+      admin: user.admin.length > 0 ? user.admin[0] : null
     };
   }
 
@@ -687,16 +743,40 @@ export class UserService {
   }
 
   async canViewAllCategories(userId: string): Promise<boolean> {
+    // Super admin puede ver todas las categorías
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+    if (isSuperAdmin) return true;
+
+    // Admin puede ver todas las categorías
+    const isAdmin = await this.isAdmin(userId);
+    if (isAdmin) return true;
+
     // Un unit_member puede ver todas las categorías
     return await this.hasUnitMembership(userId);
   }
 
   async canCreateCategory(userId: string): Promise<boolean> {
+    // Super admin puede crear categorías
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+    if (isSuperAdmin) return true;
+
+    // Admin puede crear categorías en su área
+    const isAdmin = await this.isAdmin(userId);
+    if (isAdmin) return true;
+
     // Un unit_member puede crear categorías
     return await this.hasUnitMembership(userId);
   }
 
   async canEditCategory(userId: string): Promise<boolean> {
+    // Super admin puede editar categorías
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+    if (isSuperAdmin) return true;
+
+    // Admin puede editar categorías en su área
+    const isAdmin = await this.isAdmin(userId);
+    if (isAdmin) return true;
+
     // Un unit_member puede editar categorías
     return await this.hasUnitMembership(userId);
   }
