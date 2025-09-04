@@ -301,6 +301,8 @@ type Query {
   getAllSystemRoles: [SystemRoleResponse!]!
   getCategoryById(id: String!): Category
   getProjectProcessesAsMember(projectId: String!): [Process!]!
+  getProjectsByCategory(categoryId: String!): [Project!]!
+  getProjectsByUnit(unitId: Float!): [Project!]!
   getUnitProjectsAsMember(unitId: Float!): [Project!]!
   getUserSystemRole(userId: String!): SystemRoleResponse
   logs: [Logs!]!

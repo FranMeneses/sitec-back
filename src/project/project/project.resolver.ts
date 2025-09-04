@@ -148,4 +148,22 @@ export class ProjectResolver {
   async getCategoryById(@Args('id') id: string): Promise<Category | null> {
     return this.projectService.findCategoryById(id);
   }
+
+  @Query(() => [Project])
+  @UseGuards(JwtAuthGuard)
+  async getProjectsByCategory(
+    @Args('categoryId') categoryId: string,
+    @CurrentUser() user: User,
+  ): Promise<Project[]> {
+    return this.projectService.findProjectsByCategory(categoryId, user.id);
+  }
+
+  @Query(() => [Project])
+  @UseGuards(JwtAuthGuard)
+  async getProjectsByUnit(
+    @Args('unitId', { type: () => Number }) unitId: number,
+    @CurrentUser() user: User,
+  ): Promise<Project[]> {
+    return this.projectService.findProjectsByUnit(unitId, user.id);
+  }
 }

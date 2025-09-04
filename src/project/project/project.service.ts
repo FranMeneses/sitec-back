@@ -822,6 +822,98 @@ export class ProjectService {
     };
   }
 
+  async findProjectsByCategory(categoryId: string, userId: string): Promise<Project[]> {
+    // Verificar que la categoría existe
+    const category = await this.prisma.category.findUnique({
+      where: { id: categoryId }
+    });
+
+    if (!category) {
+      throw new BadRequestException('La categoría especificada no existe');
+    }
+
+    // Obtener proyectos de la categoría
+    const projects = await this.prisma.project.findMany({
+      where: { 
+        idcategory: categoryId 
+      },
+      include: {
+        user: true, // editor
+        unit: {
+          include: {
+            type: true
+          }
+        },
+        category: true,
+        process: {
+          include: {
+            user: true, // editor del proceso
+            task: {
+              include: {
+                user: true, // editor de la tarea
+                task_member: {
+                  include: {
+                    user: true,
+                    role: true,
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    return projects.map(project => this.mapProject(project));
+  }
+
+  async findProjectsByUnit(unitId: number, userId: string): Promise<Project[]> {
+    // Verificar que la unidad existe
+    const unit = await this.prisma.unit.findUnique({
+      where: { id: unitId }
+    });
+
+    if (!unit) {
+      throw new BadRequestException('La unidad especificada no existe');
+    }
+
+    // Obtener proyectos de la unidad
+    const projects = await this.prisma.project.findMany({
+      where: { 
+        idunit: unitId 
+      },
+      include: {
+        user: true, // editor
+        unit: {
+          include: {
+            type: true
+          }
+        },
+        category: true,
+        process: {
+          include: {
+            user: true, // editor del proceso
+            task: {
+              include: {
+                user: true, // editor de la tarea
+                task_member: {
+                  include: {
+                    user: true,
+                    role: true,
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    return projects.map(project => this.mapProject(project));
+  }
+
   async createCategory(createCategoryInput: CreateCategoryInput, editorId: string): Promise<Category> {
     // Verificar que el área existe
     const area = await this.prisma.area.findUnique({
