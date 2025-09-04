@@ -35,11 +35,6 @@ export class CreateTaskInput {
   @IsEnum(TaskStatus)
   status: TaskStatus;
 
-  @Field({ nullable: true })
-  @IsUUID()
-  @IsOptional()
-  memberId?: string;
-
   @Field()
   @IsUUID()
   processId: string;
@@ -77,23 +72,8 @@ export class UpdateTaskInput {
   status?: TaskStatus;
 
   @Field({ nullable: true })
-  @IsUUID()
-  @IsOptional()
-  memberId?: string;
-
-  @Field({ nullable: true })
   @IsString()
   @IsOptional()
   report?: string;
 }
 
-@InputType()
-export class AssignTaskInput {
-  @Field()
-  @IsUUID()
-  taskId: string;
-
-  @Field()
-  @IsUUID()
-  memberId: string;
-}

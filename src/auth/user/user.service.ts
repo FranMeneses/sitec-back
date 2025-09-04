@@ -64,11 +64,6 @@ export class UserService {
             role: true
           }
         },
-        process_member: {
-          include: {
-            role: true
-          }
-        },
         task_member: {
           include: {
             role: true
@@ -98,10 +93,7 @@ export class UserService {
       if (pm.role) allRoles.push(pm.role);
     });
     
-    // Agregar roles de process_member
-    user.process_member.forEach(pm => {
-      if (pm.role) allRoles.push(pm.role);
-    });
+    // Ya no usamos process_member
     
     // Agregar roles de task_member
     user.task_member.forEach(tm => {
@@ -424,12 +416,6 @@ export class UserService {
               }
             },
             user: true, // editor
-            project_member: {
-              include: {
-                user: true,
-                role: true,
-              }
-            },
             comment: {
               include: {
                 user: true,
@@ -489,84 +475,7 @@ export class UserService {
     return await this.isTaskMember(userId, taskId);
   }
 
-  // ==================== PROCESS_MEMBER METHODS ====================
 
-  async findUserProcessMemberships(userId: string): Promise<any[]> {
-    // Obtener todos los procesos donde el usuario es process_member
-    const processMembers = await this.prisma.process_member.findMany({
-      where: { iduser: userId },
-      include: {
-        process: {
-          include: {
-            project: {
-              include: {
-                unit: true,
-                category: true,
-              }
-            },
-            user: true, // editor del proceso
-            task: {
-              include: {
-                user: true, // editor de la tarea
-                project_member: {
-                  include: {
-                    user: true,
-                    role: true,
-                  }
-                },
-                task_member: {
-                  include: {
-                    user: true,
-                    role: true,
-                  }
-                }
-              }
-            }
-          }
-        },
-        role: true,
-      },
-      orderBy: { assigned_at: 'desc' }
-    });
-
-    return processMembers.map(pm => ({
-      id: pm.id,
-      assignedAt: pm.assigned_at,
-      role: pm.role,
-      process: pm.process,
-    }));
-  }
-
-  async isProcessMember(userId: string, processId: string): Promise<boolean> {
-    const processMember = await this.prisma.process_member.findFirst({
-      where: {
-        iduser: userId,
-        idprocess: processId,
-      },
-    });
-
-    return !!processMember;
-  }
-
-  async canCreateTaskInProcess(userId: string, processId: string): Promise<boolean> {
-    // Un process_member puede crear tareas en sus procesos asignados
-    return await this.isProcessMember(userId, processId);
-  }
-
-  async canViewAllTasksInProcess(userId: string, processId: string): Promise<boolean> {
-    // Un process_member puede ver todas las tareas de sus procesos asignados
-    return await this.isProcessMember(userId, processId);
-  }
-
-  async canAssignTaskMembers(userId: string, processId: string): Promise<boolean> {
-    // Un process_member puede asignar miembros a tareas de sus procesos
-    return await this.isProcessMember(userId, processId);
-  }
-
-  async canRemoveTaskMembers(userId: string, processId: string): Promise<boolean> {
-    // Un process_member puede remover miembros de tareas de sus procesos
-    return await this.isProcessMember(userId, processId);
-  }
 
   // ==================== PROJECT_MEMBER METHODS ====================
 
@@ -586,12 +495,6 @@ export class UserService {
                 task: {
                   include: {
                     user: true, // editor de la tarea
-                    project_member: {
-                      include: {
-                        user: true,
-                        role: true,
-                      }
-                    },
                     task_member: {
                       include: {
                         user: true,
@@ -612,8 +515,8 @@ export class UserService {
     return projectMembers.map(pm => ({
       id: pm.id,
       assignedAt: null, // project_member no tiene assigned_at en el esquema
-      role: pm.role,
-      project: pm.project,
+      role: pm.role || null,
+      project: pm.project || null,
     }));
   }
 
@@ -673,12 +576,6 @@ export class UserService {
                     task: {
                       include: {
                         user: true, // editor de la tarea
-                        project_member: {
-                          include: {
-                            user: true,
-                            role: true,
-                          }
-                        },
                         task_member: {
                           include: {
                             user: true,
@@ -701,8 +598,8 @@ export class UserService {
     return unitMembers.map(um => ({
       id: um.id,
       assignedAt: null, // unit_member no tiene assigned_at en el esquema
-      role: um.role,
-      unit: um.unit,
+      role: um.role || null,
+      unit: um.unit || null,
     }));
   }
 
@@ -933,10 +830,7 @@ export class UserService {
       where: { id: taskId },
       select: { idprocess: true }
     });
-    if (task) {
-      const isProcessMember = await this.isProcessMember(userId, task.idprocess);
-      if (isProcessMember) return true;
-    }
+    // Ya no verificamos process_member, solo project_member
 
     // Verificar si es project_member del proyecto de la tarea
     if (task) {
@@ -980,9 +874,7 @@ export class UserService {
     const canAdminPerform = await this.canAdminPerformProcessAction(userId, processId, action);
     if (canAdminPerform) return true;
 
-    // Verificar si es process_member del proceso específico
-    const isProcessMember = await this.isProcessMember(userId, processId);
-    if (isProcessMember) return true;
+    // Ya no verificamos process_member, solo project_member
 
     // Verificar si es project_member del proyecto del proceso
     const process = await this.prisma.process.findUnique({

@@ -315,12 +315,6 @@ export class ProjectService {
       include: {
         user: true, // editor
         process: true,
-        project_member: {
-          include: {
-            user: true,
-            role: true
-          }
-        }
       },
       orderBy: { name: 'asc' },
     });
@@ -343,26 +337,8 @@ export class ProjectService {
         havePassword: task.user.havepassword ?? false,
       } : undefined,
       processId: task.idprocess,
-      memberId: task.project_member?.iduser || null,
-      member: task.project_member ? {
-        id: task.project_member.id,
-        userId: task.project_member.iduser,
-        projectId: task.project_member.idproject,
-        roleId: task.project_member.idrole,
-        user: task.project_member.user ? {
-          id: task.project_member.user.id,
-          name: task.project_member.user.name || '',
-          email: task.project_member.user.email,
-          password: task.project_member.user.password || undefined,
-          isActive: task.project_member.user.isactive ?? true,
-          havePassword: task.project_member.user.havepassword ?? false,
-        } : undefined,
-        role: task.project_member.role ? {
-          id: task.project_member.role.id,
-          name: task.project_member.role.name || '',
-          description: undefined,
-        } : undefined,
-      } : undefined,
+      memberId: null, // Ya no usamos memberId
+      member: null, // Ya no usamos member
     }));
   }
 
@@ -706,23 +682,7 @@ export class ProjectService {
       },
     });
 
-    // Obtener el rol 'process_member' para asignarlo al creador
-    const processMemberRole = await this.prisma.role.findFirst({
-      where: { name: 'process_member' }
-    });
-
-    if (!processMemberRole) {
-      throw new BadRequestException('Rol process_member no encontrado en el sistema');
-    }
-
-    // Agregar automáticamente al creador como process_member del proceso
-    await this.prisma.process_member.create({
-      data: {
-        idprocess: process.id,
-        iduser: projectMemberId,
-        idrole: processMemberRole.id,
-      },
-    });
+    // Ya no necesitamos auto-asignar process_member
 
     return this.mapProcess(process);
   }
@@ -765,97 +725,7 @@ export class ProjectService {
     return this.mapProcess(process);
   }
 
-  async assignProcessMember(processId: string, userId: string, roleId: number, projectMemberId: string): Promise<boolean> {
-    // Validar que el proceso existe
-    const process = await this.prisma.process.findUnique({
-      where: { id: processId },
-      include: { project: true },
-    });
-    if (!process) {
-      throw new BadRequestException('El proceso especificado no existe');
-    }
 
-    // Validar que el usuario es project_member del proyecto
-    if (!process.idproject) {
-      throw new BadRequestException('El proceso no tiene un proyecto asociado');
-    }
-    const isProjectMember = await this.userService.isProjectMember(projectMemberId, process.idproject);
-    if (!isProjectMember) {
-      throw new ForbiddenException('No tienes permisos para asignar miembros a procesos en este proyecto');
-    }
-
-    // Validar que el usuario a asignar pertenece al proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: process.idproject,
-        iduser: userId,
-      },
-    });
-    if (!projectMember) {
-      throw new BadRequestException('El usuario no pertenece al proyecto');
-    }
-
-    // Verificar que no esté ya asignado
-    const existingProcessMember = await this.prisma.process_member.findFirst({
-      where: {
-        idprocess: processId,
-        iduser: userId,
-      },
-    });
-    if (existingProcessMember) {
-      throw new BadRequestException('El usuario ya está asignado a este proceso');
-    }
-
-    // Crear la asignación
-    await this.prisma.process_member.create({
-      data: {
-        idprocess: processId,
-        iduser: userId,
-        idrole: roleId,
-        assigned_at: new Date(),
-      },
-    });
-
-    return true;
-  }
-
-  async removeProcessMember(processId: string, userId: string, projectMemberId: string): Promise<boolean> {
-    // Validar que el proceso existe
-    const process = await this.prisma.process.findUnique({
-      where: { id: processId },
-      include: { project: true },
-    });
-    if (!process) {
-      throw new BadRequestException('El proceso especificado no existe');
-    }
-
-    // Validar que el usuario es project_member del proyecto
-    if (!process.idproject) {
-      throw new BadRequestException('El proceso no tiene un proyecto asociado');
-    }
-    const isProjectMember = await this.userService.isProjectMember(projectMemberId, process.idproject);
-    if (!isProjectMember) {
-      throw new ForbiddenException('No tienes permisos para remover miembros de procesos en este proyecto');
-    }
-
-    // Verificar que el process_member existe
-    const processMember = await this.prisma.process_member.findFirst({
-      where: {
-        idprocess: processId,
-        iduser: userId,
-      },
-    });
-    if (!processMember) {
-      throw new BadRequestException('El usuario no está asignado a este proceso');
-    }
-
-    // Remover la asignación
-    await this.prisma.process_member.delete({
-      where: { id: processMember.id },
-    });
-
-    return true;
-  }
 
   async getProjectProcessesAsMember(projectId: string, projectMemberId: string): Promise<Process[]> {
     // Validar que el usuario es project_member del proyecto
@@ -872,24 +742,12 @@ export class ProjectService {
         task: {
           include: {
             user: true,
-            project_member: {
-              include: {
-                user: true,
-                role: true,
-              },
-            },
             task_member: {
               include: {
                 user: true,
                 role: true,
               },
             },
-          },
-        },
-        process_member: {
-          include: {
-            user: true,
-            role: true,
           },
         },
       },

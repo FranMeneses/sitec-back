@@ -1,7 +1,6 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { User } from '../../auth/entities/user.entity';
 import { Process } from './process.entity';
-import { ProjectMember } from '../../project/entities/project-member.entity';
 
 @ObjectType()
 export class Task {
@@ -29,11 +28,6 @@ export class Task {
   @Field(() => User, { nullable: true })
   editor?: User;
 
-  @Field({ nullable: true })
-  memberId?: string;
-
-  @Field(() => ProjectMember, { nullable: true })
-  member?: ProjectMember;
 
   @Field({ nullable: true })
   report?: string;

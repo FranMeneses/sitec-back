@@ -47,19 +47,18 @@ model logs {
 }
 
 model process {
-  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String?          @db.VarChar
-  description    String?          @db.VarChar
-  startdate      DateTime?        @db.Timestamp(6)
-  duedate        DateTime?        @db.Timestamp(6)
-  editedat       DateTime?        @db.Timestamp(6)
-  ideditor       String?          @db.Uuid
-  idproject      String?          @db.Uuid
-  logs           logs[]
-  user           user?            @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  project        project?         @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  process_member process_member[]
-  task           task[]
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String?   @db.VarChar
+  description String? @db.VarChar
+  startdate DateTime? @db.Timestamp(6)
+  duedate   DateTime? @db.Timestamp(6)
+  editedat  DateTime? @db.Timestamp(6)
+  ideditor  String?   @db.Uuid
+  idproject String?   @db.Uuid
+  logs      logs[]
+  user      user?     @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project   project?  @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task      task[]
 }
 
 model project {
@@ -88,13 +87,11 @@ model project_member {
   project   project? @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
   role      role?    @relation(fields: [idrole], references: [id], onDelete: NoAction, onUpdate: NoAction)
   user      user?    @relation(fields: [iduser], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  task      task[]
 }
 
 model role {
-  id             Int              @id @default(autoincrement())
-  name           String?          @db.VarChar
-  process_member process_member[]
+  id             Int           @id @default(autoincrement())
+  name           String?       @db.VarChar
   project_member project_member[]
   system_role    system_role[]
   task_member    task_member[]
@@ -102,24 +99,22 @@ model role {
 }
 
 model task {
-  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String?         @db.VarChar
-  description    String?
-  startdate      DateTime?       @db.Timestamp(6)
-  duedateat      DateTime?       @db.Timestamp(6)
-  status         String?         @db.VarChar
-  editedat       DateTime?       @db.Timestamp(6)
-  ideditor       String?         @db.Uuid
-  idmember       String?         @db.Uuid
-  idprocess      String          @db.Uuid
-  report         String?
-  comment        comment[]
-  evidence       evidence[]
-  logs           logs[]
-  user           user?           @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  project_member project_member? @relation(fields: [idmember], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  process        process         @relation(fields: [idprocess], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  task_member    task_member[]
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String?   @db.VarChar
+  description String?
+  startdate   DateTime? @db.Timestamp(6)
+  duedateat   DateTime? @db.Timestamp(6)
+  status      String?   @db.VarChar
+  editedat    DateTime? @db.Timestamp(6)
+  ideditor    String?   @db.Uuid
+  idprocess   String    @db.Uuid
+  report      String?
+  comment     comment[]
+  evidence    evidence[]
+  logs        logs[]
+  user        user?     @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  process     process   @relation(fields: [idprocess], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task_member task_member[]
 }
 
 model type {
@@ -159,7 +154,6 @@ model user {
   evidence       evidence[]
   logs           logs[]
   process        process[]
-  process_member process_member[]
   project        project[]
   project_member project_member[]
   system_role    system_role?
@@ -187,18 +181,6 @@ model comment {
   user       user      @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model process_member {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  idprocess   String    @db.Uuid
-  iduser      String    @db.Uuid
-  idrole      Int
-  assigned_at DateTime? @default(now()) @db.Timestamp(6)
-  process     process   @relation(fields: [idprocess], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  role        role      @relation(fields: [idrole], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user        user      @relation(fields: [iduser], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([idprocess, iduser])
-}
 
 model task_member {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

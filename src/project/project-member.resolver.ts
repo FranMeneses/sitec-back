@@ -60,30 +60,4 @@ export class ProjectMemberResolver {
     return this.projectService.updateProcessAsProjectMember(processId, updateData, user.id);
   }
 
-  @Mutation(() => Boolean, { name: 'assignProcessMember' })
-  @UseGuards(JwtAuthGuard)
-  async assignProcessMember(
-    @Args('assignProcessMemberInput') assignProcessMemberInput: AssignProcessMemberInput,
-    @CurrentUser() user: User,
-  ): Promise<boolean> {
-    return this.projectService.assignProcessMember(
-      assignProcessMemberInput.processId,
-      assignProcessMemberInput.userId,
-      assignProcessMemberInput.roleId,
-      user.id,
-    );
-  }
-
-  @Mutation(() => Boolean, { name: 'removeProcessMember' })
-  @UseGuards(JwtAuthGuard)
-  async removeProcessMember(
-    @Args('removeProcessMemberInput') removeProcessMemberInput: RemoveProcessMemberInput,
-    @CurrentUser() user: User,
-  ): Promise<boolean> {
-    return this.projectService.removeProcessMember(
-      removeProcessMemberInput.processId,
-      removeProcessMemberInput.userId,
-      user.id,
-    );
-  }
 }

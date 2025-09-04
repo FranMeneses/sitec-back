@@ -20,25 +20,8 @@ type Area {
   name: String
 }
 
-input AssignProcessMemberInput {
-  processId: String!
-  roleId: Int!
-  userId: String!
-}
-
 input AssignSuperAdminInput {
   idUser: String!
-}
-
-input AssignTaskInput {
-  memberId: String!
-  taskId: String!
-}
-
-input AssignTaskMemberInput {
-  roleId: Int!
-  taskId: String!
-  userId: String!
 }
 
 type AuthResponse {
@@ -123,7 +106,6 @@ input CreateRoleInput {
 input CreateTaskInput {
   description: String
   dueDate: String
-  memberId: String
   name: String!
   processId: String!
   startDate: String
@@ -194,11 +176,8 @@ type Logs {
 type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
-  assignProcessMember(assignProcessMemberInput: AssignProcessMemberInput!): Boolean!
   assignProjectMemberAsUnitMember(addProjectMemberInput: AddProjectMemberInput!, projectId: String!): Boolean!
   assignSuperAdmin(assignSuperAdminInput: AssignSuperAdminInput!): String!
-  assignTask(assignTaskInput: AssignTaskInput!): Task!
-  assignTaskMember(assignTaskMemberInput: AssignTaskMemberInput!): Boolean!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
   createCategoryAsUnitMember(createCategoryInput: CreateCategoryInput!): Category!
@@ -214,7 +193,6 @@ type Mutation {
   createProjectProcess(idProcess: String!, idProject: String!): String!
   createRole(createRoleInput: CreateRoleInput!): Role!
   createTask(createTaskInput: CreateTaskInput!): Task!
-  createTaskAsProcessMember(createTaskInput: CreateTaskInput!): Task!
   createType(createTypeInput: CreateTypeInput!): Type!
   createUnit(createUnitInput: CreateUnitInput!): Unit!
   createUser(createUserInput: CreateUserInput!): User!
@@ -228,12 +206,10 @@ type Mutation {
   register(registerInput: RegisterInput!): AuthResponse!
   removeAdmin(id: String!): String!
   removeArea(id: Int!): Area!
-  removeProcessMember(removeProcessMemberInput: RemoveProcessMemberInput!): Boolean!
   removeProcessTask(id: String!): String!
   removeProjectMember(projectId: String!, userId: String!): Boolean!
   removeProjectMemberAsUnitMember(projectId: String!, userId: String!): Boolean!
   removeProjectProcess(id: String!): String!
-  removeTaskMember(removeTaskMemberInput: RemoveTaskMemberInput!): Boolean!
   removeType(id: Int!): Type!
   removeUnit(id: Int!): Unit!
   removeUnitMember(id: String!): UnitMember!
@@ -271,17 +247,6 @@ type Process {
   projectId: String!
   startDate: DateTime
   updatedAt: DateTime!
-}
-
-type ProcessMember {
-  assignedAt: DateTime
-  id: ID!
-  process: Process
-  processId: String!
-  role: Role
-  roleId: Int!
-  user: User
-  userId: String!
 }
 
 type Project {
@@ -334,7 +299,6 @@ type Query {
   findUsersProject(idUser: String!): [Project!]!
   getAllCategoriesAsUnitMember: [Category!]!
   getAllSystemRoles: [SystemRoleResponse!]!
-  getProcessTasksAsMember(processId: String!): [Task!]!
   getProjectProcessesAsMember(projectId: String!): [Process!]!
   getUnitProjectsAsMember(unitId: Float!): [Project!]!
   getUserSystemRole(userId: String!): SystemRoleResponse
@@ -345,7 +309,6 @@ type Query {
   me: User!
   myAreaTypes: [Type!]!
   myAssignedTasks: [Task!]!
-  myProcessMemberships: [ProcessMember!]!
   myProjectMemberships: [ProjectMember!]!
   myRoles: [Role!]!
   myUnitMemberships: [UnitMember!]!
@@ -377,16 +340,6 @@ input RegisterInput {
   email: String!
   name: String!
   password: String!
-}
-
-input RemoveProcessMemberInput {
-  processId: String!
-  userId: String!
-}
-
-input RemoveTaskMemberInput {
-  taskId: String!
-  userId: String!
 }
 
 type Role {
@@ -430,8 +383,6 @@ type Task {
   editedAt: DateTime
   editor: User
   id: ID!
-  member: ProjectMember
-  memberId: String
   name: String!
   process: Process
   processId: String!
@@ -522,7 +473,6 @@ input UpdateTaskInput {
   description: String
   dueDate: String
   id: String!
-  memberId: String
   name: String
   report: String
   startDate: String

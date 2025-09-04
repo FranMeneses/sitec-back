@@ -4,7 +4,7 @@ import { ProcessService } from './process.service';
 import { Process } from './entities/process.entity';
 import { Task } from './entities/task.entity';
 import { CreateProcessInput, UpdateProcessInput } from './dto/process.dto';
-import { CreateTaskInput, UpdateTaskInput, AssignTaskInput } from './dto/task.dto';
+import { CreateTaskInput, UpdateTaskInput } from './dto/task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
@@ -154,14 +154,6 @@ export class TaskResolver {
     return this.processService.deleteTask(id, user.id);
   }
 
-  @Mutation(() => Task)
-  @UseGuards(JwtAuthGuard)
-  async assignTask(
-    @Args('assignTaskInput') assignTaskInput: AssignTaskInput,
-    @CurrentUser() user: User,
-  ): Promise<Task> {
-    return this.processService.assignTask(assignTaskInput, user.id);
-  }
 
   // ==================== TASK RESOLVE FIELDS ====================
 
