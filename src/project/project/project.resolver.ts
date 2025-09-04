@@ -3,6 +3,7 @@ import { UseGuards } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { Project } from '../entities/project.entity';
 import { ProjectMember } from '../entities/project-member.entity';
+import { Category } from '../entities/category.entity';
 import { CreateProjectInput, UpdateProjectInput, AddProjectMemberInput, UpdateProjectMemberInput } from '../dto/project.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
@@ -140,5 +141,11 @@ export class ProjectResolver {
     @CurrentUser() user: User,
   ): Promise<string> {
     return this.projectService.removeProjectProcess(id, user.id);
+  }
+
+  @Query(() => Category, { nullable: true })
+  @UseGuards(JwtAuthGuard)
+  async getCategoryById(@Args('id') id: string): Promise<Category | null> {
+    return this.projectService.findCategoryById(id);
   }
 }

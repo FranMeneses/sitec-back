@@ -299,6 +299,7 @@ type Query {
   findUsersProject(idUser: String!): [Project!]!
   getAllCategoriesAsUnitMember: [Category!]!
   getAllSystemRoles: [SystemRoleResponse!]!
+  getCategoryById(id: String!): Category
   getProjectProcessesAsMember(projectId: String!): [Process!]!
   getUnitProjectsAsMember(unitId: Float!): [Project!]!
   getUserSystemRole(userId: String!): SystemRoleResponse
