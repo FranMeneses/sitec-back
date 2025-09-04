@@ -166,8 +166,8 @@ model category {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String    @db.VarChar
   description String?
-  id_area     Int
-  area        area      @relation(fields: [id_area], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_area     Int?
+  area        area?     @relation(fields: [id_area], references: [id], onDelete: NoAction, onUpdate: NoAction)
   project     project[]
 }
 

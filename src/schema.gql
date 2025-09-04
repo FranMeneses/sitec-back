@@ -30,7 +30,7 @@ type AuthResponse {
 }
 
 type Category {
-  areaId: Int!
+  areaId: Int
   createdAt: DateTime!
   description: String
   id: ID!

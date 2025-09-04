@@ -11,8 +11,8 @@ export class Category {
   @Field({ nullable: true })
   description?: string;
 
-  @Field(() => Int)
-  areaId: number;
+  @Field(() => Int, { nullable: true })
+  areaId?: number;
 
   @Field()
   createdAt?: Date;

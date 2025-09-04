@@ -795,7 +795,7 @@ export class ProjectService {
       id: category.id,
       name: category.name,
       description: category.description || undefined,
-      areaId: category.id_area,
+      areaId: category.id_area || undefined,
       createdAt: undefined, // No hay campo created_at en el esquema
       updatedAt: undefined, // No hay campo updated_at en el esquema
     }));
@@ -816,7 +816,7 @@ export class ProjectService {
       id: category.id,
       name: category.name,
       description: category.description || undefined,
-      areaId: category.id_area,
+      areaId: category.id_area || undefined,
       createdAt: undefined,
       updatedAt: undefined,
     };
@@ -848,7 +848,7 @@ export class ProjectService {
       id: category.id,
       name: category.name,
       description: category.description || undefined,
-      areaId: category.id_area,
+      areaId: category.id_area || undefined,
       createdAt: undefined,
       updatedAt: undefined,
     };
@@ -879,7 +879,7 @@ export class ProjectService {
       id: category.id,
       name: category.name,
       description: category.description || undefined,
-      areaId: category.id_area,
+      areaId: category.id_area || undefined,
       createdAt: undefined,
       updatedAt: undefined,
     };
