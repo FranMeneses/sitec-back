@@ -553,6 +553,7 @@ export class ProcessService {
     }
 
     // Validar que el miembro asignado existe (si se proporciona)
+    let projectMemberId: string | null = null;
     if (createTaskInput.memberId) {
       const assignedMember = await this.prisma.project_member.findFirst({
         where: {
@@ -563,6 +564,7 @@ export class ProcessService {
       if (!assignedMember) {
         throw new BadRequestException('El miembro asignado no pertenece al proyecto');
       }
+      projectMemberId = assignedMember.id;
     }
 
     const task = await this.prisma.task.create({
@@ -573,7 +575,7 @@ export class ProcessService {
         duedateat: createTaskInput.dueDate ? new Date(createTaskInput.dueDate) : null,
         status: createTaskInput.status,
         ideditor: editorId,
-        idmember: createTaskInput.memberId,
+        idmember: projectMemberId,
         idprocess: createTaskInput.processId,
         editedat: new Date(),
       },
@@ -621,6 +623,7 @@ export class ProcessService {
     }
 
     // Validar que el miembro asignado existe (si se proporciona)
+    let projectMemberId: string | null = null;
     if (updateTaskInput.memberId) {
       const assignedMember = await this.prisma.project_member.findFirst({
         where: {
@@ -631,6 +634,7 @@ export class ProcessService {
       if (!assignedMember) {
         throw new BadRequestException('El miembro asignado no pertenece al proyecto');
       }
+      projectMemberId = assignedMember.id;
     }
 
     const task = await this.prisma.task.update({
@@ -642,7 +646,7 @@ export class ProcessService {
         duedateat: updateTaskInput.dueDate ? new Date(updateTaskInput.dueDate) : null,
         status: updateTaskInput.status,
         ideditor: editorId,
-        idmember: updateTaskInput.memberId,
+        idmember: projectMemberId,
         report: updateTaskInput.report,
         editedat: new Date(),
       },
@@ -734,6 +738,7 @@ export class ProcessService {
     }
 
     // Validar que el miembro asignado existe (si se proporciona)
+    let projectMemberId: string | null = null;
     if (createTaskInput.memberId) {
       const assignedMember = await this.prisma.project_member.findFirst({
         where: {
@@ -744,6 +749,7 @@ export class ProcessService {
       if (!assignedMember) {
         throw new BadRequestException('El miembro asignado no pertenece al proyecto');
       }
+      projectMemberId = assignedMember.id;
     }
 
     const task = await this.prisma.task.create({
@@ -754,7 +760,7 @@ export class ProcessService {
         duedateat: createTaskInput.dueDate ? new Date(createTaskInput.dueDate) : null,
         status: createTaskInput.status,
         ideditor: processMemberId,
-        idmember: createTaskInput.memberId,
+        idmember: projectMemberId,
         idprocess: createTaskInput.processId,
         editedat: new Date(),
       },
@@ -981,7 +987,7 @@ export class ProcessService {
     const task = await this.prisma.task.update({
       where: { id: assignTaskInput.taskId },
       data: {
-        idmember: assignTaskInput.memberId,
+        idmember: assignedMember.id,
         ideditor: userId,
         editedat: new Date(),
       },
@@ -1028,7 +1034,7 @@ export class ProcessService {
       status: task.status,
       editedAt: task.editedat,
       editor: task.user,
-      memberId: task.idmember,
+      memberId: task.project_member?.iduser || null,
       member: task.project_member,
       report: task.report,
       processId: task.idprocess,

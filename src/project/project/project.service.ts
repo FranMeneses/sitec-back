@@ -343,7 +343,7 @@ export class ProjectService {
         havePassword: task.user.havepassword ?? false,
       } : undefined,
       processId: task.idprocess,
-      memberId: task.idmember,
+      memberId: task.project_member?.iduser || null,
       member: task.project_member ? {
         id: task.project_member.id,
         userId: task.project_member.iduser,
