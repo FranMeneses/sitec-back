@@ -87,9 +87,7 @@ CREATE TABLE task (
     status VARCHAR,
     editedAt TIMESTAMP,
     idEditor UUID REFERENCES "user"(id),
-    idMember UUID REFERENCES project_member(id),
-    report text,
-    idProcess UUID REFERENCES process(id) NOT NULL
+    report TEXT
 );
 
 CREATE TABLE evidence (
@@ -116,16 +114,6 @@ CREATE TABLE comment (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     id_user UUID REFERENCES "user"(id) NOT NULL,
     id_task UUID REFERENCES task(id) NOT NULL
-);
-
-CREATE TABLE process_member (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    idprocess UUID NOT NULL REFERENCES process(id) ON DELETE CASCADE,
-    iduser UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    idrole Int NOT NULL REFERENCES role(id) ON DELETE CASCADE,
-    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    UNIQUE(idprocess, iduser)
 );
 
 CREATE TABLE task_member (
