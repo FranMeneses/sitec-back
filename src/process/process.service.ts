@@ -854,6 +854,44 @@ export class ProcessService {
     };
   }
 
+  async getTaskMembers(taskId: string): Promise<any[]> {
+    // Validar que la tarea existe
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        process: {
+          include: {
+            project: true,
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new BadRequestException('La tarea especificada no existe');
+    }
+
+    // Obtener los miembros de la tarea
+    const taskMembers = await this.prisma.task_member.findMany({
+      where: { idtask: taskId },
+      include: {
+        user: true,
+        role: true,
+      },
+      orderBy: { assigned_at: 'desc' },
+    });
+
+    return taskMembers.map(tm => ({
+      id: tm.id,
+      taskId: tm.idtask,
+      userId: tm.iduser,
+      roleId: tm.idrole,
+      assignedAt: tm.assigned_at,
+      user: tm.user,
+      role: tm.role,
+    }));
+  }
+
   private mapTask(task: any): Task {
     return {
       id: task.id,

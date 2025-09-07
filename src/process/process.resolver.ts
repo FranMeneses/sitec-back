@@ -3,6 +3,7 @@ import { UseGuards } from '@nestjs/common';
 import { ProcessService } from './process.service';
 import { Process } from './entities/process.entity';
 import { Task } from './entities/task.entity';
+import { TaskMember } from './entities/task-member.entity';
 import { CreateProcessInput, UpdateProcessInput } from './dto/process.dto';
 import { CreateTaskInput, UpdateTaskInput } from './dto/task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -123,6 +124,12 @@ export class TaskResolver {
   @UseGuards(JwtAuthGuard)
   async findByTaskId(@Args('idTask') idTask: string): Promise<Task[]> {
     return this.processService.findTasksByTaskId(idTask);
+  }
+
+  @Query(() => [TaskMember])
+  @UseGuards(JwtAuthGuard)
+  async getTaskMembers(@Args('taskId') taskId: string): Promise<any[]> {
+    return this.processService.getTaskMembers(taskId);
   }
 
   // ==================== TASK MUTATIONS ====================
