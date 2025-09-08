@@ -1,5 +1,7 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsDateString, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsDateString, IsEnum, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { TaskMemberAssignmentInput } from './task-member.dto';
 
 export enum TaskStatus {
   PENDING = 'pending',
@@ -38,7 +40,17 @@ export class CreateTaskInput {
   @Field()
   @IsUUID()
   processId: string;
+
+  @Field(() => [TaskMemberAssignmentInput], { nullable: true })
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => TaskMemberAssignmentInput)
+  memberAssignments?: TaskMemberAssignmentInput[];
+
 }
+
+
 
 @InputType()
 export class UpdateTaskInput {

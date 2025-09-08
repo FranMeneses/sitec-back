@@ -7,14 +7,15 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
 import { Task } from './entities/task.entity';
 import { TaskMember } from './entities/task-member.entity';
-import { UpdateTaskAsMemberInput } from './dto/task-member.dto';
+import { UpdateTaskAsMemberInput, CreateTaskMemberInput } from './dto/task-member.dto';
+
 
 @Resolver(() => TaskMember)
 export class TaskMemberResolver {
   constructor(
     private userService: UserService,
     private processService: ProcessService,
-  ) {}
+  ) { }
 
   @Query(() => [Task], { name: 'myAssignedTasks' })
   @UseGuards(JwtAuthGuard)
@@ -32,5 +33,29 @@ export class TaskMemberResolver {
       updateTaskAsMemberInput,
       user.id,
     );
+  }
+
+  @Mutation(() => Boolean, { name: 'assignTaskMember' })
+  @UseGuards(JwtAuthGuard)
+  async assignTaskMember(
+    @Args('createTaskMemberInput') createTaskMemberInput: CreateTaskMemberInput,
+    @CurrentUser() user: User,
+  ): Promise<boolean> {
+    return this.processService.assignTaskMember(
+      createTaskMemberInput.taskId,
+      createTaskMemberInput.userId,
+      createTaskMemberInput.roleId,
+      user.id,
+    );
+  }
+
+  @Mutation(() => Boolean, { name: 'removeTaskMember' })
+  @UseGuards(JwtAuthGuard)
+  async removeTaskMember(
+    @Args('taskId') taskId: string,
+    @Args('userId') userId: string,
+    @CurrentUser() user: User,
+  ): Promise<boolean> {
+    return this.processService.removeTaskMember(taskId, userId, user.id);
   }
 }
