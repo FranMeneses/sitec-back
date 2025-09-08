@@ -15,8 +15,12 @@ export class UploadsService {
     private userService: UserService,
   ) {
     // Asegurar que el directorio de uploads existe
-    if (!existsSync(this.uploadsPath)) {
-      mkdirSync(this.uploadsPath, { recursive: true });
+    try {
+      if (!existsSync(this.uploadsPath)) {
+        mkdirSync(this.uploadsPath, { recursive: true });
+      }
+    } catch (error) {
+      console.warn('No se pudo crear el directorio de uploads:', error.message);
     }
   }
 
