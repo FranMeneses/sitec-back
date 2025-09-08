@@ -8,7 +8,7 @@ import { join } from 'path';
 
 @Injectable()
 export class UploadsService {
-  private readonly uploadsPath = join(process.cwd(), 'uploads', 'current');
+  private readonly uploadsPath = join('/app', 'uploads', 'current');
 
   constructor(
     private prisma: PrismaService,
