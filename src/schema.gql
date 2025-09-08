@@ -70,7 +70,7 @@ input CreateCommentInput {
 }
 
 input CreateEvidenceInput {
-  link: String!
+  link: String
   taskId: String!
 }
 
@@ -303,6 +303,7 @@ type Query {
   getProjectProcessesAsMember(projectId: String!): [Process!]!
   getProjectsByCategory(categoryId: String!): [Project!]!
   getProjectsByUnit(unitId: Float!): [Project!]!
+  getTaskMembers(taskId: String!): [TaskMember!]!
   getUnitProjectsAsMember(unitId: Float!): [Project!]!
   getUserSystemRole(userId: String!): SystemRoleResponse
   logs: [Logs!]!
@@ -393,6 +394,17 @@ type Task {
   startDate: DateTime
   status: String!
   updatedAt: DateTime!
+}
+
+type TaskMember {
+  assignedAt: DateTime
+  id: ID!
+  role: Role
+  roleId: Int!
+  task: Task
+  taskId: String!
+  user: User
+  userId: String!
 }
 
 type Type {

@@ -79,6 +79,11 @@ export class ActivityService {
       throw new ForbiddenException('No tienes permisos para subir evidencias en esta tarea');
     }
 
+    // Si no se proporciona un link, error
+    if (!createEvidenceInput.link) {
+      throw new BadRequestException('Debe proporcionar un link');
+    }
+
     const evidence = await this.prisma.evidence.create({
       data: {
         idtask: createEvidenceInput.taskId,

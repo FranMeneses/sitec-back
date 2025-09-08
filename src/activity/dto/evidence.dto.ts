@@ -1,5 +1,5 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsUrl } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsUrl, ValidateIf } from 'class-validator';
 
 @InputType()
 export class CreateEvidenceInput {
@@ -7,11 +7,11 @@ export class CreateEvidenceInput {
   @IsUUID()
   taskId: string;
 
-  @Field()
+  @Field({ nullable: true })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @IsUrl()
-  link: string;
+  link?: string;
 }
 
 @InputType()
