@@ -14,13 +14,12 @@ export class UploadsService {
     private prisma: PrismaService,
     private userService: UserService,
   ) {
-    // Asegurar que el directorio de uploads existe
-    try {
-      if (!existsSync(this.uploadsPath)) {
-        mkdirSync(this.uploadsPath, { recursive: true });
-      }
-    } catch (error) {
-      console.warn('No se pudo crear el directorio de uploads:', error.message);
+    // Verificar que el directorio de uploads existe (sin intentar crearlo)
+    if (!existsSync(this.uploadsPath)) {
+      console.warn(`Directorio de uploads no encontrado: ${this.uploadsPath}`);
+      console.warn('Asegúrate de que el directorio existe y tiene los permisos correctos');
+    } else {
+      console.log(`Directorio de uploads encontrado: ${this.uploadsPath}`);
     }
   }
 
