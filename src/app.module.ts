@@ -20,9 +20,9 @@ import { CommonModule } from './common/common.module';
     }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'uploads', 'schema.gql'),
-      playground: true,
-      introspection: true,
+      autoSchemaFile: process.env.NODE_ENV === 'production' ? false : join(process.cwd(), 'src/schema.gql'),
+      playground: process.env.NODE_ENV !== 'production',
+      introspection: process.env.NODE_ENV !== 'production',
       sortSchema: true,
     }),
     CommonModule,

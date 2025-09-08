@@ -1,6 +1,11 @@
 # compiled output
 /dist
 /node_modules
+
+# Auto-generated GraphQL schema
+src/schema.gql
+schema.gql
+uploads/schema.gql
 /build
 
 # Logs
