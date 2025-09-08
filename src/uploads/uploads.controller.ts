@@ -16,13 +16,9 @@ export class UploadsController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: './uploads/current',
+      destination: '/app/uploads/current',
       filename: (req, file, cb) => {
-        // Generar nombre único: timestamp + nombre original
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = extname(file.originalname);
-        const name = file.originalname.replace(ext, '');
-        cb(null, `${name}_${uniqueSuffix}${ext}`);
+        cb(null, file.originalname);
       }
     }),
     fileFilter: (req, file, cb) => {
@@ -63,7 +59,7 @@ export class UploadsController {
     const evidence = await this.uploadsService.getEvidenceForDownload(evidenceId, req.user.id);
     
     // Construir ruta del archivo
-    const filePath = join(process.cwd(), 'uploads', 'current', evidence.filename);
+    const filePath = join('/app', 'uploads', 'current', evidence.filename);
     
     // Verificar que el archivo existe
     if (!existsSync(filePath)) {
