@@ -402,6 +402,7 @@ type Task {
   report: String
   startDate: DateTime
   status: String!
+  taskMembers: [TaskMember!]!
   updatedAt: DateTime!
 }
 
