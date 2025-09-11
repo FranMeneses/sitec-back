@@ -90,6 +90,7 @@ export class ActivityService {
         link: createEvidenceInput.link,
         iduploader: uploaderId,
         uploadedat: new Date(),
+        review: createEvidenceInput.review,
       },
       include: {
         task: true,
@@ -133,6 +134,7 @@ export class ActivityService {
       where: { id: updateEvidenceInput.id },
       data: {
         link: updateEvidenceInput.link,
+        review: updateEvidenceInput.review,
       },
       include: {
         task: true,
@@ -415,6 +417,7 @@ export class ActivityService {
       uploaderId: evidence.iduploader,
       uploader: evidence.user,
       uploadedAt: evidence.uploadedat,
+      review: evidence.review,
       createdAt: evidence.createdat,
       updatedAt: evidence.updatedat,
     };

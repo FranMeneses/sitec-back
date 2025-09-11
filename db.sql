@@ -146,3 +146,5 @@ CREATE TABLE system_role (
     
     UNIQUE(user_id)
 );
+
+ALTER TABLE evidence ADD COLUMN review TEXT;

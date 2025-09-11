@@ -25,6 +25,9 @@ export class Evidence {
   @Field()
   uploadedAt: Date;
 
+  @Field({ nullable: true })
+  review?: string;
+
   @Field()
   createdAt?: Date;
 

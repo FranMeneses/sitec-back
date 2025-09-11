@@ -71,6 +71,7 @@ input CreateCommentInput {
 
 input CreateEvidenceInput {
   link: String
+  review: String
   taskId: String!
 }
 
@@ -145,6 +146,7 @@ type Evidence {
   createdAt: DateTime!
   id: ID!
   link: String!
+  review: String
   task: Task
   taskId: String!
   updatedAt: DateTime!
@@ -459,6 +461,7 @@ input UpdateCommentInput {
 input UpdateEvidenceInput {
   id: String!
   link: String
+  review: String
 }
 
 input UpdateProcessInput {

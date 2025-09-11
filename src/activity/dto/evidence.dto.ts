@@ -12,6 +12,11 @@ export class CreateEvidenceInput {
   @IsOptional()
   @IsUrl()
   link?: string;
+
+  @Field({ nullable: true })
+  @IsString()
+  @IsOptional()
+  review?: string;
 }
 
 @InputType()
@@ -25,4 +30,9 @@ export class UpdateEvidenceInput {
   @IsOptional()
   @IsUrl()
   link?: string;
+
+  @Field({ nullable: true })
+  @IsString()
+  @IsOptional()
+  review?: string;
 }
