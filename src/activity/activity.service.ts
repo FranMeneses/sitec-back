@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { UserService } from '../auth/user/user.service';
-import { Evidence } from './entities/evidence.entity';
+// TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE EVIDENCIAS DESHABILITADA PARA EL SPRINT ACTUAL
+// import { Evidence } from './entities/evidence.entity';
 import { Comment } from './entities/comment.entity';
 import { Logs } from './entities/logs.entity';
-import { CreateEvidenceInput, UpdateEvidenceInput } from './dto/evidence.dto';
+// import { CreateEvidenceInput, UpdateEvidenceInput } from './dto/evidence.dto';
 import { CreateCommentInput, UpdateCommentInput } from './dto/comment.dto';
 import { CreateLogInput, LogType } from './dto/logs.dto';
 
@@ -16,7 +17,8 @@ export class ActivityService {
   ) {}
 
   // ==================== EVIDENCE METHODS ====================
-
+  // TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE EVIDENCIAS DESHABILITADA PARA EL SPRINT ACTUAL
+  /*
   async findAllEvidence(userId?: string): Promise<Evidence[]> {
     const evidence = await this.prisma.evidence.findMany({
       include: {
@@ -172,6 +174,7 @@ export class ActivityService {
 
     return true;
   }
+  */
 
   // ==================== COMMENT METHODS ====================
 
@@ -408,6 +411,8 @@ export class ActivityService {
 
   // ==================== HELPER METHODS ====================
 
+  // TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE EVIDENCIAS DESHABILITADA PARA EL SPRINT ACTUAL
+  /*
   private mapEvidence(evidence: any): Evidence {
     return {
       id: evidence.id,
@@ -422,6 +427,7 @@ export class ActivityService {
       updatedAt: evidence.updatedat,
     };
   }
+  */
 
   private mapComment(comment: any): Comment {
     return {
@@ -454,7 +460,8 @@ export class ActivityService {
   }
 
   // ==================== EVIDENCE BY PROJECT ====================
-
+  // TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE EVIDENCIAS DESHABILITADA PARA EL SPRINT ACTUAL
+  /*
   async findEvidenceByProject(projectId: string): Promise<Evidence[]> {
     // Obtener todas las evidencias que pertenecen a tareas del proyecto
     const evidence = await this.prisma.evidence.findMany({
@@ -484,4 +491,5 @@ export class ActivityService {
 
     return evidence.map(ev => this.mapEvidence(ev));
   }
+  */
 }

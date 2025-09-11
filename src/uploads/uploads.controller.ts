@@ -1,3 +1,7 @@
+// TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE UPLOADS DESHABILITADA PARA EL SPRINT ACTUAL
+// TODO: Rehabilitar en el siguiente sprint cuando se implemente la carga de documentos
+
+/*
 import { Controller, Post, Get, UseInterceptors, UploadedFile, Body, UseGuards, Request, Param, Res, NotFoundException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -101,3 +105,4 @@ export class UploadsController {
     res.sendFile(filePath);
   }
 }
+*/

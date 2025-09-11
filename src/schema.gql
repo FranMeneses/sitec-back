@@ -69,12 +69,6 @@ input CreateCommentInput {
   text: String!
 }
 
-input CreateEvidenceInput {
-  link: String
-  review: String
-  taskId: String!
-}
-
 input CreateLogInput {
   processId: String
   projectId: String
@@ -154,19 +148,6 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
-type Evidence {
-  createdAt: DateTime!
-  id: ID!
-  link: String!
-  review: String
-  task: Task
-  taskId: String!
-  updatedAt: DateTime!
-  uploadedAt: DateTime!
-  uploader: User
-  uploaderId: String!
-}
-
 input GoogleAuthDto {
   googleToken: String!
 }
@@ -207,7 +188,6 @@ type Mutation {
   createArea(createAreaInput: CreateAreaInput!): Area!
   createCategoryAsUnitMember(createCategoryInput: CreateCategoryInput!): Category!
   createComment(createCommentInput: CreateCommentInput!): Comment!
-  createEvidence(createEvidenceInput: CreateEvidenceInput!): Evidence!
   createFirstSuperAdmin(email: String!, name: String!, password: String!): AuthResponse!
   createLog(createLogInput: CreateLogInput!): Logs!
   createProcess(createProcessInput: CreateProcessInput!): Process!
@@ -222,7 +202,6 @@ type Mutation {
   createUnit(createUnitInput: CreateUnitInput!): Unit!
   createUser(createUserInput: CreateUserInput!): User!
   deleteComment(id: String!): Boolean!
-  deleteEvidence(id: String!): Boolean!
   deleteProcess(id: String!): Boolean!
   deleteProject(id: String!): Boolean!
   deleteRole(id: Int!): Boolean!
@@ -245,7 +224,6 @@ type Mutation {
   updateArea(updateAreaInput: UpdateAreaInput!): Area!
   updateCategoryAsUnitMember(updateCategoryInput: UpdateCategoryInput!): Category!
   updateComment(updateCommentInput: UpdateCommentInput!): Comment!
-  updateEvidence(updateEvidenceInput: UpdateEvidenceInput!): Evidence!
   updateProcess(updateProcessInput: UpdateProcessInput!): Process!
   updateProcessAsProjectMember(description: String, dueDate: String, name: String, processId: String!, startDate: String): Process!
   updateProfile(name: String): User!
@@ -314,9 +292,6 @@ type Query {
   commentById(id: String!): Comment
   comments: [Comment!]!
   commentsByTask(taskId: String!): [Comment!]!
-  evidence: [Evidence!]!
-  evidenceById(id: String!): Evidence
-  evidenceByTask(taskId: String!): [Evidence!]!
   findAreaProjects(idArea: Float!): [Project!]!
   findByProcessId(idProcess: String!): [Task!]!
   findByTaskId(idTask: String!): [Task!]!
@@ -329,7 +304,6 @@ type Query {
   getAllCategoriesAsUnitMember: [Category!]!
   getAllSystemRoles: [SystemRoleResponse!]!
   getCategoryById(id: String!): Category
-  getEvidenceByProject(projectId: String!): [Evidence!]!
   getProjectProcessesAsMember(projectId: String!): [Process!]!
   getProjectsByCategory(categoryId: String!): [Project!]!
   getProjectsByUnit(unitId: Float!): [Project!]!
@@ -482,12 +456,6 @@ input UpdateCategoryInput {
 input UpdateCommentInput {
   id: String!
   text: String
-}
-
-input UpdateEvidenceInput {
-  id: String!
-  link: String
-  review: String
 }
 
 input UpdateProcessInput {

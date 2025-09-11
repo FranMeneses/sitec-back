@@ -1,10 +1,11 @@
 import { Resolver, Query, Mutation, Args, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards, ForbiddenException } from '@nestjs/common';
 import { ActivityService } from './activity.service';
-import { Evidence } from './entities/evidence.entity';
+// TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE EVIDENCIAS DESHABILITADA PARA EL SPRINT ACTUAL
+// import { Evidence } from './entities/evidence.entity';
 import { Comment } from './entities/comment.entity';
 import { Logs } from './entities/logs.entity';
-import { CreateEvidenceInput, UpdateEvidenceInput } from './dto/evidence.dto';
+// import { CreateEvidenceInput, UpdateEvidenceInput } from './dto/evidence.dto';
 import { CreateCommentInput, UpdateCommentInput } from './dto/comment.dto';
 import { CreateLogInput } from './dto/logs.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,6 +13,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
 import { UserService } from '../auth/user/user.service';
 
+// TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE EVIDENCIAS DESHABILITADA PARA EL SPRINT ACTUAL
+/*
 @Resolver(() => Evidence)
 export class EvidenceResolver {
   constructor(
@@ -83,6 +86,7 @@ export class EvidenceResolver {
     return this.activityService.findEvidenceByProject(projectId);
   }
 }
+*/
 
 @Resolver(() => Comment)
 export class CommentResolver {

@@ -1,3 +1,7 @@
+// TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE UPLOADS DESHABILITADA PARA EL SPRINT ACTUAL
+// TODO: Rehabilitar en el siguiente sprint cuando se implemente la carga de documentos
+
+/*
 import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { UserService } from '../auth/user/user.service';
@@ -277,3 +281,4 @@ export class UploadsService {
     return true;
   }
 }
+*/

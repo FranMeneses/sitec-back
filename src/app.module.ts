@@ -10,7 +10,8 @@ import { OrganizationModule } from './organization/organization.module';
 import { ProjectModule } from './project/project.module';
 import { ProcessModule } from './process/process.module';
 import { ActivityModule } from './activity/activity.module';
-import { UploadsModule } from './uploads/uploads.module';
+// TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE UPLOADS DESHABILITADA PARA EL SPRINT ACTUAL
+// import { UploadsModule } from './uploads/uploads.module';
 import { CommonModule } from './common/common.module';
 
 @Module({
@@ -31,7 +32,8 @@ import { CommonModule } from './common/common.module';
     ProjectModule,
     ProcessModule,
     ActivityModule,
-    UploadsModule,
+    // TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE UPLOADS DESHABILITADA PARA EL SPRINT ACTUAL
+    // UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
