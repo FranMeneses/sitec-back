@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, ForbiddenException } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { Project } from '../entities/project.entity';
 import { ProjectMember } from '../entities/project-member.entity';
@@ -165,5 +165,20 @@ export class ProjectResolver {
     @CurrentUser() user: User,
   ): Promise<Project[]> {
     return this.projectService.findProjectsByUnit(unitId, user.id);
+  }
+
+  @Query(() => [User])
+  @UseGuards(JwtAuthGuard)
+  async getUsersNotInProject(
+    @Args('projectId') projectId: string,
+    @CurrentUser() user: User,
+  ): Promise<User[]> {
+    // Verificar que el usuario es admin del proyecto
+    const isAdmin = await this.projectService.isProjectAdmin(projectId, user.id);
+    if (!isAdmin) {
+      throw new ForbiddenException('Solo los administradores del proyecto pueden ver usuarios no asignados');
+    }
+    
+    return this.projectService.getUsersNotInProject(projectId);
   }
 }

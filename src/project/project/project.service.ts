@@ -4,6 +4,7 @@ import { UserService } from '../../auth/user/user.service';
 import { Project } from '../entities/project.entity';
 import { Category } from '../entities/category.entity';
 import { ProjectMember } from '../entities/project-member.entity';
+import { User } from '../../auth/entities/user.entity';
 import { CreateProjectInput, UpdateProjectInput, AddProjectMemberInput } from '../dto/project.dto';
 import { CreateCategoryInput, UpdateCategoryInput } from '../dto/category.dto';
 import { CreateProcessInput } from '../../process/dto/process.dto';
@@ -997,5 +998,75 @@ export class ProjectService {
     });
 
     return true;
+  }
+
+  // ==================== USERS NOT IN PROJECT ====================
+
+  async getUsersNotInProject(projectId: string): Promise<User[]> {
+    // Verificar que el proyecto existe
+    const project = await this.findProjectById(projectId);
+    if (!project) {
+      throw new NotFoundException('Proyecto no encontrado');
+    }
+
+    // Obtener IDs de usuarios que ya están en el proyecto
+    const projectMembers = await this.prisma.project_member.findMany({
+      where: { idproject: projectId },
+      select: { iduser: true }
+    });
+
+    const userIdsInProject = projectMembers
+      .map(member => member.iduser)
+      .filter((id): id is string => id !== null);
+
+    // Obtener todos los usuarios activos que NO están en el proyecto
+    const usersNotInProject = await this.prisma.user.findMany({
+      where: {
+        isactive: true,
+        id: {
+          notIn: userIdsInProject.length > 0 ? userIdsInProject : undefined
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        system_role: {
+          select: {
+            role: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    return usersNotInProject.map(user => ({
+      id: user.id,
+      name: user.name || '',
+      email: user.email,
+      isActive: true, // Ya filtramos por isactive: true
+      havePassword: false, // No es relevante para esta consulta
+      createdAt: new Date(), // Valores por defecto
+      updatedAt: new Date(),
+      systemRole: user.system_role ? {
+        id: '',
+        userId: user.id,
+        roleId: 0,
+        createdAt: new Date(),
+        role: {
+          id: 0,
+          name: user.system_role.role.name || '',
+          description: '',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      } : undefined
+    }));
   }
 }

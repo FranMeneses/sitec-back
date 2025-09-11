@@ -317,6 +317,7 @@ type Query {
   getTaskMembers(taskId: String!): [TaskMember!]!
   getUnitProjectsAsMember(unitId: Float!): [Project!]!
   getUserSystemRole(userId: String!): SystemRoleResponse
+  getUsersNotInProject(projectId: String!): [User!]!
   logs: [Logs!]!
   logsByProcess(processId: String!): [Logs!]!
   logsByProject(projectId: String!): [Logs!]!
