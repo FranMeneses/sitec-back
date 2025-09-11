@@ -2,9 +2,12 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  
-  // Configurar CORS para producción
+  try {
+    const app = await NestFactory.create(AppModule, {
+      logger: ['error', 'warn', 'log'], // Reducir logs en producción si es necesario
+    });
+    
+    // Configurar CORS para producción
   app.enableCors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || [
       'https://frontsanpedro.vercel.app',
@@ -28,10 +31,17 @@ async function bootstrap() {
   // Configurar el puerto para Render
   const port = process.env.PORT || 4000;
   
-  await app.listen(port);
-  console.log(`Application is running on port: ${port}`);
-  
-  return app;
+    await app.listen(port);
+    console.log(`Application is running on port: ${port}`);
+    
+    return app;
+  } catch (error) {
+    console.error('Error during application startup:', error);
+    process.exit(1);
+  }
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('Failed to start application:', error);
+  process.exit(1);
+});

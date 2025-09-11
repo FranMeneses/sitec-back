@@ -21,10 +21,17 @@ import { CommonModule } from './common/common.module';
     }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'schema.gql'),
+      // Configuración inteligente según el entorno
+      autoSchemaFile: process.env.VM_DEPLOYMENT === 'true'
+        ? true // VM: generar en memoria para evitar problemas de permisos
+        : join(process.cwd(), 'schema.gql'), // Render/Dev: generar archivo físico
       playground: process.env.NODE_ENV !== 'production',
-      introspection: true, // Necesario para que funcione con autoSchemaFile
+      introspection: process.env.NODE_ENV !== 'production' || process.env.ENABLE_GRAPHQL_INTROSPECTION === 'true',
       sortSchema: true,
+      // Configuraciones adicionales para estabilidad
+      buildSchemaOptions: {
+        dateScalarMode: 'timestamp',
+      },
     }),
     CommonModule,
     AuthModule,

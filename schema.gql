@@ -31,20 +31,20 @@ type AuthResponse {
 
 type Category {
   areaId: Int
-  createdAt: DateTime!
+  createdAt: Timestamp!
   description: String
   id: ID!
   name: String!
-  updatedAt: DateTime!
+  updatedAt: Timestamp!
 }
 
 type Comment {
-  createdAt: DateTime!
+  createdAt: Timestamp!
   id: ID!
   task: Task
   taskId: String!
   text: String!
-  updatedAt: DateTime!
+  updatedAt: Timestamp!
   user: User
   userId: String!
 }
@@ -143,11 +143,6 @@ input CreateUserInput {
   password: String
 }
 
-"""
-A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
-"""
-scalar DateTime
-
 input GoogleAuthDto {
   googleToken: String!
 }
@@ -164,7 +159,7 @@ input LoginInput {
 }
 
 type Logs {
-  createdAt: DateTime!
+  createdAt: Timestamp!
   creator: User
   creatorId: String!
   id: ID!
@@ -175,7 +170,7 @@ type Logs {
   task: Task
   taskId: String
   type: String!
-  updatedAt: DateTime!
+  updatedAt: Timestamp!
 }
 
 type Mutation {
@@ -240,10 +235,10 @@ type Mutation {
 }
 
 type Process {
-  createdAt: DateTime!
+  createdAt: Timestamp!
   description: String
-  dueDate: DateTime
-  editedAt: DateTime
+  dueDate: Timestamp
+  editedAt: Timestamp
   editor: User
   id: ID!
   name: String!
@@ -251,27 +246,27 @@ type Process {
   project: Project
   projectId: String!
   review: String
-  startDate: DateTime
-  updatedAt: DateTime!
+  startDate: Timestamp
+  updatedAt: Timestamp!
 }
 
 type Project {
   categoryId: String
-  createdAt: DateTime!
+  createdAt: Timestamp!
   description: String
-  dueDate: DateTime
-  editedAt: DateTime
+  dueDate: Timestamp
+  editedAt: Timestamp
   editor: User
   id: ID!
   name: String!
   review: String
-  startDate: DateTime
+  startDate: Timestamp
   unitId: Float
-  updatedAt: DateTime!
+  updatedAt: Timestamp!
 }
 
 type ProjectMember {
-  assignedAt: DateTime
+  assignedAt: Timestamp
   id: ID!
   project: Project
   projectId: String!
@@ -352,11 +347,11 @@ input RegisterInput {
 }
 
 type Role {
-  createdAt: DateTime!
+  createdAt: Timestamp!
   description: String
   id: Int!
   name: String!
-  updatedAt: DateTime!
+  updatedAt: Timestamp!
 }
 
 type RoleInfo {
@@ -370,7 +365,7 @@ type SuccessResponse {
 }
 
 type SystemRole {
-  createdAt: DateTime!
+  createdAt: Timestamp!
   id: ID!
   role: Role!
   roleId: Float!
@@ -387,10 +382,10 @@ type SystemRoleResponse {
 
 type Task {
   budget: Float
-  createdAt: DateTime!
+  createdAt: Timestamp!
   description: String
-  dueDate: DateTime
-  editedAt: DateTime
+  dueDate: Timestamp
+  editedAt: Timestamp
   editor: User
   expense: Float
   id: ID!
@@ -399,14 +394,14 @@ type Task {
   processId: String!
   report: String
   review: String
-  startDate: DateTime
+  startDate: Timestamp
   status: String!
   taskMembers: [TaskMember!]!
-  updatedAt: DateTime!
+  updatedAt: Timestamp!
 }
 
 type TaskMember {
-  assignedAt: DateTime
+  assignedAt: Timestamp
   id: ID!
   role: Role
   roleId: Int!
@@ -420,6 +415,11 @@ input TaskMemberAssignmentInput {
   roleId: Int!
   userId: String!
 }
+
+"""
+`Date` type as integer. Type represents date and time as number of milliseconds from start of UNIX epoch.
+"""
+scalar Timestamp
 
 type Type {
   id: Int!
@@ -535,7 +535,7 @@ input UpdateUserInput {
 }
 
 type User {
-  createdAt: DateTime!
+  createdAt: Timestamp!
   email: String!
   havePassword: Boolean!
   id: ID!
@@ -543,5 +543,5 @@ type User {
   name: String!
   password: String
   systemRole: SystemRole
-  updatedAt: DateTime!
+  updatedAt: Timestamp!
 }
