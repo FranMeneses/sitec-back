@@ -12,7 +12,7 @@ import { User } from '../auth/entities/user.entity';
 
 @Resolver(() => Process)
 export class ProcessResolver {
-  constructor(private processService: ProcessService) {}
+  constructor(private processService: ProcessService) { }
 
   // ==================== PROCESS QUERIES ====================
 
@@ -98,7 +98,7 @@ export class ProcessResolver {
 
 @Resolver(() => Task)
 export class TaskResolver {
-  constructor(private processService: ProcessService) {}
+  constructor(private processService: ProcessService) { }
 
   // ==================== TASK QUERIES ====================
 
@@ -162,6 +162,11 @@ export class TaskResolver {
   }
 
 
+
+  @ResolveField(() => [TaskMember])
+  async taskMembers(@Parent() task: Task): Promise<TaskMember[]> {
+    return this.processService.getTaskMembers(task.id);
+  }
   // ==================== TASK RESOLVE FIELDS ====================
 
   @ResolveField(() => Process)

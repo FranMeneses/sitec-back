@@ -5,13 +5,14 @@ import { Process } from './entities/process.entity';
 import { Task } from './entities/task.entity';
 import { CreateProcessInput, UpdateProcessInput } from './dto/process.dto';
 import { CreateTaskInput, UpdateTaskInput, TaskStatus } from './dto/task.dto';
+import { TaskMember } from './entities/task-member.entity';
 
 @Injectable()
 export class ProcessService {
   constructor(
     private prisma: PrismaService,
     private userService: UserService,
-  ) {}
+  ) { }
 
   // ==================== HELPER METHODS ====================
 
@@ -39,7 +40,7 @@ export class ProcessService {
     if (startDate && dueDate) {
       const start = new Date(startDate);
       const due = new Date(dueDate);
-      
+
       if (due < start) {
         throw new BadRequestException('La fecha de vencimiento del proceso no puede ser anterior a la fecha de inicio');
       }
@@ -47,8 +48,8 @@ export class ProcessService {
   }
 
   private async validateProcessDatesAgainstProject(
-    projectId: string, 
-    startDate?: string, 
+    projectId: string,
+    startDate?: string,
     dueDate?: string
   ): Promise<void> {
     // Obtener las fechas del proyecto
@@ -68,7 +69,7 @@ export class ProcessService {
     if (project.startdate && startDate) {
       const projectStart = new Date(project.startdate);
       const processStart = new Date(startDate);
-      
+
       if (processStart < projectStart) {
         throw new BadRequestException('La fecha de inicio del proceso no puede ser anterior a la fecha de inicio del proyecto');
       }
@@ -77,7 +78,7 @@ export class ProcessService {
     if (project.duedate && dueDate) {
       const projectDue = new Date(project.duedate);
       const processDue = new Date(dueDate);
-      
+
       if (processDue > projectDue) {
         throw new BadRequestException('La fecha de vencimiento del proceso no puede ser posterior a la fecha de vencimiento del proyecto');
       }
@@ -87,14 +88,14 @@ export class ProcessService {
     if (project.startdate && project.duedate) {
       const projectStart = new Date(project.startdate);
       const projectDue = new Date(project.duedate);
-      
+
       if (startDate) {
         const processStart = new Date(startDate);
         if (processStart < projectStart || processStart > projectDue) {
           throw new BadRequestException('La fecha de inicio del proceso debe estar dentro del rango de fechas del proyecto');
         }
       }
-      
+
       if (dueDate) {
         const processDue = new Date(dueDate);
         if (processDue < projectStart || processDue > projectDue) {
@@ -105,19 +106,19 @@ export class ProcessService {
   }
 
   private async validateProcessDatesForUpdate(
-    existingProcess: any, 
-    startDate?: string, 
+    existingProcess: any,
+    startDate?: string,
     dueDate?: string
   ): Promise<void> {
     // Usar las fechas del input o las existentes
     const finalStartDate = startDate || existingProcess.startdate?.toISOString();
     const finalDueDate = dueDate || existingProcess.duedate?.toISOString();
-    
+
     // Validar contra el proyecto
     if (existingProcess.idproject) {
       await this.validateProcessDatesAgainstProject(
-        existingProcess.idproject, 
-        finalStartDate, 
+        existingProcess.idproject,
+        finalStartDate,
         finalDueDate
       );
     }
@@ -127,7 +128,7 @@ export class ProcessService {
     if (startDate && dueDate) {
       const start = new Date(startDate);
       const due = new Date(dueDate);
-      
+
       if (due < start) {
         throw new BadRequestException('La fecha de vencimiento de la tarea no puede ser anterior a la fecha de inicio');
       }
@@ -135,8 +136,8 @@ export class ProcessService {
   }
 
   private async validateTaskDatesAgainstProcess(
-    processId: string, 
-    startDate?: string, 
+    processId: string,
+    startDate?: string,
     dueDate?: string
   ): Promise<void> {
     // Obtener las fechas del proceso
@@ -156,7 +157,7 @@ export class ProcessService {
     if (process.startdate && startDate) {
       const processStart = new Date(process.startdate);
       const taskStart = new Date(startDate);
-      
+
       if (taskStart < processStart) {
         throw new BadRequestException('La fecha de inicio de la tarea no puede ser anterior a la fecha de inicio del proceso');
       }
@@ -165,7 +166,7 @@ export class ProcessService {
     if (process.duedate && dueDate) {
       const processDue = new Date(process.duedate);
       const taskDue = new Date(dueDate);
-      
+
       if (taskDue > processDue) {
         throw new BadRequestException('La fecha de vencimiento de la tarea no puede ser posterior a la fecha de vencimiento del proceso');
       }
@@ -175,14 +176,14 @@ export class ProcessService {
     if (process.startdate && process.duedate) {
       const processStart = new Date(process.startdate);
       const processDue = new Date(process.duedate);
-      
+
       if (startDate) {
         const taskStart = new Date(startDate);
         if (taskStart < processStart || taskStart > processDue) {
           throw new BadRequestException('La fecha de inicio de la tarea debe estar dentro del rango de fechas del proceso');
         }
       }
-      
+
       if (dueDate) {
         const taskDue = new Date(dueDate);
         if (taskDue < processStart || taskDue > processDue) {
@@ -193,19 +194,19 @@ export class ProcessService {
   }
 
   private async validateTaskDatesForUpdate(
-    existingTask: any, 
-    startDate?: string, 
+    existingTask: any,
+    startDate?: string,
     dueDate?: string
   ): Promise<void> {
     // Usar las fechas del input o las existentes
     const finalStartDate = startDate || existingTask.startdate?.toISOString();
     const finalDueDate = dueDate || existingTask.duedateat?.toISOString();
-    
+
     // Validar contra el proceso
     if (existingTask.idprocess) {
       await this.validateTaskDatesAgainstProcess(
-        existingTask.idprocess, 
-        finalStartDate, 
+        existingTask.idprocess,
+        finalStartDate,
         finalDueDate
       );
     }
@@ -528,6 +529,21 @@ export class ProcessService {
       throw new ForbiddenException('No tienes permisos para crear tareas en este proceso');
     }
 
+    // Validar asignaciones de miembros si se proporcionan
+    if (createTaskInput.memberAssignments && createTaskInput.memberAssignments.length > 0) {
+      for (const assignment of createTaskInput.memberAssignments) {
+        // Verificar que el usuario pertenece al proyecto
+        const memberToAssign = await this.prisma.project_member.findFirst({
+          where: {
+            idproject: process.idproject,
+            iduser: assignment.userId,
+          },
+        });
+        if (!memberToAssign) {
+          throw new BadRequestException(`El usuario ${assignment.userId} no pertenece al proyecto`);
+        }
+      }
+    }
     // Crear la tarea
     const task = await this.prisma.task.create({
       data: {
@@ -554,15 +570,20 @@ export class ProcessService {
       },
     });
 
-    // Auto-asignar al project_member que creó la tarea como task_member
-    await this.prisma.task_member.create({
-      data: {
-        idtask: task.id,
-        iduser: editorId,
-        idrole: projectMember.idrole || 1, // Usar el rol del project_member o rol por defecto
-        assigned_at: new Date(),
-      },
-    });
+    if (createTaskInput.memberAssignments && createTaskInput.memberAssignments.length > 0) {
+      // Asignar los miembros especificados
+      for (const assignment of createTaskInput.memberAssignments) {
+        await this.prisma.task_member.create({
+          data: {
+            idtask: task.id,
+            iduser: assignment.userId,
+            idrole: assignment.roleId,
+            assigned_at: new Date(),
+          },
+        });
+      }
+
+    }
 
     // Recargar la tarea con los task_member incluidos
     const taskWithMembers = await this.prisma.task.findUnique({

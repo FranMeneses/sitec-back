@@ -109,10 +109,17 @@ input CreateTaskInput {
   description: String
   dueDate: String
   expense: Float
+  memberAssignments: [TaskMemberAssignmentInput!]
   name: String!
   processId: String!
   startDate: String
   status: String!
+}
+
+input CreateTaskMemberInput {
+  roleId: Int!
+  taskId: String!
+  userId: String!
 }
 
 input CreateTypeInput {
@@ -192,6 +199,7 @@ type Mutation {
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
   assignProjectMemberAsUnitMember(addProjectMemberInput: AddProjectMemberInput!, projectId: String!): Boolean!
   assignSuperAdmin(assignSuperAdminInput: AssignSuperAdminInput!): String!
+  assignTaskMember(createTaskMemberInput: CreateTaskMemberInput!): Boolean!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
   createCategoryAsUnitMember(createCategoryInput: CreateCategoryInput!): Category!
@@ -225,6 +233,7 @@ type Mutation {
   removeProjectMember(projectId: String!, userId: String!): Boolean!
   removeProjectMemberAsUnitMember(projectId: String!, userId: String!): Boolean!
   removeProjectProcess(id: String!): String!
+  removeTaskMember(taskId: String!, userId: String!): Boolean!
   removeType(id: Int!): Type!
   removeUnit(id: Int!): Unit!
   removeUnitMember(id: String!): UnitMember!
@@ -412,6 +421,7 @@ type Task {
   report: String
   startDate: DateTime
   status: String!
+  taskMembers: [TaskMember!]!
   updatedAt: DateTime!
 }
 
@@ -423,6 +433,11 @@ type TaskMember {
   task: Task
   taskId: String!
   user: User
+  userId: String!
+}
+
+input TaskMemberAssignmentInput {
+  roleId: Int!
   userId: String!
 }
 

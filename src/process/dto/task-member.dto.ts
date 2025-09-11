@@ -12,6 +12,16 @@ export class CreateTaskMemberInput {
   roleId: number;
 }
 
+
+@InputType()
+export class TaskMemberAssignmentInput {
+  @Field(() => String)
+  userId: string;
+
+  @Field(() => Int)
+  roleId: number;
+}
+
 @InputType()
 export class UpdateTaskMemberInput {
   @Field(() => String)
