@@ -100,6 +100,13 @@ export class AuthResponse {
   user: User;
 }
 
+@InputType()
+export class GoogleAuthDto {
+  @Field()
+  @IsString()
+  googleToken: string;
+}
+
 @ObjectType()
 export class GoogleAuthResponse {
   @Field()

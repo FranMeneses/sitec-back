@@ -1,15 +1,21 @@
 import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { OAuth2Client } from 'google-auth-library';
 import { UserService } from '../user/user.service';
 import { User } from '../entities/user.entity';
 import { LoginInput, RegisterInput, AuthResponse, GoogleAuthResponse } from '../dto/auth.dto';
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client;
+
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
-  ) {}
+  ) {
+    // Inicializar cliente de Google OAuth2
+    this.googleClient = new OAuth2Client();
+  }
 
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userService.findByEmail(email);
@@ -122,17 +128,23 @@ export class AuthService {
     await this.userService.initializeDefaultRoles();
 
     try {
-      // Verificar el token de Google (esto requeriría una librería como google-auth-library)
-      // Por ahora, asumimos que el token es válido y contiene la información del usuario
-      // En una implementación real, deberías verificar el token con Google
-      
-      // Parsear el token (esto es un ejemplo simplificado)
-      // En producción, deberías usar google-auth-library para verificar el token
-      const tokenData = JSON.parse(Buffer.from(googleToken.split('.')[1], 'base64').toString());
-      
-      const email = tokenData.email;
-      if (!email) {
+      // Verificar el token de Google usando la librería oficial
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: googleToken,
+        audience: process.env.GOOGLE_CLIENT_ID, // Debe coincidir con el client ID de tu app
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
         throw new BadRequestException('Token de Google inválido');
+      }
+
+      const email = payload.email;
+      const name = payload.name;
+      const picture = payload.picture;
+
+      if (!email) {
+        throw new BadRequestException('Token de Google inválido: email no encontrado');
       }
 
       // Validar dominio UCN
@@ -148,7 +160,7 @@ export class AuthService {
       if (!user) {
         // Crear nuevo usuario si no existe
         user = await this.userService.createUser({
-          name: tokenData.name || email.split('@')[0],
+          name: name || email.split('@')[0],
           email: email,
           havePassword: false,
         });
@@ -167,6 +179,7 @@ export class AuthService {
         isNewUser,
       };
     } catch (error) {
+      console.error('Error en Google Auth:', error);
       throw new BadRequestException('Error en autenticación con Google: ' + error.message);
     }
   }

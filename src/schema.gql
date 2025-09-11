@@ -153,6 +153,10 @@ type Evidence {
   uploaderId: String!
 }
 
+input GoogleAuthDto {
+  googleToken: String!
+}
+
 type GoogleAuthResponse {
   accessToken: String!
   isNewUser: Boolean!
@@ -208,7 +212,7 @@ type Mutation {
   deleteProject(id: String!): Boolean!
   deleteRole(id: Int!): Boolean!
   deleteTask(id: String!): Boolean!
-  googleAuth(googleToken: String!): GoogleAuthResponse!
+  googleAuth(googleAuthDto: GoogleAuthDto!): GoogleAuthResponse!
   login(loginInput: LoginInput!): AuthResponse!
   register(registerInput: RegisterInput!): AuthResponse!
   removeAdmin(id: String!): String!
