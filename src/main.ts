@@ -12,6 +12,15 @@ async function bootstrap() {
       'http://localhost:5173'  // Para Vite/otros dev servers
     ],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  });
+
+  // Configurar headers de seguridad para COOP
+  app.use((req, res, next) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
+    next();
   });
   
   // Configurar el puerto para Render

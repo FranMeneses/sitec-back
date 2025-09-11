@@ -9,17 +9,25 @@ import { join } from 'path';
 @Injectable()
 export class UploadsService {
   private readonly uploadsPath = join('/app', 'uploads', 'current');
+  private readonly historicPath = join('/app', 'uploads', 'historic');
 
   constructor(
     private prisma: PrismaService,
     private userService: UserService,
   ) {
-    // Verificar que el directorio de uploads existe (sin intentar crearlo)
+    // Verificar que los directorios de uploads existen (sin intentar crearlos)
     if (!existsSync(this.uploadsPath)) {
-      console.warn(`Directorio de uploads no encontrado: ${this.uploadsPath}`);
+      console.warn(`Directorio de uploads actual no encontrado: ${this.uploadsPath}`);
       console.warn('Asegúrate de que el directorio existe y tiene los permisos correctos');
     } else {
-      console.log(`Directorio de uploads encontrado: ${this.uploadsPath}`);
+      console.log(`Directorio de uploads actual encontrado: ${this.uploadsPath}`);
+    }
+
+    if (!existsSync(this.historicPath)) {
+      console.warn(`Directorio de uploads histórico no encontrado: ${this.historicPath}`);
+      console.warn('Asegúrate de que el directorio existe y tiene los permisos correctos');
+    } else {
+      console.log(`Directorio de uploads histórico encontrado: ${this.historicPath}`);
     }
   }
 
@@ -199,7 +207,7 @@ export class UploadsService {
       throw new ForbiddenException('No tienes permisos para eliminar esta evidencia');
     }
 
-    // Eliminar archivo físico
+    // Eliminar archivo físico de la carpeta actual
     const filePath = join(this.uploadsPath, evidence.link.split('/').pop() || '');
     
     if (existsSync(filePath)) {

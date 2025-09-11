@@ -2,7 +2,7 @@ import { Resolver, Mutation, Args, Query } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
-import { LoginInput, RegisterInput, AuthResponse, CreateUserInput, UpdateUserInput } from '../dto/auth.dto';
+import { LoginInput, RegisterInput, AuthResponse, GoogleAuthResponse, CreateUserInput, UpdateUserInput } from '../dto/auth.dto';
 import { User } from '../entities/user.entity';
 import { Project } from '../../project/entities/project.entity';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
@@ -23,6 +23,11 @@ export class AuthResolver {
   @Mutation(() => AuthResponse)
   async register(@Args('registerInput') registerInput: RegisterInput): Promise<AuthResponse> {
     return this.authService.register(registerInput);
+  }
+
+  @Mutation(() => GoogleAuthResponse)
+  async googleAuth(@Args('googleToken') googleToken: string): Promise<GoogleAuthResponse> {
+    return this.authService.googleAuth(googleToken);
   }
 
   @Mutation(() => AuthResponse)

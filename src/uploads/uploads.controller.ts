@@ -18,6 +18,7 @@ export class UploadsController {
     storage: diskStorage({
       destination: '/app/uploads/current',
       filename: (req, file, cb) => {
+        // El nombre del archivo se manejará en el servicio
         cb(null, file.originalname);
       }
     }),
@@ -58,7 +59,7 @@ export class UploadsController {
     // Verificar permisos y obtener información del archivo
     const evidence = await this.uploadsService.getEvidenceForDownload(evidenceId, req.user.id);
     
-    // Construir ruta del archivo
+    // Construir ruta del archivo usando la ruta configurada en el servicio
     const filePath = join('/app', 'uploads', 'current', evidence.filename);
     
     // Verificar que el archivo existe

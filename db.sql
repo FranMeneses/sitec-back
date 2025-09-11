@@ -3,6 +3,14 @@ CREATE TABLE role (
     name VARCHAR
 );
 
+INSERT INTO role (name) VALUES ('super_admin');
+INSERT INTO role (name) VALUES ('admin');
+INSERT INTO role (name) VALUES ('user');
+INSERT INTO role (name) VALUES ('unit_member');
+INSERT INTO role (name) VALUES ('project_member');
+INSERT INTO role (name) VALUES ('process_member');
+INSERT INTO role (name) VALUES ('task_member');
+
 CREATE TABLE "user" (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR,
@@ -16,6 +24,9 @@ CREATE TABLE type (
     id SERIAL PRIMARY KEY,
     name VARCHAR UNIQUE NOT NULL
 );
+
+INSERT INTO type (name) VALUES ('Administrativa');
+INSERT INTO type (name) VALUES ('Académica');
 
 CREATE TABLE unit (
     id SERIAL PRIMARY KEY,
@@ -32,7 +43,7 @@ CREATE TABLE category (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR NOT NULL,
     description TEXT,
-    idArea INTEGER REFERENCES area(id) NOT NULL
+    id_area INTEGER REFERENCES area(id) NOT NULL
 );
 
 CREATE TABLE unit_member (
@@ -56,8 +67,8 @@ CREATE TABLE project (
     dueDate TIMESTAMP,
     editedAt TIMESTAMP,
     idEditor UUID REFERENCES "user"(id),
-    idCategory UUID REFERENCES category(id),
-    idUnit INTEGER REFERENCES unit(id)
+    idcategory UUID REFERENCES category(id),
+    idunit INTEGER REFERENCES unit(id)
 );
 
 CREATE TABLE process (
@@ -87,6 +98,7 @@ CREATE TABLE task (
     status VARCHAR,
     editedAt TIMESTAMP,
     idEditor UUID REFERENCES "user"(id),
+    idprocess UUID REFERENCES process(id) NOT NULL,
     report TEXT
 );
 
