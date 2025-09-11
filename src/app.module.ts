@@ -21,7 +21,7 @@ import { CommonModule } from './common/common.module';
     }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      autoSchemaFile: join(process.cwd(), 'schema.gql'),
       playground: process.env.NODE_ENV !== 'production',
       introspection: true, // Necesario para que funcione con autoSchemaFile
       sortSchema: true,
