@@ -10,13 +10,39 @@ import { existsSync } from 'fs';
 
 @Controller('uploads')
 export class UploadsController {
-  constructor(private uploadsService: UploadsService) {}
+  private readonly uploadsPath!: string;
+
+  constructor(private uploadsService: UploadsService) {
+    // Configurar ruta de uploads según el entorno
+    if (process.env.NODE_ENV === 'production' && process.env.RENDER === undefined) {
+      // VM de producción - usar ruta absoluta de la VM
+      this.uploadsPath = '/var/www/sitec/uploads/current';
+    } else {
+      // Render o desarrollo local - usar ruta relativa
+      this.uploadsPath = join(process.cwd(), 'uploads', 'current');
+    }
+  }
+
+  private getUploadsPath(): string {
+    if (this.uploadsPath) {
+      return this.uploadsPath;
+    }
+    return join(process.cwd(), 'uploads', 'current');
+  }
 
   @Post('evidence')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: '/app/uploads/current',
+      destination: (req, file, cb) => {
+        let uploadPath: string;
+        if (process.env.NODE_ENV === 'production' && process.env.RENDER === undefined) {
+          uploadPath = '/var/www/sitec/uploads/current';
+        } else {
+          uploadPath = join(process.cwd(), 'uploads', 'current');
+        }
+        cb(null, uploadPath);
+      },
       filename: (req, file, cb) => {
         // El nombre del archivo se manejará en el servicio
         cb(null, file.originalname);
@@ -59,8 +85,8 @@ export class UploadsController {
     // Verificar permisos y obtener información del archivo
     const evidence = await this.uploadsService.getEvidenceForDownload(evidenceId, req.user.id);
     
-    // Construir ruta del archivo usando la ruta configurada en el servicio
-    const filePath = join('/app', 'uploads', 'current', evidence.filename);
+    // Construir ruta del archivo usando la ruta configurada
+    const filePath = join(this.getUploadsPath(), evidence.filename);
     
     // Verificar que el archivo existe
     if (!existsSync(filePath)) {

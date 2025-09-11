@@ -8,26 +8,66 @@ import { join } from 'path';
 
 @Injectable()
 export class UploadsService {
-  private readonly uploadsPath = join('/app', 'uploads', 'current');
-  private readonly historicPath = join('/app', 'uploads', 'historic');
+  private readonly uploadsPath: string;
+  private readonly historicPath: string;
 
   constructor(
     private prisma: PrismaService,
     private userService: UserService,
   ) {
-    // Verificar que los directorios de uploads existen (sin intentar crearlos)
+    // Configurar rutas según el entorno
+    if (process.env.NODE_ENV === 'production' && process.env.RENDER === undefined) {
+      // VM de producción - usar rutas absolutas de la VM
+      this.uploadsPath = join('/var', 'www', 'sitec', 'uploads', 'current');
+      this.historicPath = join('/var', 'www', 'sitec', 'uploads', 'history');
+    } else {
+      // Render o desarrollo local - usar rutas relativas
+      this.uploadsPath = join(process.cwd(), 'uploads', 'current');
+      this.historicPath = join(process.cwd(), 'uploads', 'historic');
+    }
+
+    // Crear directorios si no existen (solo en Render/desarrollo)
+    if (process.env.RENDER !== undefined || process.env.NODE_ENV !== 'production') {
+      this.ensureDirectoriesExist();
+    } else {
+      // En VM, solo verificar que existen
+      this.verifyDirectoriesExist();
+    }
+  }
+
+  private ensureDirectoriesExist(): void {
+    try {
+      if (!existsSync(this.uploadsPath)) {
+        mkdirSync(this.uploadsPath, { recursive: true });
+        console.log(`Directorio de uploads creado: ${this.uploadsPath}`);
+      } else {
+        console.log(`Directorio de uploads encontrado: ${this.uploadsPath}`);
+      }
+
+      if (!existsSync(this.historicPath)) {
+        mkdirSync(this.historicPath, { recursive: true });
+        console.log(`Directorio histórico creado: ${this.historicPath}`);
+      } else {
+        console.log(`Directorio histórico encontrado: ${this.historicPath}`);
+      }
+    } catch (error) {
+      console.error('Error creando directorios de uploads:', error);
+    }
+  }
+
+  private verifyDirectoriesExist(): void {
     if (!existsSync(this.uploadsPath)) {
-      console.warn(`Directorio de uploads actual no encontrado: ${this.uploadsPath}`);
+      console.warn(`Directorio de uploads no encontrado: ${this.uploadsPath}`);
       console.warn('Asegúrate de que el directorio existe y tiene los permisos correctos');
     } else {
-      console.log(`Directorio de uploads actual encontrado: ${this.uploadsPath}`);
+      console.log(`Directorio de uploads encontrado: ${this.uploadsPath}`);
     }
 
     if (!existsSync(this.historicPath)) {
-      console.warn(`Directorio de uploads histórico no encontrado: ${this.historicPath}`);
+      console.warn(`Directorio histórico no encontrado: ${this.historicPath}`);
       console.warn('Asegúrate de que el directorio existe y tiene los permisos correctos');
     } else {
-      console.log(`Directorio de uploads histórico encontrado: ${this.historicPath}`);
+      console.log(`Directorio histórico encontrado: ${this.historicPath}`);
     }
   }
 
