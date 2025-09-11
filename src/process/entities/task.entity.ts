@@ -38,6 +38,9 @@ export class Task {
   @Field({ nullable: true })
   expense?: number;
 
+  @Field({ nullable: true })
+  review?: string;
+
   @Field()
   processId: string;
 

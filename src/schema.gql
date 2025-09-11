@@ -87,6 +87,7 @@ input CreateProcessInput {
   dueDate: String
   name: String!
   projectId: String!
+  review: String
   startDate: String
 }
 
@@ -95,6 +96,7 @@ input CreateProjectInput {
   description: String
   dueDate: String
   name: String!
+  review: String
   startDate: String
   unitId: Int
 }
@@ -112,6 +114,7 @@ input CreateTaskInput {
   memberAssignments: [TaskMemberAssignmentInput!]
   name: String!
   processId: String!
+  review: String
   startDate: String
   status: String!
 }
@@ -269,6 +272,7 @@ type Process {
   processTasks: [Task!]!
   project: Project
   projectId: String!
+  review: String
   startDate: DateTime
   updatedAt: DateTime!
 }
@@ -282,6 +286,7 @@ type Project {
   editor: User
   id: ID!
   name: String!
+  review: String
   startDate: DateTime
   unitId: Float
   updatedAt: DateTime!
@@ -419,6 +424,7 @@ type Task {
   process: Process
   processId: String!
   report: String
+  review: String
   startDate: DateTime
   status: String!
   taskMembers: [TaskMember!]!
@@ -489,6 +495,7 @@ input UpdateProcessInput {
   dueDate: String
   id: String!
   name: String
+  review: String
   startDate: String
 }
 
@@ -498,6 +505,7 @@ input UpdateProjectInput {
   dueDate: String
   id: String!
   name: String
+  review: String
   startDate: String
   unitId: Int
 }
@@ -529,6 +537,7 @@ input UpdateTaskInput {
   id: String!
   name: String
   report: String
+  review: String
   startDate: String
   status: String
 }

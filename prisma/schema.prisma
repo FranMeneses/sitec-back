@@ -56,6 +56,7 @@ model process {
   editedat    DateTime? @db.Timestamp(6)
   ideditor    String?   @db.Uuid
   idproject   String?   @db.Uuid
+  review      String?
   logs        logs[]
   user        user?     @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
   project     project?  @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -72,6 +73,7 @@ model project {
   ideditor       String?          @db.Uuid
   idunit         Int?
   idcategory     String?          @db.Uuid
+  review         String?
   logs           logs[]
   process        process[]
   category       category?        @relation(fields: [idcategory], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_project_category")
@@ -112,6 +114,7 @@ model task {
   report      String?
   budget      Int?
   expense     Int?
+  review      String?
   comment     comment[]
   evidence    evidence[]
   logs        logs[]

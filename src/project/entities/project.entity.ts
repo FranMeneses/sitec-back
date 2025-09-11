@@ -30,6 +30,9 @@ export class Project {
   @Field({ nullable: true })
   unitId?: number;
 
+  @Field({ nullable: true })
+  review?: string;
+
   @Field()
   createdAt?: Date;
 

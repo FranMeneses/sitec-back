@@ -30,7 +30,7 @@ export class UploadsService {
     if (process.env.RENDER !== undefined || process.env.NODE_ENV !== 'production') {
       this.ensureDirectoriesExist();
     } else {
-      // En VM, solo verificar que existen
+      // En VM, solo verificar que existen (no crear)
       this.verifyDirectoriesExist();
     }
   }
@@ -59,6 +59,13 @@ export class UploadsService {
     if (!existsSync(this.uploadsPath)) {
       console.warn(`Directorio de uploads no encontrado: ${this.uploadsPath}`);
       console.warn('Asegúrate de que el directorio existe y tiene los permisos correctos');
+      // En VM, intentar crear solo si no existe
+      try {
+        mkdirSync(this.uploadsPath, { recursive: true });
+        console.log(`Directorio de uploads creado: ${this.uploadsPath}`);
+      } catch (error) {
+        console.error('No se pudo crear el directorio de uploads:', error.message);
+      }
     } else {
       console.log(`Directorio de uploads encontrado: ${this.uploadsPath}`);
     }
@@ -66,6 +73,13 @@ export class UploadsService {
     if (!existsSync(this.historicPath)) {
       console.warn(`Directorio histórico no encontrado: ${this.historicPath}`);
       console.warn('Asegúrate de que el directorio existe y tiene los permisos correctos');
+      // En VM, intentar crear solo si no existe
+      try {
+        mkdirSync(this.historicPath, { recursive: true });
+        console.log(`Directorio histórico creado: ${this.historicPath}`);
+      } catch (error) {
+        console.error('No se pudo crear el directorio histórico:', error.message);
+      }
     } else {
       console.log(`Directorio histórico encontrado: ${this.historicPath}`);
     }

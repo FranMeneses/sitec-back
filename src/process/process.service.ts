@@ -280,6 +280,7 @@ export class ProcessService {
         description: createProcessInput.description,
         startdate: createProcessInput.startDate ? new Date(createProcessInput.startDate) : null,
         duedate: createProcessInput.dueDate ? new Date(createProcessInput.dueDate) : null,
+        review: createProcessInput.review,
         ideditor: editorId,
         idproject: createProcessInput.projectId,
         editedat: new Date(),
@@ -326,6 +327,7 @@ export class ProcessService {
         description: updateProcessInput.description,
         startdate: updateProcessInput.startDate ? new Date(updateProcessInput.startDate) : null,
         duedate: updateProcessInput.dueDate ? new Date(updateProcessInput.dueDate) : null,
+        review: updateProcessInput.review,
         ideditor: editorId,
         editedat: new Date(),
       },
@@ -556,6 +558,7 @@ export class ProcessService {
         idprocess: createTaskInput.processId,
         budget: createTaskInput.budget,
         expense: createTaskInput.expense,
+        review: createTaskInput.review,
         editedat: new Date(),
       },
       include: {
@@ -643,6 +646,7 @@ export class ProcessService {
         report: updateTaskInput.report,
         budget: updateTaskInput.budget,
         expense: updateTaskInput.expense,
+        review: updateTaskInput.review,
         editedat: new Date(),
       },
       include: {

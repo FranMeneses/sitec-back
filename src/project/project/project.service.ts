@@ -111,6 +111,7 @@ export class ProjectService {
         description: createProjectInput.description,
         startdate: createProjectInput.startDate ? new Date(createProjectInput.startDate) : null,
         duedate: createProjectInput.dueDate ? new Date(createProjectInput.dueDate) : null,
+        review: createProjectInput.review,
         ideditor: editorId,
         idcategory: createProjectInput.categoryId,
         idunit: createProjectInput.unitId,
@@ -169,6 +170,7 @@ export class ProjectService {
     if (updateProjectInput.dueDate) updateData.duedate = new Date(updateProjectInput.dueDate);
     if (updateProjectInput.categoryId !== undefined) updateData.idcategory = updateProjectInput.categoryId;
     if (updateProjectInput.unitId !== undefined) updateData.idunit = updateProjectInput.unitId;
+    if (updateProjectInput.review !== undefined) updateData.review = updateProjectInput.review;
 
     const project = await this.prisma.project.update({
       where: { id: updateProjectInput.id },

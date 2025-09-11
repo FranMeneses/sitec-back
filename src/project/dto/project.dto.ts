@@ -32,6 +32,11 @@ export class CreateProjectInput {
   @IsInt()
   @IsOptional()
   unitId?: number;
+
+  @Field({ nullable: true })
+  @IsString()
+  @IsOptional()
+  review?: string;
 }
 
 @InputType()
@@ -69,6 +74,11 @@ export class UpdateProjectInput {
   @IsInt()
   @IsOptional()
   unitId?: number;
+
+  @Field({ nullable: true })
+  @IsString()
+  @IsOptional()
+  review?: string;
 }
 
 @InputType()

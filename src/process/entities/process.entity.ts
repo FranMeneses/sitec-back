@@ -25,6 +25,9 @@ export class Process {
   @Field(() => User, { nullable: true })
   editor?: User;
 
+  @Field({ nullable: true })
+  review?: string;
+
   @Field()
   projectId: string;
 

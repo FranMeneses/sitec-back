@@ -23,6 +23,11 @@ export class CreateProcessInput {
   @IsOptional()
   dueDate?: string;
 
+  @Field({ nullable: true })
+  @IsString()
+  @IsOptional()
+  review?: string;
+
   @Field()
   @IsUUID()
   projectId: string;
@@ -53,4 +58,9 @@ export class UpdateProcessInput {
   @IsDateString()
   @IsOptional()
   dueDate?: string;
+
+  @Field({ nullable: true })
+  @IsString()
+  @IsOptional()
+  review?: string;
 }

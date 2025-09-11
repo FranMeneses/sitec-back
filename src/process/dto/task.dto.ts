@@ -49,6 +49,11 @@ export class CreateTaskInput {
   @IsOptional()
   expense?: number;
 
+  @Field({ nullable: true })
+  @IsString()
+  @IsOptional()
+  review?: string;
+
   @Field()
   @IsUUID()
   processId: string;
@@ -111,5 +116,10 @@ export class UpdateTaskInput {
   @Min(0)
   @IsOptional()
   expense?: number;
+
+  @Field({ nullable: true })
+  @IsString()
+  @IsOptional()
+  review?: string;
 }
 
