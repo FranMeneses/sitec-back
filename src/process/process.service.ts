@@ -538,6 +538,8 @@ export class ProcessService {
         status: createTaskInput.status,
         ideditor: editorId,
         idprocess: createTaskInput.processId,
+        budget: createTaskInput.budget,
+        expense: createTaskInput.expense,
         editedat: new Date(),
       },
       include: {
@@ -618,6 +620,8 @@ export class ProcessService {
         status: updateTaskInput.status,
         ideditor: editorId,
         report: updateTaskInput.report,
+        budget: updateTaskInput.budget,
+        expense: updateTaskInput.expense,
         editedat: new Date(),
       },
       include: {
@@ -635,7 +639,7 @@ export class ProcessService {
     return this.mapTask(task);
   }
 
-  async updateTaskAsMember(updateTaskInput: { id: string; status?: string; report?: string }, memberId: string): Promise<Task> {
+  async updateTaskAsMember(updateTaskInput: { id: string; status?: string; report?: string; budget?: number; expense?: number }, memberId: string): Promise<Task> {
     // Validar que la tarea existe
     const existingTask = await this.prisma.task.findUnique({
       where: { id: updateTaskInput.id },
@@ -651,7 +655,7 @@ export class ProcessService {
       throw new ForbiddenException('No tienes permisos para editar esta tarea');
     }
 
-    // Solo permitir actualizar status y report
+    // Solo permitir actualizar status, report, budget y expense
     const updateData: any = {
       editedat: new Date(),
     };
@@ -662,6 +666,14 @@ export class ProcessService {
 
     if (updateTaskInput.report !== undefined) {
       updateData.report = updateTaskInput.report;
+    }
+
+    if (updateTaskInput.budget !== undefined) {
+      updateData.budget = updateTaskInput.budget;
+    }
+
+    if (updateTaskInput.expense !== undefined) {
+      updateData.expense = updateTaskInput.expense;
     }
 
     const task = await this.prisma.task.update({
@@ -903,6 +915,8 @@ export class ProcessService {
       editedAt: task.editedat,
       editor: task.user,
       report: task.report,
+      budget: task.budget,
+      expense: task.expense,
       processId: task.idprocess,
       process: task.process,
       createdAt: task.createdat,

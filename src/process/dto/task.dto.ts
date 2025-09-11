@@ -1,5 +1,5 @@
-import { InputType, Field } from '@nestjs/graphql';
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsDateString, IsEnum } from 'class-validator';
+import { InputType, Field, Int } from '@nestjs/graphql';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsDateString, IsEnum, IsInt, Min } from 'class-validator';
 
 export enum TaskStatus {
   PENDING = 'pending',
@@ -34,6 +34,18 @@ export class CreateTaskInput {
   @Field()
   @IsEnum(TaskStatus)
   status: TaskStatus;
+
+  @Field({ nullable: true })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  budget?: number;
+
+  @Field({ nullable: true })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  expense?: number;
 
   @Field()
   @IsUUID()
@@ -75,5 +87,17 @@ export class UpdateTaskInput {
   @IsString()
   @IsOptional()
   report?: string;
+
+  @Field({ nullable: true })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  budget?: number;
+
+  @Field({ nullable: true })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  expense?: number;
 }
 

@@ -31,4 +31,10 @@ export class UpdateTaskAsMemberInput {
 
   @Field(() => String, { nullable: true })
   report?: string;
+
+  @Field(() => Int, { nullable: true })
+  budget?: number;
+
+  @Field(() => Int, { nullable: true })
+  expense?: number;
 }

@@ -105,8 +105,10 @@ input CreateRoleInput {
 }
 
 input CreateTaskInput {
+  budget: Float
   description: String
   dueDate: String
+  expense: Float
   name: String!
   processId: String!
   startDate: String
@@ -313,6 +315,7 @@ type Query {
   getAllCategoriesAsUnitMember: [Category!]!
   getAllSystemRoles: [SystemRoleResponse!]!
   getCategoryById(id: String!): Category
+  getEvidenceByProject(projectId: String!): [Evidence!]!
   getProjectProcessesAsMember(projectId: String!): [Process!]!
   getProjectsByCategory(categoryId: String!): [Project!]!
   getProjectsByUnit(unitId: Float!): [Project!]!
@@ -395,11 +398,13 @@ type SystemRoleResponse {
 }
 
 type Task {
+  budget: Float
   createdAt: DateTime!
   description: String
   dueDate: DateTime
   editedAt: DateTime
   editor: User
+  expense: Float
   id: ID!
   name: String!
   process: Process
@@ -494,14 +499,18 @@ input UpdateRoleInput {
 }
 
 input UpdateTaskAsMemberInput {
+  budget: Int
+  expense: Int
   id: String!
   report: String
   status: String
 }
 
 input UpdateTaskInput {
+  budget: Float
   description: String
   dueDate: String
+  expense: Float
   id: String!
   name: String
   report: String

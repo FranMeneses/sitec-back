@@ -148,3 +148,7 @@ CREATE TABLE system_role (
 );
 
 ALTER TABLE evidence ADD COLUMN review TEXT;
+
+ALTER TABLE task ADD COLUMN budget INT;
+
+ALTER TABLE task ADD COLUMN expense INT;

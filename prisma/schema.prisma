@@ -110,6 +110,8 @@ model task {
   ideditor    String?       @db.Uuid
   idprocess   String        @db.Uuid
   report      String?
+  budget      Int?
+  expense     Int?
   comment     comment[]
   evidence    evidence[]
   logs        logs[]

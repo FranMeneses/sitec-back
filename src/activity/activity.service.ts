@@ -452,4 +452,36 @@ export class ActivityService {
       updatedAt: log.updatedat,
     };
   }
+
+  // ==================== EVIDENCE BY PROJECT ====================
+
+  async findEvidenceByProject(projectId: string): Promise<Evidence[]> {
+    // Obtener todas las evidencias que pertenecen a tareas del proyecto
+    const evidence = await this.prisma.evidence.findMany({
+      where: {
+        task: {
+          process: {
+            idproject: projectId
+          }
+        }
+      },
+      include: {
+        task: {
+          include: {
+            process: {
+              include: {
+                project: true
+              }
+            }
+          }
+        },
+        user: true, // uploader
+      },
+      orderBy: {
+        uploadedat: 'desc'
+      }
+    });
+
+    return evidence.map(ev => this.mapEvidence(ev));
+  }
 }

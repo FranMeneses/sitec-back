@@ -32,6 +32,12 @@ export class Task {
   @Field({ nullable: true })
   report?: string;
 
+  @Field({ nullable: true })
+  budget?: number;
+
+  @Field({ nullable: true })
+  expense?: number;
+
   @Field()
   processId: string;
 

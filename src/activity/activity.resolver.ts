@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args, ResolveField, Parent } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, ForbiddenException } from '@nestjs/common';
 import { ActivityService } from './activity.service';
 import { Evidence } from './entities/evidence.entity';
 import { Comment } from './entities/comment.entity';
@@ -10,10 +10,14 @@ import { CreateLogInput } from './dto/logs.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
+import { UserService } from '../auth/user/user.service';
 
 @Resolver(() => Evidence)
 export class EvidenceResolver {
-  constructor(private activityService: ActivityService) {}
+  constructor(
+    private activityService: ActivityService,
+    private userService: UserService,
+  ) {}
 
   // ==================== EVIDENCE QUERIES ====================
 
@@ -62,6 +66,21 @@ export class EvidenceResolver {
     @CurrentUser() user: User,
   ): Promise<boolean> {
     return this.activityService.deleteEvidence(id, user.id);
+  }
+
+  @Query(() => [Evidence])
+  @UseGuards(JwtAuthGuard)
+  async getEvidenceByProject(
+    @Args('projectId') projectId: string,
+    @CurrentUser() user: User,
+  ): Promise<Evidence[]> {
+    // Verificar que el usuario es miembro del proyecto
+    const isProjectMember = await this.userService.isProjectMember(user.id, projectId);
+    if (!isProjectMember) {
+      throw new ForbiddenException('No tienes permisos para ver las evidencias de este proyecto');
+    }
+    
+    return this.activityService.findEvidenceByProject(projectId);
   }
 }
 
