@@ -3,7 +3,7 @@ import { UseGuards } from '@nestjs/common';
 import { SystemRoleService } from './system-role.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { RequireAdmin } from '../../common/decorators/roles.decorator';
+import { RequireAdmin, RequireSuperAdmin } from '../../common/decorators/roles.decorator';
 import { SystemRoleResponse, SuccessResponse } from '../dto/system-role.dto';
 
 @Resolver('SystemRole')
@@ -24,7 +24,7 @@ export class SystemRoleResolver {
   }
 
   @Mutation(() => SuccessResponse)
-  @RequireAdmin()
+  @RequireSuperAdmin()
   async updateUserSystemRole(
     @Args('userId') userId: string,
     @Args('roleId') roleId: number,
