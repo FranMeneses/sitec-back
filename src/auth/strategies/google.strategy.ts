@@ -36,9 +36,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     try {
       const { name, emails, photos } = profile;
       
+      // Debug temporal para ver qué devuelve Google
+      console.log('Google profile data:', JSON.stringify(profile, null, 2));
+      
       const user = {
         email: emails[0].value,
-        name: name.givenName + ' ' + name.familyName,
+        name: profile.displayName || (name.givenName + ' ' + name.familyName) || emails[0].value.split('@')[0],
         picture: photos[0].value,
         accessToken,
         refreshToken,

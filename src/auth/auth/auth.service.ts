@@ -108,7 +108,7 @@ export class AuthService {
     if (!user) {
       // Crear nuevo usuario si no existe
       user = await this.userService.createUser({
-        name: profile.displayName,
+        name: profile.displayName || (profile.name?.givenName + ' ' + profile.name?.familyName) || email.split('@')[0],
         email: email,
         havePassword: false,
       });
