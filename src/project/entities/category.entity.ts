@@ -1,4 +1,5 @@
 import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
+import { Area } from '../../organization/entities/area.entity';
 
 @ObjectType()
 export class Category {
@@ -14,6 +15,9 @@ export class Category {
   @Field(() => Int, { nullable: true })
   areaId?: number;
 
+  @Field(() => Area, { nullable: true })
+  area?: Area;
+
   @Field()
   createdAt?: Date;
 
@@ -21,9 +25,6 @@ export class Category {
   updatedAt?: Date;
 
   // Relaciones que se resolverán después
-  // @Field(() => Area)
-  // area: Area;
-  
   // @Field(() => [Project])
   // projects?: Project[];
 }

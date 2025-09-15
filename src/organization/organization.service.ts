@@ -1079,12 +1079,27 @@ export class OrganizationService {
     }
 
     // Los admins y super_admins pueden ver todas las categorías del sistema
-    return this.prisma.category.findMany({
+    const categories = await this.prisma.category.findMany({
       include: {
         area: true,
         project: true,
       },
     });
+
+    // Mapear las categorías para incluir el areaId y el objeto area
+    return categories.map(category => ({
+      id: category.id,
+      name: category.name,
+      description: category.description || undefined,
+      areaId: category.id_area,
+      area: category.area ? {
+        id: category.area.id,
+        name: category.area.name || undefined,
+        admin: []
+      } : undefined,
+      createdAt: undefined, // No hay campo created_at en el esquema
+      updatedAt: undefined, // No hay campo updated_at en el esquema
+    }));
   }
 
   // ===== USER MANAGEMENT METHODS =====

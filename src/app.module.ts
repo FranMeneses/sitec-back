@@ -30,7 +30,7 @@ import { CommonModule } from './common/common.module';
       sortSchema: true,
       // Configuraciones adicionales para estabilidad
       buildSchemaOptions: {
-        dateScalarMode: 'timestamp',
+        dateScalarMode: 'isoDate',
       },
     }),
     CommonModule,

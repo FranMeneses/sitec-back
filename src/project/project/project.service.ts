@@ -798,7 +798,12 @@ export class ProjectService {
       id: category.id,
       name: category.name,
       description: category.description || undefined,
-      areaId: category.id_area || undefined,
+      areaId: category.id_area,
+      area: category.area ? {
+        id: category.area.id,
+        name: category.area.name || undefined,
+        admin: []
+      } : undefined,
       createdAt: undefined, // No hay campo created_at en el esquema
       updatedAt: undefined, // No hay campo updated_at en el esquema
     }));
@@ -819,7 +824,12 @@ export class ProjectService {
       id: category.id,
       name: category.name,
       description: category.description || undefined,
-      areaId: category.id_area || undefined,
+      areaId: category.id_area,
+      area: category.area ? {
+        id: category.area.id,
+        name: category.area.name || undefined,
+        admin: []
+      } : undefined,
       createdAt: undefined,
       updatedAt: undefined,
     };
