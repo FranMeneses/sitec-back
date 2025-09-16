@@ -173,4 +173,32 @@ export class TaskResolver {
   async process(@Parent() task: Task): Promise<Process | null> {
     return this.processService.findProcessById(task.processId);
   }
+
+  // ==================== AREA_MEMBER (AUDITOR) QUERIES ====================
+
+  @Query(() => [Process])
+  @UseGuards(JwtAuthGuard)
+  async getAreaProjectsForAudit(@CurrentUser() user: User): Promise<any[]> {
+    return this.processService.getAreaProjectsForAudit(user.id);
+  }
+
+  @Query(() => [Process])
+  @UseGuards(JwtAuthGuard)
+  async generateAuditReport(
+    @Args('projectId', { nullable: true }) projectId: string,
+    @CurrentUser() user: User,
+  ): Promise<any[]> {
+    return this.processService.generateAuditReport(user.id, projectId);
+  }
+
+  // ==================== AREA_MEMBER (AUDITOR) MUTATIONS ====================
+
+  @Mutation(() => Task)
+  @UseGuards(JwtAuthGuard)
+  async reactivateTask(
+    @Args('taskId') taskId: string,
+    @CurrentUser() user: User,
+  ): Promise<Task> {
+    return this.processService.reactivateTask(taskId, user.id);
+  }
 }

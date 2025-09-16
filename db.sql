@@ -10,6 +10,7 @@ INSERT INTO role (name) VALUES ('unit_member');
 INSERT INTO role (name) VALUES ('project_member');
 INSERT INTO role (name) VALUES ('process_member');
 INSERT INTO role (name) VALUES ('task_member');
+INSERT INTO role (name) VALUES ('area_member');
 
 CREATE TABLE "user" (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -158,3 +159,9 @@ ALTER TABLE task ADD COLUMN review TEXT;
 ALTER TABLE process ADD COLUMN review TEXT;
 
 ALTER TABLE project ADD COLUMN review TEXT;
+
+CREATE TABLE area_member (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    idarea INTEGER REFERENCES area(id) NOT NULL,
+    iduser UUID REFERENCES "user"(id) NOT NULL
+);

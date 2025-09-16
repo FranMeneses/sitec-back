@@ -862,6 +862,10 @@ export class UserService {
       }
     }
 
+    // Verificar si es area_member (auditor) del área del proyecto de la tarea
+    const canAreaMemberPerform = await this.canAreaMemberPerformTaskAction(userId, taskId, action);
+    if (canAreaMemberPerform) return true;
+
     return false;
   }
 
@@ -925,6 +929,99 @@ export class UserService {
     }
 
     return false;
+  }
+
+  // ==================== AREA_MEMBER (AUDITOR) METHODS ====================
+
+  async isAreaMember(userId: string, areaId: number): Promise<boolean> {
+    const areaMember = await this.prisma.area_member.findFirst({
+      where: {
+        iduser: userId,
+        idarea: areaId,
+      },
+    });
+    return !!areaMember;
+  }
+
+  async getAreaMemberArea(userId: string): Promise<number | null> {
+    const areaMember = await this.prisma.area_member.findFirst({
+      where: {
+        iduser: userId,
+      },
+      select: {
+        idarea: true,
+      },
+    });
+    return areaMember?.idarea || null;
+  }
+
+  async canAreaMemberPerformProjectAction(userId: string, projectId: string, action: string): Promise<boolean> {
+    // Verificar si es area_member
+    const isAreaMember = await this.isAreaMember(userId, 0); // Se verificará el área específica después
+    if (!isAreaMember) return false;
+
+    // Obtener el área del area_member
+    const auditorArea = await this.getAreaMemberArea(userId);
+    if (!auditorArea) return false;
+
+    // Verificar que el proyecto pertenece al área del auditor
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        category: true,
+      },
+    });
+
+    if (!project || !project.category) return false;
+    
+    return project.category.id_area === auditorArea;
+  }
+
+  async canAreaMemberPerformTaskAction(userId: string, taskId: string, action: string): Promise<boolean> {
+    // Verificar si es area_member
+    const isAreaMember = await this.isAreaMember(userId, 0); // Se verificará el área específica después
+    if (!isAreaMember) return false;
+
+    // Obtener el área del area_member
+    const auditorArea = await this.getAreaMemberArea(userId);
+    if (!auditorArea) return false;
+
+    // Verificar que la tarea pertenece a un proyecto del área del auditor
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        process: {
+          include: {
+            project: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task || !task.process || !task.process.project || !task.process.project.category) return false;
+    
+    return task.process.project.category.id_area === auditorArea;
+  }
+
+  async canAreaMemberReactivateTask(userId: string, taskId: string): Promise<boolean> {
+    // Verificar permisos básicos de area_member
+    const canPerformAction = await this.canAreaMemberPerformTaskAction(userId, taskId, 'reactivate');
+    if (!canPerformAction) return false;
+
+    // Verificar que la tarea está en un estado que permite reactivación
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { status: true },
+    });
+
+    if (!task) return false;
+
+    // Solo se pueden reactivar tareas canceladas o completadas
+    return ['cancelled', 'completed'].includes(task.status || '');
   }
 
 }

@@ -88,6 +88,11 @@ export class PermissionsGuard implements CanActivate {
       return await this.checkUnitMemberPermissions(user, action, resource);
     }
 
+    // Area member (auditor) tiene permisos de auditoría en su área asignada
+    if (this.hasRole(user, 'area_member')) {
+      return await this.checkAreaMemberPermissions(user, action, resource);
+    }
+
     return false;
   }
 
@@ -270,6 +275,30 @@ export class PermissionsGuard implements CanActivate {
     }
 
     if (action === 'delete' && resource === 'task_member') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    return false;
+  }
+
+  private async checkAreaMemberPermissions(user: any, action: string, resource: string): Promise<boolean> {
+    // Area member puede leer todos los proyectos, procesos y tareas de su área
+    if (action === 'read' && ['project', 'process', 'task', 'evidence', 'comment'].includes(resource)) {
+      return true; // La validación específica de área se hará en el servicio
+    }
+
+    // Area member puede reactivar tareas (cambiar estado de cancelled/completed a pending/in_progress)
+    if (action === 'reactivate' && resource === 'task') {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Area member puede generar reportes de auditoría
+    if (action === 'audit' && ['project', 'process', 'task'].includes(resource)) {
+      return true; // La validación específica se hará en el servicio
+    }
+
+    // Area member puede analizar proyectos de su área
+    if (action === 'analyze' && resource === 'project') {
       return true; // La validación específica se hará en el servicio
     }
 

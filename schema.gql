@@ -20,6 +20,14 @@ type Area {
   name: String
 }
 
+type AreaMember {
+  area: Area
+  areaId: Float!
+  id: ID!
+  user: User
+  userId: String!
+}
+
 input AssignSuperAdminInput {
   idUser: String!
 }
@@ -57,6 +65,11 @@ input CreateAdminInput {
 
 input CreateAreaInput {
   name: String!
+}
+
+input CreateAreaMemberInput {
+  areaId: Int!
+  userId: String!
 }
 
 input CreateCategoryInput {
@@ -187,6 +200,7 @@ type Mutation {
   assignTaskMember(createTaskMemberInput: CreateTaskMemberInput!): Boolean!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
+  createAreaMember(createAreaMemberInput: CreateAreaMemberInput!): AreaMember!
   createCategoryAsUnitMember(createCategoryInput: CreateCategoryInput!): Category!
   createComment(createCommentInput: CreateCommentInput!): Comment!
   createFirstSuperAdmin(email: String!, name: String!, password: String!): AuthResponse!
@@ -202,6 +216,7 @@ type Mutation {
   createType(createTypeInput: CreateTypeInput!): Type!
   createUnit(createUnitInput: CreateUnitInput!): Unit!
   createUser(createUserInput: CreateUserInput!): User!
+  deleteAreaMember(id: String!): Boolean!
   deleteComment(id: String!): Boolean!
   deleteProcess(id: String!): Boolean!
   deleteProject(id: String!): Boolean!
@@ -209,6 +224,7 @@ type Mutation {
   deleteTask(id: String!): Boolean!
   googleAuth(googleAuthDto: GoogleAuthDto!): GoogleAuthResponse!
   login(loginInput: LoginInput!): AuthResponse!
+  reactivateTask(taskId: String!): Task!
   register(registerInput: RegisterInput!): AuthResponse!
   removeAdmin(id: String!): String!
   removeArea(id: Int!): Area!
@@ -287,6 +303,8 @@ type Query {
   admins: [Admin!]!
   allCategoriesForAdmin: [Category!]!
   area(id: Int!): Area!
+  areaMembers: [AreaMember!]!
+  areaMembersByArea(areaId: Float!): [AreaMember!]!
   areas: [Area!]!
   availableUsersForUnit(unitId: Int!): [User!]!
   checkSuperAdminExists: Boolean!
@@ -302,8 +320,10 @@ type Query {
   findUnitProjects(idUnit: Float!): [Project!]!
   findUserByEmail(email: String!): User!
   findUsersProject(idUser: String!): [Project!]!
+  generateAuditReport(projectId: String): [Process!]!
   getAllCategoriesAsUnitMember: [Category!]!
   getAllSystemRoles: [SystemRoleResponse!]!
+  getAreaProjectsForAudit: [Process!]!
   getCategoryById(id: String!): Category
   getProjectProcessesAsMember(projectId: String!): [Process!]!
   getProjectsByCategory(categoryId: String!): [Project!]!
@@ -317,6 +337,7 @@ type Query {
   logsByProject(projectId: String!): [Logs!]!
   logsByTask(taskId: String!): [Logs!]!
   me: User!
+  myAreaMemberships: [AreaMember!]!
   myAreaTypes: [Type!]!
   myAssignedTasks: [Task!]!
   myProjectMemberships: [ProjectMember!]!

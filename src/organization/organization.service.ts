@@ -5,6 +5,7 @@ import { CreateUnitInput, UpdateUnitInput } from './dto/unit.dto';
 import { CreateUnitMemberInput, UpdateUnitMemberInput } from './dto/unit-member.dto';
 import { CreateTypeInput, UpdateTypeInput } from './dto/type.dto';
 import { CreateAdminInput, AssignSuperAdminInput } from './dto/admin.dto';
+import { CreateAreaMemberInput } from './dto/area-member.dto';
 import { SystemRoleService } from '../auth/system-role/system-role.service';
 import { User } from '../auth/entities/user.entity';
 
@@ -1182,5 +1183,113 @@ export class OrganizationService {
       createdAt: undefined,
       updatedAt: undefined
     }));
+  }
+
+  // ===== AREA_MEMBER METHODS =====
+
+  private mapAreaMember(areaMember: any): any {
+    return {
+      id: areaMember.id,
+      areaId: areaMember.idarea,
+      userId: areaMember.iduser,
+      area: areaMember.area,
+      user: areaMember.user,
+    };
+  }
+
+  async createAreaMember(createAreaMemberInput: CreateAreaMemberInput) {
+    // Verificar que el área existe
+    const area = await this.prisma.area.findUnique({
+      where: { id: createAreaMemberInput.areaId },
+    });
+
+    if (!area) {
+      throw new NotFoundException('Área no encontrada');
+    }
+
+    // Verificar que el usuario existe
+    const user = await this.prisma.user.findUnique({
+      where: { id: createAreaMemberInput.userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    // Verificar que no es ya miembro del área
+    const existingMember = await this.prisma.area_member.findFirst({
+      where: {
+        idarea: createAreaMemberInput.areaId,
+        iduser: createAreaMemberInput.userId,
+      },
+    });
+
+    if (existingMember) {
+      throw new ForbiddenException('El usuario ya es miembro de esta área');
+    }
+
+    const areaMember = await this.prisma.area_member.create({
+      data: {
+        idarea: createAreaMemberInput.areaId,
+        iduser: createAreaMemberInput.userId,
+      },
+      include: {
+        area: true,
+        user: true,
+      },
+    });
+
+    return this.mapAreaMember(areaMember);
+  }
+
+  async findAllAreaMembers() {
+    const areaMembers = await this.prisma.area_member.findMany({
+      include: {
+        area: true,
+        user: true,
+      },
+    });
+
+    return areaMembers.map(areaMember => this.mapAreaMember(areaMember));
+  }
+
+  async findAreaMembersByArea(areaId: number) {
+    const areaMembers = await this.prisma.area_member.findMany({
+      where: { idarea: areaId },
+      include: {
+        area: true,
+        user: true,
+      },
+    });
+
+    return areaMembers.map(areaMember => this.mapAreaMember(areaMember));
+  }
+
+  async findAreaMembersByUser(userId: string) {
+    const areaMembers = await this.prisma.area_member.findMany({
+      where: { iduser: userId },
+      include: {
+        area: true,
+        user: true,
+      },
+    });
+
+    return areaMembers.map(areaMember => this.mapAreaMember(areaMember));
+  }
+
+  async deleteAreaMember(id: string) {
+    const areaMember = await this.prisma.area_member.findUnique({
+      where: { id },
+    });
+
+    if (!areaMember) {
+      throw new NotFoundException('Miembro del área no encontrado');
+    }
+
+    await this.prisma.area_member.delete({
+      where: { id },
+    });
+
+    return true;
   }
 }

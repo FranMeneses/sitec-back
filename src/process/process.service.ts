@@ -948,4 +948,187 @@ export class ProcessService {
       updatedAt: task.updatedat,
     };
   }
+
+  // ==================== AREA_MEMBER (AUDITOR) METHODS ====================
+
+  async reactivateTask(taskId: string, auditorId: string): Promise<Task> {
+    // Verificar que el auditor puede reactivar esta tarea
+    const canReactivate = await this.userService.canAreaMemberReactivateTask(auditorId, taskId);
+    if (!canReactivate) {
+      throw new ForbiddenException('No tienes permisos para reactivar esta tarea');
+    }
+
+    // Verificar que la tarea existe
+    const existingTask = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { process: { include: { project: true } } },
+    });
+
+    if (!existingTask) {
+      throw new NotFoundException('Tarea no encontrada');
+    }
+
+    // Verificar que la tarea está en un estado que permite reactivación
+    if (!['cancelled', 'completed'].includes(existingTask.status || '')) {
+      throw new BadRequestException('Solo se pueden reactivar tareas canceladas o completadas');
+    }
+
+    // Reactivar la tarea (cambiar estado a pending)
+    const reactivatedTask = await this.prisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: 'pending',
+        editedat: new Date(),
+        ideditor: auditorId,
+      },
+      include: {
+        user: true,
+        process: true,
+      },
+    });
+
+    // Crear log de reactivación
+    await this.prisma.logs.create({
+      data: {
+        type: 'task_reactivated',
+        idcreator: auditorId,
+        idtask: taskId,
+        idprocess: existingTask.idprocess,
+        idproject: existingTask.process.idproject,
+      },
+    });
+
+    return this.mapTask(reactivatedTask);
+  }
+
+  async getAreaProjectsForAudit(auditorId: string): Promise<any[]> {
+    // Obtener el área del auditor
+    const auditorArea = await this.userService.getAreaMemberArea(auditorId);
+    if (!auditorArea) {
+      throw new ForbiddenException('No tienes un área asignada para auditar');
+    }
+
+    // Obtener todos los proyectos del área del auditor
+    const projects = await this.prisma.project.findMany({
+      where: {
+        category: {
+          id_area: auditorArea,
+        },
+      },
+      include: {
+        category: true,
+        process: {
+          include: {
+            task: {
+              include: {
+                task_member: {
+                  include: {
+                    user: true,
+                    role: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        project_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return projects;
+  }
+
+  async generateAuditReport(auditorId: string, projectId?: string): Promise<any> {
+    // Verificar permisos del auditor
+    const auditorArea = await this.userService.getAreaMemberArea(auditorId);
+    if (!auditorArea) {
+      throw new ForbiddenException('No tienes un área asignada para auditar');
+    }
+
+    let whereClause: any = {
+      category: {
+        id_area: auditorArea,
+      },
+    };
+
+    if (projectId) {
+      // Verificar que el proyecto pertenece al área del auditor
+      const canAudit = await this.userService.canAreaMemberPerformProjectAction(auditorId, projectId, 'audit');
+      if (!canAudit) {
+        throw new ForbiddenException('No tienes permisos para auditar este proyecto');
+      }
+      whereClause.id = projectId;
+    }
+
+    // Generar reporte de auditoría
+    const projects = await this.prisma.project.findMany({
+      where: whereClause,
+      include: {
+        category: true,
+        process: {
+          include: {
+            task: {
+              include: {
+                task_member: {
+                  include: {
+                    user: true,
+                    role: true,
+                  },
+                },
+                evidence: true,
+                comment: true,
+              },
+            },
+          },
+        },
+        project_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+        logs: {
+          where: {
+            type: {
+              in: ['task_reactivated', 'task_completed', 'task_cancelled'],
+            },
+          },
+          orderBy: {
+            createdat: 'desc',
+          },
+        },
+      },
+    });
+
+    // Procesar estadísticas
+    const auditReport = projects.map(project => {
+      const totalTasks = project.process.reduce((acc, process) => acc + process.task.length, 0);
+      const completedTasks = project.process.reduce((acc, process) => 
+        acc + process.task.filter(task => task.status === 'completed').length, 0
+      );
+      const cancelledTasks = project.process.reduce((acc, process) => 
+        acc + process.task.filter(task => task.status === 'cancelled').length, 0
+      );
+      const reactivatedTasks = project.logs.filter(log => log.type === 'task_reactivated').length;
+
+      return {
+        projectId: project.id,
+        projectName: project.name,
+        category: project.category?.name,
+        totalTasks,
+        completedTasks,
+        cancelledTasks,
+        reactivatedTasks,
+        completionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
+        recentActivity: project.logs.slice(0, 10), // Últimas 10 actividades
+      };
+    });
+
+    return auditReport;
+  }
 }
