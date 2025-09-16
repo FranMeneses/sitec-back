@@ -949,7 +949,7 @@ export class ProcessService {
     };
   }
 
-  // ==================== AREA_MEMBER (AUDITOR) METHODS ====================
+  // ==================== AREA_MEMBER METHODS ====================
 
   async reactivateTask(taskId: string, auditorId: string): Promise<Task> {
     // Verificar que el auditor puede reactivar esta tarea
@@ -987,25 +987,14 @@ export class ProcessService {
       },
     });
 
-    // Crear log de reactivación
-    await this.prisma.logs.create({
-      data: {
-        type: 'task_reactivated',
-        idcreator: auditorId,
-        idtask: taskId,
-        idprocess: existingTask.idprocess,
-        idproject: existingTask.process.idproject,
-      },
-    });
-
     return this.mapTask(reactivatedTask);
   }
 
-  async getAreaProjectsForAudit(auditorId: string): Promise<any[]> {
+  async getAreaProjects(auditorId: string): Promise<any[]> {
     // Obtener el área del auditor
     const auditorArea = await this.userService.getAreaMemberArea(auditorId);
     if (!auditorArea) {
-      throw new ForbiddenException('No tienes un área asignada para auditar');
+      throw new ForbiddenException('No tienes un área asignada');
     }
 
     // Obtener todos los proyectos del área del auditor
@@ -1019,16 +1008,7 @@ export class ProcessService {
         category: true,
         process: {
           include: {
-            task: {
-              include: {
-                task_member: {
-                  include: {
-                    user: true,
-                    role: true,
-                  },
-                },
-              },
-            },
+            task: true,
           },
         },
         project_member: {
@@ -1041,94 +1021,5 @@ export class ProcessService {
     });
 
     return projects;
-  }
-
-  async generateAuditReport(auditorId: string, projectId?: string): Promise<any> {
-    // Verificar permisos del auditor
-    const auditorArea = await this.userService.getAreaMemberArea(auditorId);
-    if (!auditorArea) {
-      throw new ForbiddenException('No tienes un área asignada para auditar');
-    }
-
-    let whereClause: any = {
-      category: {
-        id_area: auditorArea,
-      },
-    };
-
-    if (projectId) {
-      // Verificar que el proyecto pertenece al área del auditor
-      const canAudit = await this.userService.canAreaMemberPerformProjectAction(auditorId, projectId, 'audit');
-      if (!canAudit) {
-        throw new ForbiddenException('No tienes permisos para auditar este proyecto');
-      }
-      whereClause.id = projectId;
-    }
-
-    // Generar reporte de auditoría
-    const projects = await this.prisma.project.findMany({
-      where: whereClause,
-      include: {
-        category: true,
-        process: {
-          include: {
-            task: {
-              include: {
-                task_member: {
-                  include: {
-                    user: true,
-                    role: true,
-                  },
-                },
-                evidence: true,
-                comment: true,
-              },
-            },
-          },
-        },
-        project_member: {
-          include: {
-            user: true,
-            role: true,
-          },
-        },
-        logs: {
-          where: {
-            type: {
-              in: ['task_reactivated', 'task_completed', 'task_cancelled'],
-            },
-          },
-          orderBy: {
-            createdat: 'desc',
-          },
-        },
-      },
-    });
-
-    // Procesar estadísticas
-    const auditReport = projects.map(project => {
-      const totalTasks = project.process.reduce((acc, process) => acc + process.task.length, 0);
-      const completedTasks = project.process.reduce((acc, process) => 
-        acc + process.task.filter(task => task.status === 'completed').length, 0
-      );
-      const cancelledTasks = project.process.reduce((acc, process) => 
-        acc + process.task.filter(task => task.status === 'cancelled').length, 0
-      );
-      const reactivatedTasks = project.logs.filter(log => log.type === 'task_reactivated').length;
-
-      return {
-        projectId: project.id,
-        projectName: project.name,
-        category: project.category?.name,
-        totalTasks,
-        completedTasks,
-        cancelledTasks,
-        reactivatedTasks,
-        completionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
-        recentActivity: project.logs.slice(0, 10), // Últimas 10 actividades
-      };
-    });
-
-    return auditReport;
   }
 }

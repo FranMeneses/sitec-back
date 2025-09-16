@@ -1292,4 +1292,54 @@ export class OrganizationService {
 
     return true;
   }
+
+  async getAreaAdmins(areaId: number) {
+    // Verificar que el área existe
+    const area = await this.prisma.area.findUnique({
+      where: { id: areaId },
+    });
+
+    if (!area) {
+      throw new NotFoundException('Área no encontrada');
+    }
+
+    // Obtener los administradores del área
+    const admins = await this.prisma.admin.findMany({
+      where: { idarea: areaId },
+      include: {
+        user: true,
+        area: true,
+      },
+    });
+
+    return admins.map(admin => ({
+      id: admin.id,
+      areaId: admin.idarea,
+      userId: admin.iduser,
+      area: admin.area,
+      user: admin.user,
+    }));
+  }
+
+  async getAreaMembers(areaId: number) {
+    // Verificar que el área existe
+    const area = await this.prisma.area.findUnique({
+      where: { id: areaId },
+    });
+
+    if (!area) {
+      throw new NotFoundException('Área no encontrada');
+    }
+
+    // Obtener los area_members del área
+    const areaMembers = await this.prisma.area_member.findMany({
+      where: { idarea: areaId },
+      include: {
+        user: true,
+        area: true,
+      },
+    });
+
+    return areaMembers.map(areaMember => this.mapAreaMember(areaMember));
+  }
 }

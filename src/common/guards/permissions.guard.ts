@@ -292,16 +292,6 @@ export class PermissionsGuard implements CanActivate {
       return true; // La validación específica se hará en el servicio
     }
 
-    // Area member puede generar reportes de auditoría
-    if (action === 'audit' && ['project', 'process', 'task'].includes(resource)) {
-      return true; // La validación específica se hará en el servicio
-    }
-
-    // Area member puede analizar proyectos de su área
-    if (action === 'analyze' && resource === 'project') {
-      return true; // La validación específica se hará en el servicio
-    }
-
     return false;
   }
 

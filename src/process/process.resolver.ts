@@ -174,24 +174,15 @@ export class TaskResolver {
     return this.processService.findProcessById(task.processId);
   }
 
-  // ==================== AREA_MEMBER (AUDITOR) QUERIES ====================
+  // ==================== AREA_MEMBER QUERIES ====================
 
   @Query(() => [Process])
   @UseGuards(JwtAuthGuard)
-  async getAreaProjectsForAudit(@CurrentUser() user: User): Promise<any[]> {
-    return this.processService.getAreaProjectsForAudit(user.id);
+  async getAreaProjects(@CurrentUser() user: User): Promise<any[]> {
+    return this.processService.getAreaProjects(user.id);
   }
 
-  @Query(() => [Process])
-  @UseGuards(JwtAuthGuard)
-  async generateAuditReport(
-    @Args('projectId', { nullable: true }) projectId: string,
-    @CurrentUser() user: User,
-  ): Promise<any[]> {
-    return this.processService.generateAuditReport(user.id, projectId);
-  }
-
-  // ==================== AREA_MEMBER (AUDITOR) MUTATIONS ====================
+  // ==================== AREA_MEMBER MUTATIONS ====================
 
   @Mutation(() => Task)
   @UseGuards(JwtAuthGuard)

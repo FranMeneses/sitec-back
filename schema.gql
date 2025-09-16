@@ -320,10 +320,11 @@ type Query {
   findUnitProjects(idUnit: Float!): [Project!]!
   findUserByEmail(email: String!): User!
   findUsersProject(idUser: String!): [Project!]!
-  generateAuditReport(projectId: String): [Process!]!
   getAllCategoriesAsUnitMember: [Category!]!
   getAllSystemRoles: [SystemRoleResponse!]!
-  getAreaProjectsForAudit: [Process!]!
+  getAreaAdmins(areaId: Int!): [Admin!]!
+  getAreaMembers(areaId: Int!): [AreaMember!]!
+  getAreaProjects: [Process!]!
   getCategoryById(id: String!): Category
   getProjectProcessesAsMember(projectId: String!): [Process!]!
   getProjectsByCategory(categoryId: String!): [Project!]!

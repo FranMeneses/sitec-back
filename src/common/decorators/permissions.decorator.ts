@@ -16,8 +16,6 @@ export const PERMISSIONS = {
   
   // Acciones específicas de auditoría
   REACTIVATE: 'reactivate',
-  AUDIT: 'audit',
-  ANALYZE: 'analyze',
   
   // Recursos del sistema
   AREA: 'area',

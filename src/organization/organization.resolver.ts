@@ -11,6 +11,7 @@ import { Unit } from './entities/unit.entity';
 import { UnitMember } from './entities/unit-member.entity';
 import { Type } from './entities/type.entity';
 import { Admin } from './entities/admin.entity';
+import { AreaMember } from './entities/area-member.entity';
 import { Category } from '../project/entities/category.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -38,6 +39,16 @@ export class OrganizationResolver {
   @Query(() => Area, { name: 'area' })
   async findAreaById(@Args('id', { type: () => Int }) id: number) {
     return this.organizationService.findAreaById(id);
+  }
+
+  @Query(() => [Admin])
+  async getAreaAdmins(@Args('areaId', { type: () => Int }) areaId: number) {
+    return this.organizationService.getAreaAdmins(areaId);
+  }
+
+  @Query(() => [AreaMember])
+  async getAreaMembers(@Args('areaId', { type: () => Int }) areaId: number) {
+    return this.organizationService.getAreaMembers(areaId);
   }
 
   @Mutation(() => Area)
