@@ -75,6 +75,7 @@ model project {
   idunit         Int?
   idcategory     String?          @db.Uuid
   review         String?
+  status         String?          @default("active") @db.VarChar
   logs           logs[]
   process        process[]
   category       category?        @relation(fields: [idcategory], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_project_category")

@@ -626,6 +626,8 @@ export class ProjectService {
       } : undefined,
       categoryId: project.idcategory,
       unitId: project.idunit,
+      review: project.review,
+      status: project.status || 'active',
     };
   }
 
@@ -1080,5 +1082,68 @@ export class ProjectService {
         }
       } : undefined
     }));
+  }
+
+  // ==================== PROJECTS BY STATUS METHODS ====================
+
+  async getProjectsByStatus(areaId: number): Promise<{ activeProjects: Project[]; inactiveProjects: Project[] }> {
+    // Obtener proyectos activos del área
+    const activeProjects = await this.prisma.project.findMany({
+      where: {
+        category: {
+          id_area: areaId,
+        },
+        status: 'active',
+      },
+      include: {
+        category: true,
+        unit: true,
+        user: true,
+        process: {
+          include: {
+            task: true,
+          },
+        },
+        project_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    // Obtener proyectos inactivos del área (inactive, completed, cancelled)
+    const inactiveProjects = await this.prisma.project.findMany({
+      where: {
+        category: {
+          id_area: areaId,
+        },
+        status: {
+          in: ['inactive', 'completed', 'cancelled'],
+        },
+      },
+      include: {
+        category: true,
+        unit: true,
+        user: true,
+        process: {
+          include: {
+            task: true,
+          },
+        },
+        project_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return {
+      activeProjects: activeProjects.map(project => this.mapProject(project)),
+      inactiveProjects: inactiveProjects.map(project => this.mapProject(project)),
+    };
   }
 }

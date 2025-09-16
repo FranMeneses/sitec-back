@@ -1,5 +1,6 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { User } from '../../auth/entities/user.entity';
+import { ProjectStatus } from '../dto/project-status.enum';
 
 @ObjectType()
 export class Project {
@@ -32,6 +33,9 @@ export class Project {
 
   @Field({ nullable: true })
   review?: string;
+
+  @Field(() => String, { nullable: true })
+  status?: string;
 
   @Field()
   createdAt?: Date;

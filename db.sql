@@ -165,3 +165,5 @@ CREATE TABLE area_member (
     idarea INTEGER REFERENCES area(id) NOT NULL,
     iduser UUID REFERENCES "user"(id) NOT NULL
 );
+
+ALTER TABLE project ADD COLUMN status VARCHAR DEFAULT 'active';

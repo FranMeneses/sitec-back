@@ -283,6 +283,7 @@ type Project {
   name: String!
   review: String
   startDate: DateTime
+  status: String
   unitId: Float
   updatedAt: DateTime!
 }
@@ -320,12 +321,14 @@ type Query {
   findUnitProjects(idUnit: Float!): [Project!]!
   findUserByEmail(email: String!): User!
   findUsersProject(idUser: String!): [Project!]!
+  getActiveProjects(areaId: Float!): [Project!]!
   getAllCategoriesAsUnitMember: [Category!]!
   getAllSystemRoles: [SystemRoleResponse!]!
   getAreaAdmins(areaId: Int!): [Admin!]!
   getAreaMembers(areaId: Int!): [AreaMember!]!
   getAreaProjects: [Process!]!
   getCategoryById(id: String!): Category
+  getInactiveProjects(areaId: Float!): [Project!]!
   getProjectProcessesAsMember(projectId: String!): [Process!]!
   getProjectsByCategory(categoryId: String!): [Project!]!
   getProjectsByUnit(unitId: Float!): [Project!]!

@@ -181,4 +181,18 @@ export class ProjectResolver {
     
     return this.projectService.getUsersNotInProject(projectId);
   }
+
+  @Query(() => [Project])
+  @UseGuards(JwtAuthGuard)
+  async getActiveProjects(@Args('areaId', { type: () => Number }) areaId: number): Promise<Project[]> {
+    const result = await this.projectService.getProjectsByStatus(areaId);
+    return result.activeProjects;
+  }
+
+  @Query(() => [Project])
+  @UseGuards(JwtAuthGuard)
+  async getInactiveProjects(@Args('areaId', { type: () => Number }) areaId: number): Promise<Project[]> {
+    const result = await this.projectService.getProjectsByStatus(areaId);
+    return result.inactiveProjects;
+  }
 }
