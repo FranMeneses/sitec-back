@@ -201,7 +201,7 @@ type Mutation {
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
   createAreaMember(createAreaMemberInput: CreateAreaMemberInput!): AreaMember!
-  createCategoryAsUnitMember(createCategoryInput: CreateCategoryInput!): Category!
+  createCategoryAsAreaMember(createCategoryInput: CreateCategoryInput!): Category!
   createComment(createCommentInput: CreateCommentInput!): Comment!
   createFirstSuperAdmin(email: String!, name: String!, password: String!): AuthResponse!
   createLog(createLogInput: CreateLogInput!): Logs!
@@ -217,6 +217,7 @@ type Mutation {
   createUnit(createUnitInput: CreateUnitInput!): Unit!
   createUser(createUserInput: CreateUserInput!): User!
   deleteAreaMember(id: String!): Boolean!
+  deleteCategoryAsAreaMember(categoryId: String!): Boolean!
   deleteComment(id: String!): Boolean!
   deleteProcess(id: String!): Boolean!
   deleteProject(id: String!): Boolean!
@@ -239,7 +240,7 @@ type Mutation {
   removeUser(id: String!): User!
   removeUserSystemRole(userId: String!): SuccessResponse!
   updateArea(updateAreaInput: UpdateAreaInput!): Area!
-  updateCategoryAsUnitMember(updateCategoryInput: UpdateCategoryInput!): Category!
+  updateCategoryAsAreaMember(updateCategoryInput: UpdateCategoryInput!): Category!
   updateComment(updateCommentInput: UpdateCommentInput!): Comment!
   updateProcess(updateProcessInput: UpdateProcessInput!): Process!
   updateProcessAsProjectMember(description: String, dueDate: String, name: String, processId: String!, startDate: String): Process!
@@ -307,6 +308,8 @@ type Query {
   areaMembers: [AreaMember!]!
   areaMembersByArea(areaId: Float!): [AreaMember!]!
   areas: [Area!]!
+  availableUsersForArea(areaId: Int!): [User!]!
+  availableUsersForTask(taskId: String!): [User!]!
   availableUsersForUnit(unitId: Int!): [User!]!
   checkSuperAdminExists: Boolean!
   commentById(id: String!): Comment
@@ -322,11 +325,11 @@ type Query {
   findUserByEmail(email: String!): User!
   findUsersProject(idUser: String!): [Project!]!
   getActiveProjects(areaId: Float!): [Project!]!
-  getAllCategoriesAsUnitMember: [Category!]!
   getAllSystemRoles: [SystemRoleResponse!]!
   getAreaAdmins(areaId: Int!): [Admin!]!
   getAreaMembers(areaId: Int!): [AreaMember!]!
   getAreaProjects: [Process!]!
+  getCategoriesAsAreaMember: [Category!]!
   getCategoryById(id: String!): Category
   getInactiveProjects(areaId: Float!): [Project!]!
   getProjectProcessesAsMember(projectId: String!): [Process!]!
@@ -347,6 +350,7 @@ type Query {
   myProjectMemberships: [ProjectMember!]!
   myRoles: [Role!]!
   myUnitMemberships: [UnitMember!]!
+  myUnitsAsAdmin: [Unit!]!
   process(id: String!): Process
   processes: [Process!]!
   processesByProject(projectId: String!): [Process!]!

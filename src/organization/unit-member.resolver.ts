@@ -162,46 +162,4 @@ export class UnitMemberResolver {
     return true;
   }
 
-  @Query(() => [Category], { name: 'getAllCategoriesAsUnitMember' })
-  @UseGuards(JwtAuthGuard)
-  async getAllCategoriesAsUnitMember(@CurrentUser() user: User): Promise<Category[]> {
-    // Verificar que el usuario es unit_member
-    const canView = await this.userService.canViewAllCategories(user.id);
-    if (!canView) {
-      throw new Error('No tienes permisos para ver las categorías');
-    }
-
-    // Obtener todas las categorías
-    return this.projectService.findAllCategories();
-  }
-
-  @Mutation(() => Category, { name: 'createCategoryAsUnitMember' })
-  @UseGuards(JwtAuthGuard)
-  async createCategoryAsUnitMember(
-    @Args('createCategoryInput') createCategoryInput: CreateCategoryInput,
-    @CurrentUser() user: User,
-  ): Promise<Category> {
-    // Verificar que el usuario es unit_member
-    const canCreate = await this.userService.canCreateCategory(user.id);
-    if (!canCreate) {
-      throw new Error('No tienes permisos para crear categorías');
-    }
-
-    return this.projectService.createCategory(createCategoryInput, user.id);
-  }
-
-  @Mutation(() => Category, { name: 'updateCategoryAsUnitMember' })
-  @UseGuards(JwtAuthGuard)
-  async updateCategoryAsUnitMember(
-    @Args('updateCategoryInput') updateCategoryInput: UpdateCategoryInput,
-    @CurrentUser() user: User,
-  ): Promise<Category> {
-    // Verificar que el usuario es unit_member
-    const canEdit = await this.userService.canEditCategory(user.id);
-    if (!canEdit) {
-      throw new Error('No tienes permisos para editar categorías');
-    }
-
-    return this.projectService.updateCategory(updateCategoryInput, user.id);
-  }
 }

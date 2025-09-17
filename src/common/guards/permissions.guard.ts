@@ -283,7 +283,12 @@ export class PermissionsGuard implements CanActivate {
 
   private async checkAreaMemberPermissions(user: any, action: string, resource: string): Promise<boolean> {
     // Area member puede leer todos los proyectos, procesos y tareas de su área
-    if (action === 'read' && ['project', 'process', 'task', 'evidence', 'comment'].includes(resource)) {
+    if (action === 'read' && ['project', 'process', 'task', 'evidence', 'comment', 'category'].includes(resource)) {
+      return true; // La validación específica de área se hará en el servicio
+    }
+
+    // Area member puede gestionar categorías de su área
+    if (['create', 'update', 'delete'].includes(action) && resource === 'category') {
       return true; // La validación específica de área se hará en el servicio
     }
 

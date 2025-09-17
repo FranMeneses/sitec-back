@@ -132,6 +132,15 @@ export class TaskResolver {
     return this.processService.getTaskMembers(taskId);
   }
 
+  @Query(() => [User], { name: 'availableUsersForTask' })
+  @UseGuards(JwtAuthGuard)
+  async getAvailableUsersForTask(
+    @Args('taskId') taskId: string,
+    @CurrentUser() user: User
+  ): Promise<any[]> {
+    return this.processService.getAvailableUsersForTask(taskId, user);
+  }
+
   // ==================== TASK MUTATIONS ====================
 
   @Mutation(() => Task)

@@ -6,6 +6,7 @@ import { Task } from './entities/task.entity';
 import { CreateProcessInput, UpdateProcessInput } from './dto/process.dto';
 import { CreateTaskInput, UpdateTaskInput, TaskStatus } from './dto/task.dto';
 import { TaskMember } from './entities/task-member.entity';
+import { User } from '../auth/entities/user.entity';
 
 @Injectable()
 export class ProcessService {
@@ -573,9 +574,30 @@ export class ProcessService {
       },
     });
 
+    // Auto-asignar al creador (project_member) como task_member
+    const taskMemberRole = await this.prisma.role.findFirst({
+      where: { name: 'task_member' }
+    });
+
+    if (taskMemberRole) {
+      await this.prisma.task_member.create({
+        data: {
+          idtask: task.id,
+          iduser: editorId, // El project_member que creó la tarea
+          idrole: taskMemberRole.id,
+          assigned_at: new Date(),
+        },
+      });
+    }
+
     if (createTaskInput.memberAssignments && createTaskInput.memberAssignments.length > 0) {
-      // Asignar los miembros especificados
+      // Asignar los miembros especificados (además del creador)
       for (const assignment of createTaskInput.memberAssignments) {
+        // Verificar que no se esté intentando asignar al creador de nuevo
+        if (assignment.userId === editorId) {
+          continue; // Saltar, ya fue asignado automáticamente
+        }
+        
         await this.prisma.task_member.create({
           data: {
             idtask: task.id,
@@ -1021,5 +1043,81 @@ export class ProcessService {
     });
 
     return projects;
+  }
+
+  async getAvailableUsersForTask(taskId: string, currentUser: User): Promise<any[]> {
+    // Verificar que la tarea existe
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        process: {
+          include: {
+            project: {
+              include: {
+                project_member: {
+                  include: {
+                    user: true,
+                    role: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!task) {
+      throw new NotFoundException(`Tarea con ID ${taskId} no encontrada`);
+    }
+
+    // Verificar que el proceso y proyecto existen
+    if (!task.process || !task.process.project) {
+      throw new NotFoundException('Proceso o proyecto no encontrado para esta tarea');
+    }
+
+    // Verificar permisos: solo project_members pueden ver usuarios disponibles para tareas
+    const isProjectMember = await this.userService.isProjectMember(currentUser.id, task.process.project.id);
+    const isSuperAdmin = await this.userService.isSuperAdmin(currentUser.id);
+    
+    if (!isProjectMember && !isSuperAdmin) {
+      throw new ForbiddenException('Solo los miembros del proyecto pueden ver usuarios disponibles para tareas');
+    }
+
+    // Obtener usuarios que ya son task_members de esta tarea
+    const existingTaskMembers = await this.prisma.task_member.findMany({
+      where: { idtask: taskId },
+      select: { iduser: true }
+    });
+
+    const existingTaskMemberIds = existingTaskMembers.map(member => member.iduser);
+
+    // Obtener todos los project_members del proyecto (son elegibles para ser task_members)
+    const projectMembers = task.process.project.project_member || [];
+    
+    // Filtrar usuarios: solo project_members que NO sean ya task_members de esta tarea
+    const availableUsers = projectMembers.filter(member => {
+      return member.user && !existingTaskMemberIds.includes(member.user.id);
+    });
+
+    // Mapear a formato esperado (con null safety)
+    return availableUsers
+      .filter(member => member.user) // Asegurar que user no es null
+      .map(member => ({
+        id: member.user!.id,
+        name: member.user!.name || '',
+        email: member.user!.email,
+        isActive: member.user!.isactive ?? true,
+        havePassword: member.user!.havepassword ?? false,
+        role: {
+          id: member.role?.id || 0,
+          name: member.role?.name || '',
+        },
+        projectMembership: {
+          id: member.id,
+          projectId: task.process!.project!.id,
+          roleId: member.idrole
+        }
+      }));
   }
 }

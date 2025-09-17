@@ -167,3 +167,5 @@ CREATE TABLE area_member (
 );
 
 ALTER TABLE project ADD COLUMN status VARCHAR DEFAULT 'active';
+
+ALTER TABLE unit ADD COLUMN idAdmin UUID REFERENCES admin(id);

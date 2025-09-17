@@ -6,10 +6,16 @@ import { User } from '../auth/entities/user.entity';
 import { OrganizationService } from './organization.service';
 import { AreaMember } from './entities/area-member.entity';
 import { CreateAreaMemberInput } from './dto/area-member.dto';
+import { Category } from '../project/entities/category.entity';
+import { CreateCategoryInput, UpdateCategoryInput } from '../project/dto/category.dto';
+import { ProjectService } from '../project/project/project.service';
 
 @Resolver(() => AreaMember)
 export class AreaMemberResolver {
-  constructor(private organizationService: OrganizationService) {}
+  constructor(
+    private organizationService: OrganizationService,
+    private projectService: ProjectService,
+  ) {}
 
   // ==================== AREA_MEMBER QUERIES ====================
 
@@ -51,5 +57,40 @@ export class AreaMemberResolver {
   ): Promise<boolean> {
     // TODO: Agregar verificación de permisos de admin
     return this.organizationService.deleteAreaMember(id);
+  }
+
+  // ==================== CATEGORY MANAGEMENT FOR AREA_MEMBER ====================
+
+  @Query(() => [Category], { name: 'getCategoriesAsAreaMember' })
+  @UseGuards(JwtAuthGuard)
+  async getCategoriesAsAreaMember(@CurrentUser() user: User): Promise<Category[]> {
+    return this.organizationService.getCategoriesAsAreaMember(user.id);
+  }
+
+  @Mutation(() => Category, { name: 'createCategoryAsAreaMember' })
+  @UseGuards(JwtAuthGuard)
+  async createCategoryAsAreaMember(
+    @Args('createCategoryInput') createCategoryInput: CreateCategoryInput,
+    @CurrentUser() user: User,
+  ): Promise<Category> {
+    return this.organizationService.createCategoryAsAreaMember(createCategoryInput, user.id);
+  }
+
+  @Mutation(() => Category, { name: 'updateCategoryAsAreaMember' })
+  @UseGuards(JwtAuthGuard)
+  async updateCategoryAsAreaMember(
+    @Args('updateCategoryInput') updateCategoryInput: UpdateCategoryInput,
+    @CurrentUser() user: User,
+  ): Promise<Category> {
+    return this.organizationService.updateCategoryAsAreaMember(updateCategoryInput, user.id);
+  }
+
+  @Mutation(() => Boolean, { name: 'deleteCategoryAsAreaMember' })
+  @UseGuards(JwtAuthGuard)
+  async deleteCategoryAsAreaMember(
+    @Args('categoryId') categoryId: string,
+    @CurrentUser() user: User,
+  ): Promise<boolean> {
+    return this.organizationService.deleteCategoryAsAreaMember(categoryId, user.id);
   }
 }

@@ -81,6 +81,12 @@ export class OrganizationResolver {
     return this.organizationService.findAllUnits(currentUser);
   }
 
+  @Query(() => [Unit], { name: 'myUnitsAsAdmin' })
+  @UseGuards(JwtAuthGuard)
+  async getMyUnitsAsAdmin(@CurrentUser() currentUser: User) {
+    return this.organizationService.getMyUnitsAsAdmin(currentUser);
+  }
+
   @Query(() => Unit, { name: 'unit' })
   async findUnitById(@Args('id', { type: () => Int }) id: number) {
     return this.organizationService.findUnitById(id);
@@ -141,6 +147,14 @@ export class OrganizationResolver {
     @CurrentUser() currentUser: User
   ) {
     return this.organizationService.getAvailableUsersForUnit(unitId, currentUser);
+  }
+
+  @Query(() => [User], { name: 'availableUsersForArea' })
+  async getAvailableUsersForArea(
+    @Args('areaId', { type: () => Int }) areaId: number,
+    @CurrentUser() currentUser: User
+  ) {
+    return this.organizationService.getAvailableUsersForArea(areaId, currentUser);
   }
 
   // ===== TYPE RESOLVERS =====
