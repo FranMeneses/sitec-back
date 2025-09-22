@@ -28,6 +28,26 @@ type AreaMember {
   userId: String!
 }
 
+type AreaUserInfo {
+  canBeAdded: Boolean!
+  currentAreaId: Int
+  currentAreaName: String
+  email: String!
+  havePassword: Boolean!
+  id: String!
+  isActive: Boolean!
+  name: String!
+  relationshipWithArea: String!
+  systemRole: String!
+}
+
+type AreaUsersResponse {
+  areaId: Int!
+  areaName: String!
+  availableUsers: [AreaUserInfo!]!
+  currentAreaUsers: [AreaUserInfo!]!
+}
+
 input AssignSuperAdminInput {
   idUser: String!
 }
@@ -198,6 +218,8 @@ type Mutation {
   assignProjectMemberAsUnitMember(addProjectMemberInput: AddProjectMemberInput!, projectId: String!): Boolean!
   assignSuperAdmin(assignSuperAdminInput: AssignSuperAdminInput!): String!
   assignTaskMember(createTaskMemberInput: CreateTaskMemberInput!): Boolean!
+  assignUserToAreaAsAdmin(userId: String!): SuccessResponse!
+  assignUserToAreaAsMember(userId: String!): SuccessResponse!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
   createAreaMember(createAreaMemberInput: CreateAreaMemberInput!): AreaMember!
@@ -308,7 +330,7 @@ type Query {
   areaMembers: [AreaMember!]!
   areaMembersByArea(areaId: Float!): [AreaMember!]!
   areas: [Area!]!
-  availableUsersForArea(areaId: Int!): [User!]!
+  availableUsersForArea(areaId: Int!): AreaUsersResponse!
   availableUsersForTask(taskId: String!): [User!]!
   availableUsersForUnit(unitId: Int!): [User!]!
   checkSuperAdminExists: Boolean!

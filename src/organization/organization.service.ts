@@ -648,7 +648,7 @@ export class OrganizationService {
     });
   }
 
-  async getAvailableUsersForArea(areaId: number, currentUser: User): Promise<User[]> {
+  async getAvailableUsersForArea(areaId: number, currentUser: User): Promise<any> {
     // Verificar si el usuario es admin o super_admin
     const isAdmin = await this.isUserAdmin(currentUser.id);
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
@@ -680,69 +680,58 @@ export class OrganizationService {
       }
     }
 
-    // Obtener todos los usuarios activos
+    // Obtener TODOS los usuarios activos con sus relaciones
     const allUsers = await this.prisma.user.findMany({
       where: { isactive: true },
       include: {
-        system_role: {
-          include: {
-            role: true
-          }
-        }
+        system_role: { include: { role: true } },
+        admin: { include: { area: true } },
+        area_member: { include: { area: true } }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    // Separar usuarios en dos categorías
+    const usersInThisArea: any[] = [];
+    const availableUsers: any[] = [];
+
+    allUsers.forEach(user => {
+      const isAdminInThisArea = user.admin.some(admin => admin.idarea === areaId);
+      const isMemberInThisArea = user.area_member.some(member => member.idarea === areaId);
+      
+      const userData = {
+        id: user.id,
+        name: user.name || '',
+        email: user.email,
+        isActive: user.isactive ?? true,
+        havePassword: user.havepassword ?? false,
+        // Información del área actual del usuario
+        currentAreaName: user.admin?.[0]?.area?.name || user.area_member?.[0]?.area?.name || null,
+        currentAreaId: user.admin?.[0]?.idarea || user.area_member?.[0]?.idarea || null,
+        // Información de su rol en el sistema
+        systemRole: user.system_role?.role?.name || 'user',
+        // Relación con el área consultada
+        relationshipWithArea: isAdminInThisArea ? 'admin' : (isMemberInThisArea ? 'member' : 'none'),
+        // Información adicional
+        canBeAdded: !isAdminInThisArea && !isMemberInThisArea && user.system_role?.role?.name !== 'super_admin'
+      };
+
+      if (isAdminInThisArea || isMemberInThisArea) {
+        usersInThisArea.push(userData);
+      } else if (userData.canBeAdded) {
+        availableUsers.push(userData);
       }
     });
 
-    // Obtener usuarios que ya son area_members de cualquier área
-    const existingAreaMembers = await this.prisma.area_member.findMany({
-      select: { iduser: true }
-    });
-
-    // Obtener usuarios que ya son admins de cualquier área
-    const existingAdmins = await this.prisma.admin.findMany({
-      select: { iduser: true }
-    });
-
-    const existingAreaMemberIds = existingAreaMembers.map(member => member.iduser);
-    const existingAdminIds = existingAdmins.map(admin => admin.iduser).filter(id => id !== null);
-
-    // Filtrar usuarios: excluir area_members, admins y super_admins
-    const availableUsers = allUsers.filter(user => {
-      // Excluir si ya es area_member de cualquier área
-      if (existingAreaMemberIds.includes(user.id)) return false;
-      
-      // Excluir si ya es admin de cualquier área
-      if (existingAdminIds.includes(user.id)) return false;
-      
-      // Excluir super_admins (ya tienen acceso a todo)
-      if (user.system_role?.role?.name === 'super_admin') return false;
-      
-      return true;
-    });
-
-    // Mapear a formato User esperado
-    return availableUsers.map(user => ({
-      id: user.id,
-      name: user.name || '',
-      email: user.email,
-      password: undefined,
-      isActive: user.isactive ?? true,
-      havePassword: user.havepassword ?? false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      systemRole: user.system_role ? {
-        id: '',
-        userId: user.id,
-        roleId: 0,
-        createdAt: new Date(),
-        role: {
-          id: 0,
-          name: user.system_role.role.name || '',
-          description: '',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      } : undefined
-    }));
+    return {
+      // Usuarios que YA están en esta área
+      currentAreaUsers: usersInThisArea,
+      // Usuarios que PUEDEN ser agregados a esta área
+      availableUsers: availableUsers,
+      // Información del área
+      areaId: areaId,
+      areaName: area.name
+    };
   }
 
   // Método para que un admin vea solo sus unidades

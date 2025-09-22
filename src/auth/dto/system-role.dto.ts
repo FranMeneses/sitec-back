@@ -31,6 +31,7 @@ export class SystemRoleResponse {
 
   @Field(() => Int, { nullable: true })
   areaId?: number;
+
 }
 
 @ObjectType()

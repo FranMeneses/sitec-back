@@ -1,7 +1,7 @@
 import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { OrganizationService } from './organization.service';
-import { CreateAreaInput, UpdateAreaInput } from './dto/area.dto';
+import { CreateAreaInput, UpdateAreaInput, AreaUsersResponse } from './dto/area.dto';
 import { CreateUnitInput, UpdateUnitInput } from './dto/unit.dto';
 import { CreateUnitMemberInput, UpdateUnitMemberInput } from './dto/unit-member.dto';
 import { CreateTypeInput, UpdateTypeInput } from './dto/type.dto';
@@ -149,7 +149,7 @@ export class OrganizationResolver {
     return this.organizationService.getAvailableUsersForUnit(unitId, currentUser);
   }
 
-  @Query(() => [User], { name: 'availableUsersForArea' })
+  @Query(() => AreaUsersResponse, { name: 'availableUsersForArea' })
   async getAvailableUsersForArea(
     @Args('areaId', { type: () => Int }) areaId: number,
     @CurrentUser() currentUser: User
