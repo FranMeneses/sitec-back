@@ -6,6 +6,8 @@ import { LoginInput, RegisterInput, AuthResponse, GoogleAuthResponse, GoogleAuth
 import { User } from '../entities/user.entity';
 import { Project } from '../../project/entities/project.entity';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { RequireAdmin } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../decorators/current-user.decorator';
 
 @Resolver(() => User)
@@ -90,15 +92,10 @@ export class AuthResolver {
   }
 
   @Query(() => [User])
-  @UseGuards(JwtAuthGuard)
-  async users(@CurrentUser() currentUser: User): Promise<User[]> {
-    // Verificar si el usuario es admin
-    const isUserAdmin = await this.userService.isAdmin(currentUser.id);
-    if (!isUserAdmin) {
-      throw new Error('Access denied. Only administrators can view all users.');
-    }
-    
-    // Obtener todos los usuarios
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAdmin()
+  async users(): Promise<User[]> {
+    // Obtener todos los usuarios - el guard ya validó los permisos
     return this.userService.findAllUsers();
   }
 
