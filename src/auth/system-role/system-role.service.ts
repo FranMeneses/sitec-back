@@ -65,18 +65,35 @@ export class SystemRoleService {
   }
 
   async getAllSystemRoles(): Promise<any[]> {
-    return this.prisma.system_role.findMany({
+    const systemRoles = await this.prisma.system_role.findMany({
       include: {
         user: {
           select: {
             id: true,
             name: true,
             email: true,
-            isactive: true
+            isactive: true,
+            admin: {
+              include: {
+                area: true
+              }
+            }
           }
         },
         role: true
       }
     });
+
+    return systemRoles.map(sr => ({
+      id: sr.user.id,
+      name: sr.user.name,
+      email: sr.user.email,
+      isActive: sr.user.isactive,
+      role: sr.role,
+      areaName: sr.user.admin && sr.user.admin.length > 0 && sr.user.admin[0].area ? 
+        sr.user.admin[0].area.name : null,
+      areaId: sr.user.admin && sr.user.admin.length > 0 ? 
+        sr.user.admin[0].idarea : null
+    }));
   }
 }

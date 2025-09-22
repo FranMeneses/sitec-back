@@ -25,6 +25,12 @@ export class SystemRoleResponse {
 
   @Field(() => RoleInfo)
   role: RoleInfo;
+
+  @Field(() => String, { nullable: true })
+  areaName?: string;
+
+  @Field(() => Int, { nullable: true })
+  areaId?: number;
 }
 
 @ObjectType()

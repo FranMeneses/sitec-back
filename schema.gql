@@ -408,6 +408,8 @@ type SystemRole {
 }
 
 type SystemRoleResponse {
+  areaId: Int
+  areaName: String
   email: String!
   id: String!
   isActive: Boolean!

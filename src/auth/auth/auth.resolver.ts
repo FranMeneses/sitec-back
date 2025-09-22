@@ -99,6 +99,7 @@ export class AuthResolver {
     return this.userService.findAllUsers();
   }
 
+
   @Mutation(() => User)
   @UseGuards(JwtAuthGuard)
   async updateProfile(
