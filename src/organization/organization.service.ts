@@ -761,7 +761,16 @@ export class OrganizationService {
         email: admin.user?.email || '',
         isActive: admin.user?.isactive ?? true,
         havePassword: admin.user?.havepassword ?? false,
-        systemRole: 'admin', // Los admins siempre tienen system_role admin
+        systemRole: {
+          id: '',
+          userId: admin.userId || admin.id,
+          roleId: 0,
+          createdAt: new Date(),
+          role: {
+            id: 0,
+            name: 'admin'
+          }
+        },
         areaRole: 'admin',
         areaName: areaMember.area?.name,
         createdAt: new Date(),
@@ -773,7 +782,16 @@ export class OrganizationService {
         email: member.user?.email || '',
         isActive: member.user?.isactive ?? true,
         havePassword: member.user?.havepassword ?? false,
-        systemRole: 'area_member', // Los area_members tienen system_role area_member
+        systemRole: {
+          id: '',
+          userId: member.userId || member.id,
+          roleId: 0,
+          createdAt: new Date(),
+          role: {
+            id: 0,
+            name: 'area_member'
+          }
+        },
         areaRole: 'area_member',
         areaName: areaMember.area?.name,
         createdAt: new Date(),
