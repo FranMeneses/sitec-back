@@ -14,6 +14,8 @@ import { Admin } from './entities/admin.entity';
 import { AreaMember } from './entities/area-member.entity';
 import { Category } from '../project/entities/category.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { RequireAreaMember } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
 
@@ -150,6 +152,8 @@ export class OrganizationResolver {
   }
 
   @Query(() => AreaUsersResponse, { name: 'availableUsersForArea' })
+  @UseGuards(RolesGuard)
+  @RequireAreaMember()
   async getAvailableUsersForArea(
     @Args('areaId', { type: () => Int }) areaId: number,
     @CurrentUser() currentUser: User

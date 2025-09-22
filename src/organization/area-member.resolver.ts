@@ -62,13 +62,7 @@ export class AreaMemberResolver {
   }
 
   // ==================== AREA USER MANAGEMENT FOR AREA_MEMBER ====================
-
-  @Query(() => [User], { name: 'getAreaUsersAsAreaMember' })
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @RequireAreaMember()
-  async getAreaUsersAsAreaMember(@CurrentUser() user: User): Promise<User[]> {
-    return this.organizationService.getAreaUsersAsAreaMember(user.id);
-  }
+  // Nota: Los area_member ahora usan availableUsersForArea en lugar de getAreaUsersAsAreaMember
 
   // ==================== CATEGORY MANAGEMENT FOR AREA_MEMBER ====================
 
