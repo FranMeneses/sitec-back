@@ -219,10 +219,26 @@ export class SystemRoleService {
       }
     });
 
-    // El system_role se mantiene como está:
+    // Actualizar system_role según la jerarquía:
     // - Si es 'super_admin' → se mantiene como 'super_admin'
-    // - Si es 'user' → se mantiene como 'user'
-    // - Si es 'admin' → se mantiene como 'admin'
-    // No modificamos el system_role para area_member
+    // - Si es 'admin' → se mantiene como 'admin' 
+    // - Si es 'user' → cambia a 'area_member'
+    const userRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
+    });
+
+    const currentRole = userRole?.role?.name;
+    
+    // Solo cambiar a area_member si es 'user' (no degradar roles superiores)
+    if (currentRole === 'user') {
+      const areaMemberRole = await this.prisma.role.findFirst({
+        where: { name: 'area_member' }
+      });
+
+      if (areaMemberRole) {
+        await this.updateUserSystemRole(userId, areaMemberRole.id);
+      }
+    }
   }
 }

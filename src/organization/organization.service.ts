@@ -734,6 +734,61 @@ export class OrganizationService {
     };
   }
 
+  async getAreaUsersAsAreaMember(userId: string): Promise<any[]> {
+    // Verificar que el usuario es area_member
+    const areaMember = await this.prisma.area_member.findFirst({
+      where: { iduser: userId },
+      include: { area: true }
+    });
+
+    if (!areaMember) {
+      throw new ForbiddenException('Solo los miembros de área pueden ver usuarios del área');
+    }
+
+    const areaId = areaMember.idarea;
+
+    // Reutilizar métodos existentes
+    const [areaAdmins, areaMembers] = await Promise.all([
+      this.getAreaAdmins(areaId),
+      this.findAreaMembersByArea(areaId)
+    ]);
+
+    // Combinar admins y members con información adicional
+    const allUsers = [
+      ...areaAdmins.map(admin => ({
+        id: admin.userId || admin.id,
+        name: admin.user?.name || '',
+        email: admin.user?.email || '',
+        isActive: admin.user?.isactive ?? true,
+        havePassword: admin.user?.havepassword ?? false,
+        systemRole: 'admin', // Los admins siempre tienen system_role admin
+        areaRole: 'admin',
+        areaName: areaMember.area?.name,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })),
+      ...areaMembers.map(member => ({
+        id: member.userId || member.id,
+        name: member.user?.name || '',
+        email: member.user?.email || '',
+        isActive: member.user?.isactive ?? true,
+        havePassword: member.user?.havepassword ?? false,
+        systemRole: 'area_member', // Los area_members tienen system_role area_member
+        areaRole: 'area_member',
+        areaName: areaMember.area?.name,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }))
+    ];
+
+    // Remover duplicados por ID (por si un usuario es admin Y area_member)
+    const uniqueUsers = allUsers.filter((user, index, self) => 
+      index === self.findIndex(u => u.id === user.id)
+    );
+
+    return uniqueUsers;
+  }
+
   // Método para que un admin vea solo sus unidades
   async getMyUnitsAsAdmin(currentUser: User) {
     // Verificar si el usuario es admin

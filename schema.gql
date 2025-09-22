@@ -351,6 +351,7 @@ type Query {
   getAreaAdmins(areaId: Int!): [Admin!]!
   getAreaMembers(areaId: Int!): [AreaMember!]!
   getAreaProjects: [Process!]!
+  getAreaUsersAsAreaMember: [User!]!
   getCategoriesAsAreaMember: [Category!]!
   getCategoryById(id: String!): Category
   getInactiveProjects(areaId: Float!): [Project!]!

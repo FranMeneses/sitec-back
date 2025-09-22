@@ -1,6 +1,8 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { RequireAreaMember } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
 import { OrganizationService } from './organization.service';
@@ -59,16 +61,27 @@ export class AreaMemberResolver {
     return this.organizationService.deleteAreaMember(id);
   }
 
+  // ==================== AREA USER MANAGEMENT FOR AREA_MEMBER ====================
+
+  @Query(() => [User], { name: 'getAreaUsersAsAreaMember' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAreaMember()
+  async getAreaUsersAsAreaMember(@CurrentUser() user: User): Promise<User[]> {
+    return this.organizationService.getAreaUsersAsAreaMember(user.id);
+  }
+
   // ==================== CATEGORY MANAGEMENT FOR AREA_MEMBER ====================
 
   @Query(() => [Category], { name: 'getCategoriesAsAreaMember' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAreaMember()
   async getCategoriesAsAreaMember(@CurrentUser() user: User): Promise<Category[]> {
     return this.organizationService.getCategoriesAsAreaMember(user.id);
   }
 
   @Mutation(() => Category, { name: 'createCategoryAsAreaMember' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAreaMember()
   async createCategoryAsAreaMember(
     @Args('createCategoryInput') createCategoryInput: CreateCategoryInput,
     @CurrentUser() user: User,
@@ -77,7 +90,8 @@ export class AreaMemberResolver {
   }
 
   @Mutation(() => Category, { name: 'updateCategoryAsAreaMember' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAreaMember()
   async updateCategoryAsAreaMember(
     @Args('updateCategoryInput') updateCategoryInput: UpdateCategoryInput,
     @CurrentUser() user: User,

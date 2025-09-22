@@ -6,6 +6,7 @@ export const ROLES_KEY = 'roles';
 export const SYSTEM_ROLES = {
   SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
+  AREA_MEMBER: 'area_member',
   USER: 'user',
 } as const;
 
@@ -21,5 +22,8 @@ export const RequireSuperAdmin = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.SUPE
 // Decorador para admin de área específica (requiere verificación adicional)
 export const RequireAreaAdmin = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.ADMIN, SYSTEM_ROLES.SUPER_ADMIN]);
 
+// Decorador para area_member o superior
+export const RequireAreaMember = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.AREA_MEMBER, SYSTEM_ROLES.ADMIN, SYSTEM_ROLES.SUPER_ADMIN]);
+
 // Decorador para usuarios autenticados
-export const RequireAuth = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.USER, SYSTEM_ROLES.ADMIN, SYSTEM_ROLES.SUPER_ADMIN]);
+export const RequireAuth = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.USER, SYSTEM_ROLES.AREA_MEMBER, SYSTEM_ROLES.ADMIN, SYSTEM_ROLES.SUPER_ADMIN]);
