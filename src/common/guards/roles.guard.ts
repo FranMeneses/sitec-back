@@ -36,6 +36,13 @@ export class RolesGuard implements CanActivate {
       return false;
     });
 
+    console.log('RolesGuard Debug:', {
+      requiredRoles,
+      userRoles: user.roles?.map(r => r.name),
+      hasRequiredRole,
+      userId: user.id
+    });
+
     if (!hasRequiredRole) {
       throw new ForbiddenException(
         `Acceso denegado. Se requiere uno de los siguientes roles: ${requiredRoles.join(', ')}`
