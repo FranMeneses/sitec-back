@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { SystemRoleService } from './system-role.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
@@ -47,9 +47,10 @@ export class SystemRoleResolver {
   @RequireAdmin()
   async assignUserToAreaAsAdmin(
     @Args('userId') userId: string,
+    @Args('areaId', { type: () => Int, nullable: true }) areaId: number,
     @CurrentUser() currentUser: any
   ) {
-    await this.systemRoleService.assignUserToAreaAsAdmin(userId, currentUser.id);
+    await this.systemRoleService.assignUserToAreaAsAdmin(userId, currentUser.id, areaId);
     return { success: true, message: 'Usuario asignado como admin del área correctamente' };
   }
 
@@ -57,9 +58,10 @@ export class SystemRoleResolver {
   @RequireAdmin()
   async assignUserToAreaAsMember(
     @Args('userId') userId: string,
+    @Args('areaId', { type: () => Int, nullable: true }) areaId: number,
     @CurrentUser() currentUser: any
   ) {
-    await this.systemRoleService.assignUserToAreaAsMember(userId, currentUser.id);
+    await this.systemRoleService.assignUserToAreaAsMember(userId, currentUser.id, areaId);
     return { success: true, message: 'Usuario asignado como miembro del área correctamente' };
   }
 }

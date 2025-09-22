@@ -218,8 +218,8 @@ type Mutation {
   assignProjectMemberAsUnitMember(addProjectMemberInput: AddProjectMemberInput!, projectId: String!): Boolean!
   assignSuperAdmin(assignSuperAdminInput: AssignSuperAdminInput!): String!
   assignTaskMember(createTaskMemberInput: CreateTaskMemberInput!): Boolean!
-  assignUserToAreaAsAdmin(userId: String!): SuccessResponse!
-  assignUserToAreaAsMember(userId: String!): SuccessResponse!
+  assignUserToAreaAsAdmin(areaId: Int, userId: String!): SuccessResponse!
+  assignUserToAreaAsMember(areaId: Int, userId: String!): SuccessResponse!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
   createAreaMember(createAreaMemberInput: CreateAreaMemberInput!): AreaMember!
