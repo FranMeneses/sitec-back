@@ -20,7 +20,7 @@ export class RolesGuard implements CanActivate {
 
     // Obtener el contexto de GraphQL
     const gqlContext = GqlExecutionContext.create(context);
-    const { user } = gqlContext.getContext();
+    const { user } = gqlContext.getContext().req;
 
     if (!user) {
       throw new ForbiddenException('Usuario no autenticado');

@@ -28,10 +28,14 @@ import { CommonModule } from './common/common.module';
       playground: process.env.NODE_ENV !== 'production',
       introspection: process.env.NODE_ENV !== 'production' || process.env.ENABLE_GRAPHQL_INTROSPECTION === 'true',
       sortSchema: true,
+      // Configurar contexto para pasar información de autenticación
+      context: ({ req, res }) => ({ req, res }),
       // Configuraciones adicionales para estabilidad
       buildSchemaOptions: {
         dateScalarMode: 'isoDate',
       },
+      // Configuración de CSRF
+      csrfPrevention: false, // Deshabilitar CSRF para GraphQL
     }),
     CommonModule,
     AuthModule,
