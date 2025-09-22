@@ -753,7 +753,7 @@ export class OrganizationService {
       this.findAreaMembersByArea(areaId)
     ]);
 
-    // Combinar admins y members con información adicional
+    // Combinar admins y members
     const allUsers = [
       ...areaAdmins.map(admin => ({
         id: admin.userId || admin.id,
@@ -770,11 +770,7 @@ export class OrganizationService {
             id: 0,
             name: 'admin'
           }
-        },
-        areaRole: 'admin',
-        areaName: areaMember.area?.name,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        }
       })),
       ...areaMembers.map(member => ({
         id: member.userId || member.id,
@@ -791,11 +787,7 @@ export class OrganizationService {
             id: 0,
             name: 'area_member'
           }
-        },
-        areaRole: 'area_member',
-        areaName: areaMember.area?.name,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        }
       }))
     ];
 

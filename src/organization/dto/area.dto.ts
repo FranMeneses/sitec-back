@@ -67,3 +67,4 @@ export class AreaUsersResponse {
   @Field()
   areaName: string;
 }
+
