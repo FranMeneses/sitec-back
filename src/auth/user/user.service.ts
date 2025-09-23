@@ -948,6 +948,15 @@ export class UserService {
     return !!areaMember;
   }
 
+  async isAreaMemberOfAny(userId: string): Promise<boolean> {
+    const areaMember = await this.prisma.area_member.findFirst({
+      where: {
+        iduser: userId,
+      },
+    });
+    return !!areaMember;
+  }
+
   async getAreaMemberArea(userId: string): Promise<number | null> {
     const areaMember = await this.prisma.area_member.findFirst({
       where: {
