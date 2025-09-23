@@ -132,19 +132,24 @@ export class OrganizationService {
 
   // ===== UNIT METHODS =====
   async createUnit(createUnitInput: CreateUnitInput, currentUser: User) {
-    // Verificar si el usuario es admin
+    // Verificar si el usuario es super_admin o admin
+    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
     const isAdmin = await this.isUserAdmin(currentUser.id);
-    if (!isAdmin) {
-      throw new ForbiddenException('Solo los administradores pueden crear unidades');
+    
+    if (!isSuperAdmin && !isAdmin) {
+      throw new ForbiddenException('No tiene permisos para crear unidades, por favor contacte con un administrador');
     }
 
-    // Obtener el admin record del usuario actual
-    const adminRecord = await this.prisma.admin.findFirst({
-      where: { iduser: currentUser.id }
-    });
+    // Obtener el admin record del usuario actual (solo si es admin, no super_admin)
+    let adminRecord: any = null;
+    if (isAdmin) {
+      adminRecord = await this.prisma.admin.findFirst({
+        where: { iduser: currentUser.id }
+      });
 
-    if (!adminRecord) {
-      throw new ForbiddenException('Usuario admin no encontrado en el sistema');
+      if (!adminRecord) {
+        throw new ForbiddenException('Usuario admin no encontrado en el sistema');
+      }
     }
 
     // Verificar que el tipo de unidad existe
@@ -158,12 +163,12 @@ export class OrganizationService {
       }
     }
 
-    // Crear la unidad y asignar automáticamente al admin
+    // Crear la unidad y asignar automáticamente al admin (si existe)
     const unit = await this.prisma.unit.create({
       data: {
         name: createUnitInput.name,
         idtype: createUnitInput.idtype,
-        idadmin: adminRecord.id, // Asignar el admin directamente
+        idadmin: adminRecord?.id, // Asignar el admin directamente (puede ser null para super_admin)
       },
       include: {
         type: true,
@@ -178,19 +183,21 @@ export class OrganizationService {
       },
     });
 
-    // También asignar automáticamente al admin como unit_member de la nueva unidad
-    const adminRole = await this.prisma.role.findFirst({
-      where: { name: 'admin' }
-    });
-
-    if (adminRole) {
-      await this.prisma.unit_member.create({
-        data: {
-          iduser: currentUser.id,
-          idunit: unit.id,
-          idrole: adminRole.id,
-        },
+    // También asignar automáticamente al admin como unit_member de la nueva unidad (solo si es admin)
+    if (isAdmin && adminRecord) {
+      const adminRole = await this.prisma.role.findFirst({
+        where: { name: 'admin' }
       });
+
+      if (adminRole) {
+        await this.prisma.unit_member.create({
+          data: {
+            iduser: currentUser.id,
+            idunit: unit.id,
+            idrole: adminRole.id,
+          },
+        });
+      }
     }
 
     return unit;
@@ -354,22 +361,27 @@ export class OrganizationService {
 
   // ===== UNIT MEMBER METHODS =====
   async addUnitMember(createUnitMemberInput: CreateUnitMemberInput, currentUser: User) {
-    // Verificar si el usuario es admin
+    // Verificar si el usuario es super_admin o admin
+    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
     const isAdmin = await this.isUserAdmin(currentUser.id);
-    if (!isAdmin) {
-      throw new ForbiddenException('Solo los administradores pueden agregar miembros a unidades');
+    
+    if (!isSuperAdmin && !isAdmin) {
+      throw new ForbiddenException('No tiene permisos para agregar miembros a unidades, por favor contacte con un administrador');
     }
 
-    // Obtener el admin record del usuario actual
-    const adminRecord = await this.prisma.admin.findFirst({
-      where: { iduser: currentUser.id }
-    });
+    // Obtener el admin record del usuario actual (solo si es admin, no super_admin)
+    let adminRecord: any = null;
+    if (isAdmin) {
+      adminRecord = await this.prisma.admin.findFirst({
+        where: { iduser: currentUser.id }
+      });
 
-    if (!adminRecord) {
-      throw new ForbiddenException('Usuario admin no encontrado en el sistema');
+      if (!adminRecord) {
+        throw new ForbiddenException('Usuario admin no encontrado en el sistema');
+      }
     }
 
-    // Verificar que la unidad existe y pertenece al admin actual
+    // Verificar que la unidad existe
     const unit = await this.prisma.unit.findUnique({
       where: { id: createUnitMemberInput.idunit },
       include: {
@@ -382,10 +394,14 @@ export class OrganizationService {
       throw new NotFoundException(`Unidad con ID ${createUnitMemberInput.idunit} no encontrada`);
     }
 
-    // Verificar que el admin actual es el responsable de esta unidad
-    if (unit.idadmin !== adminRecord.id) {
-      throw new ForbiddenException('Solo puedes agregar miembros a unidades que gestionas directamente');
+    // Verificar permisos específicos para la unidad
+    if (isAdmin && adminRecord) {
+      // Los admin solo pueden agregar miembros a unidades que gestionan directamente
+      if (unit.idadmin !== adminRecord.id) {
+        throw new ForbiddenException('Solo puedes agregar miembros a unidades que gestionas directamente');
+      }
     }
+    // Los super_admin pueden agregar miembros a cualquier unidad (no necesitan verificación adicional)
 
     // Verificar que el usuario a agregar existe
     const userToAdd = await this.prisma.user.findUnique({
@@ -417,7 +433,8 @@ export class OrganizationService {
       throw new ForbiddenException('El usuario ya es miembro de esta unidad');
     }
 
-    return this.prisma.unit_member.create({
+    // Crear entrada en tabla unit_member
+    const unitMember = await this.prisma.unit_member.create({
       data: {
         iduser: createUnitMemberInput.iduser,
         idunit: createUnitMemberInput.idunit,
@@ -429,19 +446,59 @@ export class OrganizationService {
         role: true,
       },
     });
+
+    // Actualizar system_role según la jerarquía de prevalencia:
+    // - Si es 'super_admin' → se mantiene como 'super_admin'
+    // - Si es 'admin' → se mantiene como 'admin' 
+    // - Si es 'area_member' → se mantiene como 'area_member'
+    // - Si es 'project_member' → se mantiene como 'project_member'
+    // - Si es 'task_member' → se mantiene como 'task_member'
+    // - Si es 'user' → cambia a 'unit_member'
+    const userRole = await this.prisma.system_role.findUnique({
+      where: { user_id: createUnitMemberInput.iduser },
+      include: { role: true }
+    });
+
+    const currentRole = userRole?.role?.name;
+    
+    // Solo cambiar a unit_member si es 'user' (no degradar roles superiores)
+    if (currentRole === 'user') {
+      const unitMemberRole = await this.prisma.role.findFirst({
+        where: { name: 'unit_member' }
+      });
+
+      if (unitMemberRole) {
+        // Actualizar o crear system_role
+        await this.prisma.system_role.upsert({
+          where: { user_id: createUnitMemberInput.iduser },
+          update: { role_id: unitMemberRole.id },
+          create: {
+            user_id: createUnitMemberInput.iduser,
+            role_id: unitMemberRole.id
+          }
+        });
+      }
+    }
+
+    return unitMember;
   }
 
   async updateUnitMember(updateUnitMemberInput: UpdateUnitMemberInput, currentUser: User) {
-    // Verificar si el usuario es admin (de cualquier área)
+    // Verificar si el usuario es super_admin o admin
+    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
     const isAdmin = await this.isUserAdmin(currentUser.id);
-    if (!isAdmin) {
-      throw new ForbiddenException('Solo los administradores pueden actualizar miembros de unidades');
+    
+    if (!isSuperAdmin && !isAdmin) {
+      throw new ForbiddenException('No tiene permisos para actualizar miembros de unidades, por favor contacte con un administrador');
     }
 
-    // Obtener el área del admin
-    const adminArea = await this.getAdminArea(currentUser.id);
-    if (!adminArea) {
-      throw new ForbiddenException('Admin no asociado a ningún área');
+    // Obtener el área del admin (solo si es admin, no super_admin)
+    let adminArea: number | null = null;
+    if (isAdmin) {
+      adminArea = await this.getAdminArea(currentUser.id);
+      if (!adminArea) {
+        throw new ForbiddenException('Admin no asociado a ningún área');
+      }
     }
 
     // Obtener el miembro a actualizar
@@ -468,18 +525,22 @@ export class OrganizationService {
       throw new NotFoundException('El miembro no está asignado a ninguna unidad');
     }
 
-    // Verificar que la unidad esté en el área del admin
+    // Verificar permisos específicos para la unidad
     if (!member.unit) {
       throw new NotFoundException('La unidad asociada al miembro no existe');
     }
 
-    const unitInAdminArea = member.unit.project.some(project => 
-      project.category && project.category.id_area === adminArea
-    );
+    if (isAdmin && adminArea) {
+      // Los admin solo pueden actualizar miembros de unidades de su área
+      const unitInAdminArea = member.unit.project.some(project => 
+        project.category && project.category.id_area === adminArea
+      );
 
-    if (!unitInAdminArea) {
-      throw new ForbiddenException('Solo puedes actualizar miembros de unidades de tu área');
+      if (!unitInAdminArea) {
+        throw new ForbiddenException('Solo puedes actualizar miembros de unidades de tu área');
+      }
     }
+    // Los super_admin pueden actualizar miembros de cualquier unidad (no necesitan verificación adicional)
 
     // Verificar que el usuario a actualizar existe
     if (updateUnitMemberInput.iduser) {
@@ -519,16 +580,21 @@ export class OrganizationService {
   }
 
   async removeUnitMember(id: string, currentUser: User) {
-    // Verificar si el usuario es admin (de cualquier área)
+    // Verificar si el usuario es super_admin o admin
+    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
     const isAdmin = await this.isUserAdmin(currentUser.id);
-    if (!isAdmin) {
-      throw new ForbiddenException('Solo los administradores pueden eliminar miembros de unidades');
+    
+    if (!isSuperAdmin && !isAdmin) {
+      throw new ForbiddenException('No tiene permisos para eliminar miembros de unidades, por favor contacte con un administrador');
     }
 
-    // Obtener el área del admin
-    const adminArea = await this.getAdminArea(currentUser.id);
-    if (!adminArea) {
-      throw new ForbiddenException('Admin no asociado a ningún área');
+    // Obtener el área del admin (solo si es admin, no super_admin)
+    let adminArea: number | null = null;
+    if (isAdmin) {
+      adminArea = await this.getAdminArea(currentUser.id);
+      if (!adminArea) {
+        throw new ForbiddenException('Admin no asociado a ningún área');
+      }
     }
 
     const member = await this.prisma.unit_member.findUnique({
@@ -554,18 +620,22 @@ export class OrganizationService {
       throw new NotFoundException('El miembro no está asignado a ninguna unidad');
     }
 
-    // Verificar que la unidad esté en el área del admin
+    // Verificar permisos específicos para la unidad
     if (!member.unit) {
       throw new NotFoundException('La unidad asociada al miembro no existe');
     }
 
-    const unitInAdminArea = member.unit.project.some(project => 
-      project.category && project.category.id_area === adminArea
-    );
+    if (isAdmin && adminArea) {
+      // Los admin solo pueden eliminar miembros de unidades de su área
+      const unitInAdminArea = member.unit.project.some(project => 
+        project.category && project.category.id_area === adminArea
+      );
 
-    if (!unitInAdminArea) {
-      throw new ForbiddenException('Solo puedes eliminar miembros de unidades de tu área');
+      if (!unitInAdminArea) {
+        throw new ForbiddenException('Solo puedes eliminar miembros de unidades de tu área');
+      }
     }
+    // Los super_admin pueden eliminar miembros de cualquier unidad (no necesitan verificación adicional)
 
     return this.prisma.unit_member.delete({
       where: { id },

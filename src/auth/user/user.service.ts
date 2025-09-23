@@ -327,6 +327,10 @@ export class UserService {
     const defaultRoles = [
       'super_admin',
       'admin',
+      'area_member',
+      'unit_member',
+      'project_member',
+      'task_member',
       'user'
     ];
 
