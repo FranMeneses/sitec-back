@@ -204,7 +204,7 @@ export class OrganizationService {
   }
 
   async findAllUnits(currentUser?: User) {
-    // Si no hay usuario, mostrar todas las unidades
+    // Si no hay usuario, mostrar todas las unidades con información básica
     if (!currentUser) {
       return this.prisma.unit.findMany({
         include: {
@@ -250,49 +250,71 @@ export class OrganizationService {
 
     // Verificar si el usuario es admin
     const isAdmin = await this.isUserAdmin(currentUser.id);
-    if (!isAdmin) {
-      // Si no es admin, no puede ver unidades (solo admins pueden ver unidades)
-      throw new ForbiddenException('Solo los administradores pueden ver las unidades');
-    }
+    if (isAdmin) {
+      // Si es admin, mostrar solo las unidades de su área
+      const adminArea = await this.getAdminArea(currentUser.id);
+      if (!adminArea) {
+        throw new ForbiddenException('Admin no asociado a ningún área');
+      }
 
-    // Si es admin, mostrar solo las unidades de su área
-    const adminArea = await this.getAdminArea(currentUser.id);
-    if (!adminArea) {
-      throw new ForbiddenException('Admin no asociado a ningún área');
-    }
-
-    // Obtener unidades que tienen proyectos con categorías del área del admin
-    // También incluir unidades donde el admin es unit_member
-    const unitsInArea = await this.prisma.unit.findMany({
-      where: {
-        OR: [
-          // Unidades que tienen proyectos con categorías del área del admin
-          {
-            project: {
-              some: {
-                category: {
-                  id_area: adminArea
+      // Obtener unidades que tienen proyectos con categorías del área del admin
+      // También incluir unidades donde el admin es unit_member
+      return this.prisma.unit.findMany({
+        where: {
+          OR: [
+            {
+              project: {
+                some: {
+                  category: {
+                    id_area: adminArea
+                  }
+                }
+              }
+            },
+            {
+              unit_member: {
+                some: {
+                  iduser: currentUser.id
                 }
               }
             }
+          ]
+        },
+        include: {
+          type: true,
+          admin: {
+            include: {
+              user: true,
+              area: true,
+            },
           },
-          // Unidades donde el admin es unit_member
-          {
-            unit_member: {
-              some: {
-                iduser: currentUser.id
-              }
+          project: {
+            include: {
+              category: true
             }
-          }
-        ]
-      },
+          },
+          unit_member: {
+            include: {
+              user: true,
+              role: true
+            }
+          },
+        },
+      });
+    }
+
+    // Para cualquier otro usuario (user, unit_member, project_member, task_member, area_member)
+    // Mostrar todas las unidades con información básica
+    return this.prisma.unit.findMany({
       include: {
         type: true,
-        project: {
+        admin: {
           include: {
-            category: true
-          }
+            user: true,
+            area: true,
+          },
         },
+        project: true,
         unit_member: {
           include: {
             user: true,
@@ -301,8 +323,6 @@ export class OrganizationService {
         },
       },
     });
-
-    return unitsInArea;
   }
 
   async findUnitById(id: number) {
