@@ -296,6 +296,7 @@ type Process {
 }
 
 type Project {
+  category: Category
   categoryId: String
   createdAt: DateTime!
   description: String
@@ -304,9 +305,11 @@ type Project {
   editor: User
   id: ID!
   name: String!
+  projectMembers: [ProjectMember!]!
   review: String
   startDate: DateTime
   status: String
+  unit: Unit
   unitId: Float
   updatedAt: DateTime!
 }

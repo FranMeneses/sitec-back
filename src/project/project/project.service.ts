@@ -823,6 +823,51 @@ export class ProjectService {
     return this.mapProjectMember(updatedMember);
   }
 
+  // ==================== RESOLVER HELPER METHODS ====================
+
+  async getCategoryById(categoryId: string): Promise<any> {
+    const category = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        area: true
+      }
+    });
+    
+    if (!category) return null;
+    
+    return {
+      id: category.id,
+      name: category.name,
+      description: category.description,
+      areaId: category.id_area,
+      area: category.area ? {
+        id: category.area.id,
+        name: category.area.name
+      } : null
+    };
+  }
+
+  async getUnitById(unitId: number): Promise<any> {
+    const unit = await this.prisma.unit.findUnique({
+      where: { id: unitId },
+      include: {
+        type: true
+      }
+    });
+    
+    if (!unit) return null;
+    
+    return {
+      id: unit.id,
+      name: unit.name,
+      idtype: unit.idtype,
+      type: unit.type ? {
+        id: unit.type.id,
+        name: unit.type.name
+      } : null
+    };
+  }
+
   // ==================== HELPER METHODS ====================
 
   private mapProject(project: any): Project {

@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards, ForbiddenException } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { Project } from '../entities/project.entity';
@@ -10,6 +10,7 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../auth/entities/user.entity';
 import { Process } from '../../process/entities/process.entity';
 import { Task } from '../../process/entities/task.entity';
+import { Unit } from '../../organization/entities/unit.entity';
 
 @Resolver(() => Project)
 export class ProjectResolver {
@@ -194,5 +195,24 @@ export class ProjectResolver {
   async getInactiveProjects(@Args('areaId', { type: () => Number }) areaId: number): Promise<Project[]> {
     const result = await this.projectService.getProjectsByStatus(areaId);
     return result.inactiveProjects;
+  }
+
+  // ==================== FIELD RESOLVERS ====================
+
+  @ResolveField(() => Category, { nullable: true })
+  async category(@Parent() project: Project): Promise<Category | null> {
+    if (!project.categoryId) return null;
+    return this.projectService.getCategoryById(project.categoryId);
+  }
+
+  @ResolveField(() => Unit, { nullable: true })
+  async unit(@Parent() project: Project): Promise<Unit | null> {
+    if (!project.unitId) return null;
+    return this.projectService.getUnitById(project.unitId);
+  }
+
+  @ResolveField(() => [ProjectMember], { name: 'projectMembers' })
+  async resolveProjectMembers(@Parent() project: Project): Promise<ProjectMember[]> {
+    return this.projectService.getProjectMembers(project.id);
   }
 }
