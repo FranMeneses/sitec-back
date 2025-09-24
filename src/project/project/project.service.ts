@@ -46,14 +46,231 @@ export class ProjectService {
   // ==================== PROJECT METHODS ====================
 
   async findAllProjects(userId?: string): Promise<Project[]> {
-    const projects = await this.prisma.project.findMany({
-      include: {
-        user: true, // editor
-        category: true,
-        unit: true,
-      },
-      orderBy: { name: 'asc' },
+    // Si no hay usuario, no puede ver proyectos
+    if (!userId) {
+      throw new ForbiddenException('Debe estar autenticado para ver proyectos');
+    }
+
+    // Obtener el system_role del usuario
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
     });
+
+    const currentRole = userSystemRole?.role?.name;
+
+    let projects: any[] = [];
+
+    switch (currentRole) {
+      case 'super_admin':
+        // Super_admin ve todos los proyectos
+        projects = await this.prisma.project.findMany({
+          include: {
+            user: true, // editor
+            category: {
+              include: {
+                area: true
+              }
+            },
+            unit: {
+              include: {
+                type: true
+              }
+            },
+            project_member: {
+              include: {
+                user: true,
+                role: true
+              }
+            }
+          },
+          orderBy: { name: 'asc' },
+        });
+        break;
+
+      case 'admin':
+      case 'area_member':
+        // Admin/area_member ven proyectos de su área
+        const userAreas = await this.prisma.area_member.findMany({
+          where: { iduser: userId },
+          select: { idarea: true }
+        });
+
+        // También incluir área del admin si es admin
+        if (currentRole === 'admin') {
+          const adminArea = await this.prisma.admin.findFirst({
+            where: { iduser: userId },
+            select: { idarea: true }
+          });
+          if (adminArea) {
+            userAreas.push({ idarea: adminArea.idarea! });
+          }
+        }
+
+        const areaIds = [...new Set(userAreas.map(ua => ua.idarea))];
+
+        projects = await this.prisma.project.findMany({
+          where: {
+            category: {
+              id_area: {
+                in: areaIds
+              }
+            }
+          },
+          include: {
+            user: true, // editor
+            category: {
+              include: {
+                area: true
+              }
+            },
+            unit: {
+              include: {
+                type: true
+              }
+            },
+            project_member: {
+              include: {
+                user: true,
+                role: true
+              }
+            }
+          },
+          orderBy: { name: 'asc' },
+        });
+        break;
+
+      case 'unit_member':
+        // Unit_member ve proyectos de su unidad
+        const userUnits = await this.prisma.unit_member.findMany({
+          where: { iduser: userId },
+          select: { idunit: true }
+        });
+
+        const unitIds = userUnits.map(uu => uu.idunit).filter(id => id !== null);
+
+        projects = await this.prisma.project.findMany({
+          where: {
+            idunit: {
+              in: unitIds
+            }
+          },
+          include: {
+            user: true, // editor
+            category: {
+              include: {
+                area: true
+              }
+            },
+            unit: {
+              include: {
+                type: true
+              }
+            },
+            project_member: {
+              include: {
+                user: true,
+                role: true
+              }
+            }
+          },
+          orderBy: { name: 'asc' },
+        });
+        break;
+
+      case 'project_member':
+        // Project_member ve proyectos donde es miembro
+        const userProjects = await this.prisma.project_member.findMany({
+          where: { iduser: userId },
+          select: { idproject: true }
+        });
+
+        const projectIds = userProjects.map(up => up.idproject).filter(id => id !== null);
+
+        projects = await this.prisma.project.findMany({
+          where: {
+            id: {
+              in: projectIds
+            }
+          },
+          include: {
+            user: true, // editor
+            category: {
+              include: {
+                area: true
+              }
+            },
+            unit: {
+              include: {
+                type: true
+              }
+            },
+            project_member: {
+              include: {
+                user: true,
+                role: true
+              }
+            }
+          },
+          orderBy: { name: 'asc' },
+        });
+        break;
+
+      case 'task_member':
+        // Task_member ve proyectos de las tareas donde es miembro
+        const userTasks = await this.prisma.task_member.findMany({
+          where: { iduser: userId },
+          include: {
+            task: {
+              include: {
+                process: {
+                  select: { idproject: true }
+                }
+              }
+            }
+          }
+        });
+
+        const taskProjectIds = userTasks
+          .map(ut => ut.task.process?.idproject)
+          .filter(id => id !== null && id !== undefined);
+
+        const uniqueTaskProjectIds = [...new Set(taskProjectIds)];
+
+        projects = await this.prisma.project.findMany({
+          where: {
+            id: {
+              in: uniqueTaskProjectIds
+            }
+          },
+          include: {
+            user: true, // editor
+            category: {
+              include: {
+                area: true
+              }
+            },
+            unit: {
+              include: {
+                type: true
+              }
+            },
+            project_member: {
+              include: {
+                user: true,
+                role: true
+              }
+            }
+          },
+          orderBy: { name: 'asc' },
+        });
+        break;
+
+      case 'user':
+      default:
+        // User no puede ver proyectos
+        throw new ForbiddenException('No tiene permisos para ver proyectos');
+    }
 
     return projects.map(project => this.mapProject(project));
   }
