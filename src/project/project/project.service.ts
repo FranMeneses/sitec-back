@@ -18,6 +18,208 @@ export class ProjectService {
     private userService: UserService,
   ) {}
 
+  // ==================== VALIDATION METHODS ====================
+
+  private async validateProjectMemberAdditionPermissions(userId: string, projectId: string): Promise<void> {
+    // Obtener el system_role del usuario
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
+    });
+
+    const currentRole = userSystemRole?.role?.name;
+
+    switch (currentRole) {
+      case 'super_admin':
+        // Super_admin puede agregar miembros a cualquier proyecto
+        return;
+
+      case 'admin':
+        // Admin puede agregar miembros solo a proyectos de su área
+        const project = await this.prisma.project.findUnique({
+          where: { id: projectId },
+          include: {
+            category: {
+              include: {
+                area: true
+              }
+            }
+          }
+        });
+
+        if (!project || !project.category) {
+          throw new BadRequestException('Proyecto o categoría no encontrada');
+        }
+
+        const adminArea = await this.prisma.admin.findFirst({
+          where: { iduser: userId },
+          select: { idarea: true }
+        });
+
+        if (!adminArea) {
+          throw new ForbiddenException('Admin no asociado a ningún área');
+        }
+
+        if (project.category.id_area !== adminArea.idarea) {
+          throw new ForbiddenException('Solo puedes agregar miembros a proyectos de tu área');
+        }
+        return;
+
+      case 'area_member':
+        // Area_member puede agregar miembros a proyectos de las áreas donde es miembro
+        const projectForAreaMember = await this.prisma.project.findUnique({
+          where: { id: projectId },
+          include: {
+            category: {
+              include: {
+                area: true
+              }
+            }
+          }
+        });
+
+        if (!projectForAreaMember || !projectForAreaMember.category) {
+          throw new BadRequestException('Proyecto o categoría no encontrada');
+        }
+
+        const isAreaMember = await this.prisma.area_member.findFirst({
+          where: {
+            iduser: userId,
+            idarea: projectForAreaMember.category.id_area
+          }
+        });
+
+        if (!isAreaMember) {
+          throw new ForbiddenException('Solo puedes agregar miembros a proyectos de áreas donde eres miembro');
+        }
+        return;
+
+      case 'unit_member':
+      case 'project_member':
+      case 'task_member':
+      case 'user':
+      default:
+        // Ningún otro rol puede agregar miembros a proyectos
+        throw new ForbiddenException('No tiene permisos para agregar miembros a proyectos, por favor contacte con un administrador');
+    }
+  }
+
+  private async applyRoleHierarchyForProjectMember(userId: string): Promise<void> {
+    // Obtener el system_role actual del usuario
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
+    });
+
+    const currentRole = userSystemRole?.role?.name;
+
+    // Si el usuario ya tiene un rol superior o igual a project_member, mantenerlo
+    if (currentRole === 'super_admin' || 
+        currentRole === 'admin' || 
+        currentRole === 'area_member' || 
+        currentRole === 'unit_member' || 
+        currentRole === 'project_member') {
+      // Mantener el system_role actual, solo agregar a project_member
+      return;
+    }
+
+    // Si el usuario tiene un rol inferior, ascender a project_member
+    const projectMemberRole = await this.prisma.role.findFirst({
+      where: { name: 'project_member' }
+    });
+
+    if (!projectMemberRole) {
+      throw new BadRequestException('Rol project_member no encontrado en el sistema');
+    }
+
+    // Actualizar el system_role a project_member
+    await this.prisma.system_role.upsert({
+      where: { user_id: userId },
+      update: { role_id: projectMemberRole.id },
+      create: { user_id: userId, role_id: projectMemberRole.id }
+    });
+  }
+
+  private async validateProjectCreationPermissions(userId: string, categoryId?: string): Promise<void> {
+    // Obtener el system_role del usuario
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
+    });
+
+    const currentRole = userSystemRole?.role?.name;
+
+    switch (currentRole) {
+      case 'super_admin':
+        // Super_admin puede crear proyectos en cualquier área
+        return;
+
+      case 'admin':
+        // Admin puede crear proyectos solo en su área
+        if (!categoryId) {
+          throw new ForbiddenException('Debe especificar una categoría para crear el proyecto');
+        }
+
+        const category = await this.prisma.category.findUnique({
+          where: { id: categoryId },
+          select: { id_area: true }
+        });
+
+        if (!category) {
+          throw new BadRequestException('La categoría especificada no existe');
+        }
+
+        const adminArea = await this.prisma.admin.findFirst({
+          where: { iduser: userId },
+          select: { idarea: true }
+        });
+
+        if (!adminArea) {
+          throw new ForbiddenException('Admin no asociado a ningún área');
+        }
+
+        if (category.id_area !== adminArea.idarea) {
+          throw new ForbiddenException('Solo puedes crear proyectos en categorías de tu área');
+        }
+        return;
+
+      case 'area_member':
+        // Area_member puede crear proyectos en las áreas donde es miembro
+        if (!categoryId) {
+          throw new ForbiddenException('Debe especificar una categoría para crear el proyecto');
+        }
+
+        const categoryForAreaMember = await this.prisma.category.findUnique({
+          where: { id: categoryId },
+          select: { id_area: true }
+        });
+
+        if (!categoryForAreaMember) {
+          throw new BadRequestException('La categoría especificada no existe');
+        }
+
+        const isAreaMember = await this.prisma.area_member.findFirst({
+          where: {
+            iduser: userId,
+            idarea: categoryForAreaMember.id_area
+          }
+        });
+
+        if (!isAreaMember) {
+          throw new ForbiddenException('Solo puedes crear proyectos en categorías de áreas donde eres miembro');
+        }
+        return;
+
+      case 'unit_member':
+      case 'project_member':
+      case 'task_member':
+      case 'user':
+      default:
+        // Ningún otro rol puede crear proyectos
+        throw new ForbiddenException('No tiene permisos para crear proyectos, por favor contacte con un administrador');
+    }
+  }
+
   // ==================== HELPER METHODS ====================
 
   private validateProjectDates(startDate?: string, dueDate?: string): void {
@@ -293,10 +495,16 @@ export class ProjectService {
     // Validar fechas del proyecto
     this.validateProjectDates(createProjectInput.startDate, createProjectInput.dueDate);
 
+    // Validar permisos para crear proyectos según el rol del usuario
+    await this.validateProjectCreationPermissions(editorId, createProjectInput.categoryId);
+
     // Validar que la categoría existe (si se proporciona)
     if (createProjectInput.categoryId) {
       const category = await this.prisma.category.findUnique({
         where: { id: createProjectInput.categoryId },
+        include: {
+          area: true
+        }
       });
       if (!category) {
         throw new BadRequestException('La categoría especificada no existe');
@@ -700,11 +908,8 @@ export class ProjectService {
       throw new NotFoundException('Proyecto no encontrado');
     }
 
-    // Verificar que el usuario solicitante es admin del proyecto
-    const isAdmin = await this.isProjectAdmin(addMemberInput.projectId, requestUserId);
-    if (!isAdmin) {
-      throw new ForbiddenException('Solo los administradores del proyecto pueden agregar miembros');
-    }
+    // Validar permisos para agregar miembros según el rol del usuario
+    await this.validateProjectMemberAdditionPermissions(requestUserId, addMemberInput.projectId);
 
     // Verificar que el usuario existe
     const user = await this.prisma.user.findUnique({
@@ -733,6 +938,9 @@ export class ProjectService {
     if (existingMember) {
       throw new BadRequestException('El usuario ya es miembro de este proyecto');
     }
+
+    // Aplicar jerarquía de roles para el usuario que se está agregando
+    await this.applyRoleHierarchyForProjectMember(addMemberInput.userId);
 
     const member = await this.prisma.project_member.create({
       data: {
