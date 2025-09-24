@@ -37,6 +37,26 @@ export class ProcessService {
     return !!projectMember;
   }
 
+  private async canCreateTask(projectId: string, userId: string): Promise<boolean> {
+    // Super admin puede crear tareas en cualquier proyecto
+    const isSuperAdmin = await this.userService.isSuperAdmin(userId);
+    if (isSuperAdmin) return true;
+
+    // Admin del sistema puede crear tareas en cualquier proyecto
+    const isAdmin = await this.userService.isAdmin(userId);
+    if (isAdmin) return true;
+
+    // Verificar si es project_member
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: projectId,
+        iduser: userId,
+      },
+    });
+
+    return !!projectMember;
+  }
+
   private validateProcessDates(startDate?: string, dueDate?: string): void {
     if (startDate && dueDate) {
       const start = new Date(startDate);
@@ -521,14 +541,13 @@ export class ProcessService {
       createTaskInput.dueDate
     );
 
-    // Validar que el usuario es miembro del proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: process.idproject,
-        iduser: editorId,
-      },
-    });
-    if (!projectMember) {
+    // Validar permisos para crear tareas
+    if (!process.idproject) {
+      throw new BadRequestException('El proceso no está asociado a un proyecto');
+    }
+    
+    const canCreateTask = await this.canCreateTask(process.idproject, editorId);
+    if (!canCreateTask) {
       throw new ForbiddenException('No tienes permisos para crear tareas en este proceso');
     }
 
@@ -645,14 +664,13 @@ export class ProcessService {
       updateTaskInput.dueDate
     );
 
-    // Validar que el usuario es miembro del proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: existingTask.process.idproject,
-        iduser: editorId,
-      },
-    });
-    if (!projectMember) {
+    // Validar permisos para editar tareas
+    if (!existingTask.process.idproject) {
+      throw new BadRequestException('El proceso no está asociado a un proyecto');
+    }
+    
+    const canEditTask = await this.canCreateTask(existingTask.process.idproject, editorId);
+    if (!canEditTask) {
       throw new ForbiddenException('No tienes permisos para editar esta tarea');
     }
 
@@ -876,14 +894,13 @@ export class ProcessService {
       throw new NotFoundException('Tarea no encontrada');
     }
 
-    // Validar que el usuario es miembro del proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: existingTask.process.idproject,
-        iduser: userId,
-      },
-    });
-    if (!projectMember) {
+    // Validar permisos para eliminar tareas
+    if (!existingTask.process.idproject) {
+      throw new BadRequestException('El proceso no está asociado a un proyecto');
+    }
+    
+    const canDeleteTask = await this.canCreateTask(existingTask.process.idproject, userId);
+    if (!canDeleteTask) {
       throw new ForbiddenException('No tienes permisos para eliminar esta tarea');
     }
 

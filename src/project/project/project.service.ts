@@ -94,8 +94,21 @@ export class ProjectService {
         }
         return;
 
-      case 'unit_member':
       case 'project_member':
+        // Project_member puede agregar miembros solo a proyectos donde es miembro
+        const isProjectMember = await this.prisma.project_member.findFirst({
+          where: {
+            iduser: userId,
+            idproject: projectId
+          }
+        });
+
+        if (!isProjectMember) {
+          throw new ForbiddenException('Solo puedes agregar miembros a proyectos donde eres miembro');
+        }
+        return;
+
+      case 'unit_member':
       case 'task_member':
       case 'user':
       default:
@@ -138,6 +151,200 @@ export class ProjectService {
       update: { role_id: projectMemberRole.id },
       create: { user_id: userId, role_id: projectMemberRole.id }
     });
+  }
+
+  private async validateProjectUpdatePermissions(userId: string, projectId: string): Promise<void> {
+    // Obtener el system_role del usuario
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
+    });
+
+    const currentRole = userSystemRole?.role?.name;
+
+    switch (currentRole) {
+      case 'super_admin':
+        // Super_admin puede actualizar cualquier proyecto
+        return;
+
+      case 'admin':
+        // Admin puede actualizar proyectos de su área
+        const project = await this.prisma.project.findUnique({
+          where: { id: projectId },
+          include: {
+            category: {
+              include: {
+                area: true
+              }
+            }
+          }
+        });
+
+        if (!project || !project.category) {
+          throw new BadRequestException('Proyecto o categoría no encontrada');
+        }
+
+        const adminArea = await this.prisma.admin.findFirst({
+          where: { iduser: userId },
+          select: { idarea: true }
+        });
+
+        if (!adminArea) {
+          throw new ForbiddenException('Admin no asociado a ningún área');
+        }
+
+        if (project.category.id_area !== adminArea.idarea) {
+          throw new ForbiddenException('Solo puedes actualizar proyectos de tu área');
+        }
+        return;
+
+      case 'area_member':
+        // Area_member puede actualizar proyectos de las áreas donde es miembro
+        const projectForAreaMember = await this.prisma.project.findUnique({
+          where: { id: projectId },
+          include: {
+            category: {
+              include: {
+                area: true
+              }
+            }
+          }
+        });
+
+        if (!projectForAreaMember || !projectForAreaMember.category) {
+          throw new BadRequestException('Proyecto o categoría no encontrada');
+        }
+
+        const isAreaMember = await this.prisma.area_member.findFirst({
+          where: {
+            iduser: userId,
+            idarea: projectForAreaMember.category.id_area
+          }
+        });
+
+        if (!isAreaMember) {
+          throw new ForbiddenException('Solo puedes actualizar proyectos de áreas donde eres miembro');
+        }
+        return;
+
+      case 'project_member':
+        // Project_member puede actualizar proyectos donde es miembro
+        const isProjectMember = await this.prisma.project_member.findFirst({
+          where: {
+            iduser: userId,
+            idproject: projectId
+          }
+        });
+
+        if (!isProjectMember) {
+          throw new ForbiddenException('Solo puedes actualizar proyectos donde eres miembro');
+        }
+        return;
+
+      case 'unit_member':
+      case 'task_member':
+      case 'user':
+      default:
+        // Ningún otro rol puede actualizar proyectos
+        throw new ForbiddenException('No tiene permisos para actualizar proyectos, por favor contacte con un administrador');
+    }
+  }
+
+  private async validateProjectDeletePermissions(userId: string, projectId: string): Promise<void> {
+    // Obtener el system_role del usuario
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
+    });
+
+    const currentRole = userSystemRole?.role?.name;
+
+    switch (currentRole) {
+      case 'super_admin':
+        // Super_admin puede eliminar cualquier proyecto
+        return;
+
+      case 'admin':
+        // Admin puede eliminar proyectos de su área
+        const project = await this.prisma.project.findUnique({
+          where: { id: projectId },
+          include: {
+            category: {
+              include: {
+                area: true
+              }
+            }
+          }
+        });
+
+        if (!project || !project.category) {
+          throw new BadRequestException('Proyecto o categoría no encontrada');
+        }
+
+        const adminArea = await this.prisma.admin.findFirst({
+          where: { iduser: userId },
+          select: { idarea: true }
+        });
+
+        if (!adminArea) {
+          throw new ForbiddenException('Admin no asociado a ningún área');
+        }
+
+        if (project.category.id_area !== adminArea.idarea) {
+          throw new ForbiddenException('Solo puedes eliminar proyectos de tu área');
+        }
+        return;
+
+      case 'area_member':
+        // Area_member puede eliminar proyectos de las áreas donde es miembro
+        const projectForAreaMember = await this.prisma.project.findUnique({
+          where: { id: projectId },
+          include: {
+            category: {
+              include: {
+                area: true
+              }
+            }
+          }
+        });
+
+        if (!projectForAreaMember || !projectForAreaMember.category) {
+          throw new BadRequestException('Proyecto o categoría no encontrada');
+        }
+
+        const isAreaMember = await this.prisma.area_member.findFirst({
+          where: {
+            iduser: userId,
+            idarea: projectForAreaMember.category.id_area
+          }
+        });
+
+        if (!isAreaMember) {
+          throw new ForbiddenException('Solo puedes eliminar proyectos de áreas donde eres miembro');
+        }
+        return;
+
+      case 'project_member':
+        // Project_member puede eliminar proyectos donde es miembro
+        const isProjectMember = await this.prisma.project_member.findFirst({
+          where: {
+            iduser: userId,
+            idproject: projectId
+          }
+        });
+
+        if (!isProjectMember) {
+          throw new ForbiddenException('Solo puedes eliminar proyectos donde eres miembro');
+        }
+        return;
+
+      case 'unit_member':
+      case 'task_member':
+      case 'user':
+      default:
+        // Ningún otro rol puede eliminar proyectos
+        throw new ForbiddenException('No tiene permisos para eliminar proyectos, por favor contacte con un administrador');
+    }
   }
 
   private async validateProjectCreationPermissions(userId: string, categoryId?: string): Promise<void> {
@@ -567,6 +774,9 @@ export class ProjectService {
       throw new NotFoundException(`Proyecto con ID ${updateProjectInput.id} no encontrado`);
     }
 
+    // Validar permisos para actualizar proyectos
+    await this.validateProjectUpdatePermissions(editorId, updateProjectInput.id);
+
     // Validar fechas del proyecto (considerando fechas existentes)
     this.validateProjectDatesForUpdate(
       existingProject, 
@@ -615,6 +825,9 @@ export class ProjectService {
     if (!project) {
       throw new NotFoundException(`Proyecto con ID ${id} no encontrado`);
     }
+
+    // Validar permisos para eliminar proyectos
+    await this.validateProjectDeletePermissions(userId, id);
 
     // Verificar que hay miembros o procesos asociados
     const members = await this.prisma.project_member.findMany({
