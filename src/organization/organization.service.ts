@@ -318,35 +318,8 @@ export class OrganizationService {
     // Verificar si el usuario es admin
     const isAdmin = await this.isUserAdmin(currentUser.id);
     if (isAdmin) {
-      // Si es admin, mostrar solo las unidades de su área
-      const adminArea = await this.getAdminArea(currentUser.id);
-      if (!adminArea) {
-        throw new ForbiddenException('Admin no asociado a ningún área');
-      }
-
-      // Obtener unidades que tienen proyectos con categorías del área del admin
-      // También incluir unidades donde el admin es unit_member
+      // Cambio de política: los administradores también pueden ver TODAS las unidades
       return this.prisma.unit.findMany({
-        where: {
-          OR: [
-            {
-              project: {
-                some: {
-                  category: {
-                    id_area: adminArea
-                  }
-                }
-              }
-            },
-            {
-              unit_member: {
-                some: {
-                  iduser: currentUser.id
-                }
-              }
-            }
-          ]
-        },
         include: {
           type: true,
           admin: {
