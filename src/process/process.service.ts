@@ -88,7 +88,23 @@ export class ProcessService {
       },
     });
 
-    return !!projectMember;
+    if (projectMember) {
+      return true;
+    }
+
+    // Verificar si es task_member de alguna tarea del proyecto
+    const taskMember = await this.prisma.task_member.findFirst({
+      where: {
+        iduser: userId,
+        task: {
+          process: {
+            idproject: projectId
+          }
+        }
+      }
+    });
+
+    return !!taskMember;
   }
 
   private async canCreateTask(projectId: string, userId: string): Promise<boolean> {
@@ -162,7 +178,23 @@ export class ProcessService {
       },
     });
 
-    return !!projectMember;
+    if (projectMember) {
+      return true;
+    }
+
+    // Verificar si es task_member de alguna tarea del proyecto
+    const taskMember = await this.prisma.task_member.findFirst({
+      where: {
+        iduser: userId,
+        task: {
+          process: {
+            idproject: projectId
+          }
+        }
+      }
+    });
+
+    return !!taskMember;
   }
 
   private validateProcessDates(startDate?: string, dueDate?: string): void {
