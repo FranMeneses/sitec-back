@@ -53,6 +53,33 @@ export class ProcessService {
       return project.category.id_area === adminArea.idarea;
     }
 
+    // Verificar si es area_member del área del proyecto
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        category: {
+          include: {
+            area: true
+          }
+        }
+      }
+    });
+
+    if (!project || !project.category) {
+      return false;
+    }
+
+    const isAreaMember = await this.prisma.area_member.findFirst({
+      where: {
+        iduser: userId,
+        idarea: project.category.id_area
+      }
+    });
+
+    if (isAreaMember) {
+      return true;
+    }
+
     // Verificar si es project_member
     const projectMember = await this.prisma.project_member.findFirst({
       where: {
@@ -69,9 +96,63 @@ export class ProcessService {
     const isSuperAdmin = await this.userService.isSuperAdmin(userId);
     if (isSuperAdmin) return true;
 
-    // Admin del sistema puede crear tareas en cualquier proyecto
+    // Admin del sistema puede crear tareas en proyectos de su área
     const isAdmin = await this.userService.isAdmin(userId);
-    if (isAdmin) return true;
+    if (isAdmin) {
+      // Verificar que el proyecto pertenece a su área
+      const project = await this.prisma.project.findUnique({
+        where: { id: projectId },
+        include: {
+          category: {
+            include: {
+              area: true
+            }
+          }
+        }
+      });
+
+      if (!project || !project.category) {
+        return false;
+      }
+
+      const adminArea = await this.prisma.admin.findFirst({
+        where: { iduser: userId },
+        select: { idarea: true }
+      });
+
+      if (!adminArea) {
+        return false;
+      }
+
+      return project.category.id_area === adminArea.idarea;
+    }
+
+    // Verificar si es area_member del área del proyecto
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        category: {
+          include: {
+            area: true
+          }
+        }
+      }
+    });
+
+    if (!project || !project.category) {
+      return false;
+    }
+
+    const isAreaMember = await this.prisma.area_member.findFirst({
+      where: {
+        iduser: userId,
+        idarea: project.category.id_area
+      }
+    });
+
+    if (isAreaMember) {
+      return true;
+    }
 
     // Verificar si es project_member
     const projectMember = await this.prisma.project_member.findFirst({
