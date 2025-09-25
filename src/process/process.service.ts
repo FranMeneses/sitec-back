@@ -22,9 +22,36 @@ export class ProcessService {
     const isSuperAdmin = await this.userService.isSuperAdmin(userId);
     if (isSuperAdmin) return true;
 
-    // Admin del sistema puede hacer cualquier cosa
+    // Admin del sistema puede hacer operaciones en su área
     const isAdmin = await this.userService.isAdmin(userId);
-    if (isAdmin) return true;
+    if (isAdmin) {
+      // Verificar que el proyecto pertenece a su área
+      const project = await this.prisma.project.findUnique({
+        where: { id: projectId },
+        include: {
+          category: {
+            include: {
+              area: true
+            }
+          }
+        }
+      });
+
+      if (!project || !project.category) {
+        return false;
+      }
+
+      const adminArea = await this.prisma.admin.findFirst({
+        where: { iduser: userId },
+        select: { idarea: true }
+      });
+
+      if (!adminArea) {
+        return false;
+      }
+
+      return project.category.id_area === adminArea.idarea;
+    }
 
     // Verificar si es project_member
     const projectMember = await this.prisma.project_member.findFirst({
