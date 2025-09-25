@@ -325,18 +325,8 @@ export class ProjectService {
         return;
 
       case 'project_member':
-        // Project_member puede eliminar proyectos donde es miembro
-        const isProjectMember = await this.prisma.project_member.findFirst({
-          where: {
-            iduser: userId,
-            idproject: projectId
-          }
-        });
-
-        if (!isProjectMember) {
-          throw new ForbiddenException('Solo puedes eliminar proyectos donde eres miembro');
-        }
-        return;
+        // Project_member NO puede eliminar proyectos
+        throw new ForbiddenException('No tienes permisos para eliminar proyectos, por favor contacte con un administrador');
 
       case 'unit_member':
       case 'task_member':
