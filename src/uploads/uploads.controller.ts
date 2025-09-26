@@ -1,26 +1,21 @@
-// TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE UPLOADS DESHABILITADA PARA EL SPRINT ACTUAL
-// TODO: Rehabilitar en el siguiente sprint cuando se implemente la carga de documentos
-
-/*
 import { Controller, Post, Get, UseInterceptors, UploadedFile, Body, UseGuards, Request, Param, Res, NotFoundException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UploadsService } from './uploads.service';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
 import type { Response } from 'express';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
 @Controller('uploads')
 export class UploadsController {
-  private readonly uploadsPath!: string;
+  private readonly uploadsPath: string;
 
   constructor(private uploadsService: UploadsService) {
-    // Configurar ruta de uploads según el entorno
-    if (process.env.NODE_ENV === 'production' && process.env.RENDER === undefined) {
-      // VM de producción - usar ruta absoluta de la VM
-      this.uploadsPath = '/var/www/sitec/uploads/current';
+    // Configurar ruta de uploads según el entorno detectado por VM_DEPLOYMENT
+    if (process.env.VM_DEPLOYMENT === 'true') {
+      // VM de producción - usar ruta del container
+      this.uploadsPath = '/app/uploads/current';
     } else {
       // Render o desarrollo local - usar ruta relativa
       this.uploadsPath = join(process.cwd(), 'uploads', 'current');
@@ -28,10 +23,7 @@ export class UploadsController {
   }
 
   private getUploadsPath(): string {
-    if (this.uploadsPath) {
-      return this.uploadsPath;
-    }
-    return join(process.cwd(), 'uploads', 'current');
+    return this.uploadsPath;
   }
 
   @Post('evidence')
@@ -40,8 +32,8 @@ export class UploadsController {
     storage: diskStorage({
       destination: (req, file, cb) => {
         let uploadPath: string;
-        if (process.env.NODE_ENV === 'production' && process.env.RENDER === undefined) {
-          uploadPath = '/var/www/sitec/uploads/current';
+        if (process.env.VM_DEPLOYMENT === 'true') {
+          uploadPath = '/app/uploads/current';
         } else {
           uploadPath = join(process.cwd(), 'uploads', 'current');
         }
@@ -105,4 +97,3 @@ export class UploadsController {
     res.sendFile(filePath);
   }
 }
-*/

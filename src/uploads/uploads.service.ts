@@ -1,14 +1,9 @@
-// TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE UPLOADS DESHABILITADA PARA EL SPRINT ACTUAL
-// TODO: Rehabilitar en el siguiente sprint cuando se implemente la carga de documentos
-
-/*
 import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { UserService } from '../auth/user/user.service';
 import { UploadResponse } from './entities/upload.entity';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
-
 
 @Injectable()
 export class UploadsService {
@@ -19,73 +14,72 @@ export class UploadsService {
     private prisma: PrismaService,
     private userService: UserService,
   ) {
-    // Configurar rutas según el entorno
-    if (process.env.NODE_ENV === 'production' && process.env.RENDER === undefined) {
-      // VM de producción - usar rutas absolutas de la VM
-      this.uploadsPath = join('/var', 'www', 'sitec', 'uploads', 'current');
-      this.historicPath = join('/var', 'www', 'sitec', 'uploads', 'history');
+    // Configurar rutas según el entorno detectado por VM_DEPLOYMENT
+    if (process.env.VM_DEPLOYMENT === 'true') {
+      // VM de producción - usar rutas del container que mapean al host
+      this.uploadsPath = join('/app', 'uploads', 'current');
+      this.historicPath = join('/app', 'uploads', 'history');
+    } else if (process.env.RENDER !== undefined) {
+      // Render - usar rutas relativas
+      this.uploadsPath = join(process.cwd(), 'uploads', 'current');
+      this.historicPath = join(process.cwd(), 'uploads', 'historic');
     } else {
-      // Render o desarrollo local - usar rutas relativas
+      // Desarrollo local - usar rutas relativas
       this.uploadsPath = join(process.cwd(), 'uploads', 'current');
       this.historicPath = join(process.cwd(), 'uploads', 'historic');
     }
 
-    // Crear directorios si no existen (solo en Render/desarrollo)
-    if (process.env.RENDER !== undefined || process.env.NODE_ENV !== 'production') {
-      this.ensureDirectoriesExist();
+    // Inicializar directorios según el entorno
+    this.initializeDirectories();
+  }
+
+  private initializeDirectories(): void {
+    if (process.env.VM_DEPLOYMENT === 'true') {
+      // VM: Solo verificar que existen, NO crear
+      this.verifyVMDirectories();
     } else {
-      // En VM, solo verificar que existen (no crear)
-      this.verifyDirectoriesExist();
+      // Render/Desarrollo: Crear si no existen
+      this.ensureDirectoriesExist();
     }
   }
 
+  private verifyVMDirectories(): void {
+    console.log('🔍 Verificando directorios en VM...');
+    
+    if (!existsSync(this.uploadsPath)) {
+      throw new Error(`❌ Directorio de uploads no encontrado: ${this.uploadsPath}. 
+        Las carpetas deben existir en el host y estar mapeadas correctamente.`);
+    }
+
+    if (!existsSync(this.historicPath)) {
+      throw new Error(`❌ Directorio histórico no encontrado: ${this.historicPath}. 
+        Las carpetas deben existir en el host y estar mapeadas correctamente.`);
+    }
+
+    console.log(`✅ Directorio de uploads verificado: ${this.uploadsPath}`);
+    console.log(`✅ Directorio histórico verificado: ${this.historicPath}`);
+  }
+
   private ensureDirectoriesExist(): void {
+    console.log('📁 Creando directorios si no existen...');
+    
     try {
       if (!existsSync(this.uploadsPath)) {
         mkdirSync(this.uploadsPath, { recursive: true });
-        console.log(`Directorio de uploads creado: ${this.uploadsPath}`);
+        console.log(`✅ Directorio de uploads creado: ${this.uploadsPath}`);
       } else {
-        console.log(`Directorio de uploads encontrado: ${this.uploadsPath}`);
+        console.log(`✅ Directorio de uploads encontrado: ${this.uploadsPath}`);
       }
 
       if (!existsSync(this.historicPath)) {
         mkdirSync(this.historicPath, { recursive: true });
-        console.log(`Directorio histórico creado: ${this.historicPath}`);
+        console.log(`✅ Directorio histórico creado: ${this.historicPath}`);
       } else {
-        console.log(`Directorio histórico encontrado: ${this.historicPath}`);
+        console.log(`✅ Directorio histórico encontrado: ${this.historicPath}`);
       }
     } catch (error) {
-      console.error('Error creando directorios de uploads:', error);
-    }
-  }
-
-  private verifyDirectoriesExist(): void {
-    if (!existsSync(this.uploadsPath)) {
-      console.warn(`Directorio de uploads no encontrado: ${this.uploadsPath}`);
-      console.warn('Asegúrate de que el directorio existe y tiene los permisos correctos');
-      // En VM, intentar crear solo si no existe
-      try {
-        mkdirSync(this.uploadsPath, { recursive: true });
-        console.log(`Directorio de uploads creado: ${this.uploadsPath}`);
-      } catch (error) {
-        console.error('No se pudo crear el directorio de uploads:', error.message);
-      }
-    } else {
-      console.log(`Directorio de uploads encontrado: ${this.uploadsPath}`);
-    }
-
-    if (!existsSync(this.historicPath)) {
-      console.warn(`Directorio histórico no encontrado: ${this.historicPath}`);
-      console.warn('Asegúrate de que el directorio existe y tiene los permisos correctos');
-      // En VM, intentar crear solo si no existe
-      try {
-        mkdirSync(this.historicPath, { recursive: true });
-        console.log(`Directorio histórico creado: ${this.historicPath}`);
-      } catch (error) {
-        console.error('No se pudo crear el directorio histórico:', error.message);
-      }
-    } else {
-      console.log(`Directorio histórico encontrado: ${this.historicPath}`);
+      console.error('❌ Error manejando directorios de uploads:', error);
+      throw new Error(`No se pudieron inicializar los directorios de uploads: ${error.message}`);
     }
   }
 
@@ -281,4 +275,3 @@ export class UploadsService {
     return true;
   }
 }
-*/

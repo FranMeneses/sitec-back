@@ -1,7 +1,3 @@
-// TEMPORALMENTE COMENTADO - FUNCIONALIDAD DE UPLOADS DESHABILITADA PARA EL SPRINT ACTUAL
-// TODO: Rehabilitar en el siguiente sprint cuando se implemente la carga de documentos
-
-/*
 import { Module } from '@nestjs/common';
 import { UploadsService } from './uploads.service';
 import { UploadsController } from './uploads.controller';
@@ -16,4 +12,3 @@ import { SystemRoleService } from '../auth/system-role/system-role.service';
   exports: [UploadsService],
 })
 export class UploadsModule {}
-*/
