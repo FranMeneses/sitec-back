@@ -1128,16 +1128,16 @@ export class ProcessService {
     };
   }
 
-  // ==================== AREA_MEMBER METHODS ====================
+  // ==================== TASK REACTIVATION METHODS ====================
 
-  async reactivateTask(taskId: string, auditorId: string): Promise<Task> {
-    // Verificar que el auditor puede reactivar esta tarea
-    const canReactivate = await this.userService.canAreaMemberReactivateTask(auditorId, taskId);
+  async reactivateTask(taskId: string, userId: string): Promise<Task> {
+    // Verificar permisos jerárquicos: super_admin, admin, o area_member
+    const canReactivate = await this.userService.canPerformTaskAction(userId, taskId, 'reactivate');
     if (!canReactivate) {
       throw new ForbiddenException('No tienes permisos para reactivar esta tarea');
     }
 
-    // Verificar que la tarea existe
+    // Verificar que la tarea existe y obtener información del proceso/proyecto
     const existingTask = await this.prisma.task.findUnique({
       where: { id: taskId },
       include: { process: { include: { project: true } } },
@@ -1147,22 +1147,35 @@ export class ProcessService {
       throw new NotFoundException('Tarea no encontrada');
     }
 
-    // Verificar que la tarea está en un estado que permite reactivación
-    if (!['cancelled', 'completed'].includes(existingTask.status || '')) {
-      throw new BadRequestException('Solo se pueden reactivar tareas canceladas o completadas');
-    }
-
     // Reactivar la tarea (cambiar estado a pending)
     const reactivatedTask = await this.prisma.task.update({
       where: { id: taskId },
       data: {
         status: 'pending',
         editedat: new Date(),
-        ideditor: auditorId,
+        ideditor: userId,
       },
       include: {
         user: true,
         process: true,
+        task_member: {
+          include: {
+            user: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    // Crear log de actividad para la reactivación
+    await this.prisma.logs.create({
+      data: {
+        type: 'TASK_REACTIVATED',
+        idcreator: userId,
+        idtask: taskId,
+        idprocess: existingTask.idprocess,
+        idproject: existingTask.process.idproject || undefined,
+        createdat: new Date(),
       },
     });
 

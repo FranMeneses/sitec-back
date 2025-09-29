@@ -818,6 +818,18 @@ export class UserService {
   // ==================== HIERARCHICAL PERMISSION METHODS ====================
 
   async canPerformTaskAction(userId: string, taskId: string, action: string): Promise<boolean> {
+    // Para la acción 'reactivate', verificar que la tarea esté en estado válido
+    if (action === 'reactivate') {
+      const task = await this.prisma.task.findUnique({
+        where: { id: taskId },
+        select: { status: true }
+      });
+      
+      if (!task || !['cancelled', 'completed'].includes(task.status || '')) {
+        return false; // Solo se pueden reactivar tareas canceladas o completadas
+      }
+    }
+
     // Verificar si es super_admin (tiene todos los permisos)
     const isSuperAdmin = await this.isSuperAdmin(userId);
     if (isSuperAdmin) return true;
