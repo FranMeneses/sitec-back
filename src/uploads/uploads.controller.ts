@@ -78,8 +78,16 @@ export class UploadsController {
     @Request() req: any,
     @Res() res: Response,
   ) {
+    console.log('🔍 downloadEvidence - evidenceId:', evidenceId);
+    
     // Verificar permisos y obtener información del archivo
     const evidence = await this.uploadsService.getEvidenceForDownload(evidenceId, req.user.id);
+    
+    console.log('🔍 Evidence data:', {
+      filename: evidence.filename,
+      originalName: evidence.originalName,
+      mimeType: evidence.mimeType
+    });
     
     // Construir ruta del archivo usando la ruta configurada
     const filePath = join(this.getUploadsPath(), evidence.filename);
@@ -90,7 +98,10 @@ export class UploadsController {
     }
     
     // Configurar headers para descarga
-    res.setHeader('Content-Disposition', `attachment; filename="${evidence.originalName}"`);
+    const contentDisposition = `attachment; filename="${evidence.originalName}"`;
+    console.log('🔍 Setting Content-Disposition:', contentDisposition);
+    
+    res.setHeader('Content-Disposition', contentDisposition);
     res.setHeader('Content-Type', evidence.mimeType);
     
     // Enviar archivo
