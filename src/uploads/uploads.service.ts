@@ -167,6 +167,8 @@ export class UploadsService {
   }
 
   async getEvidenceForDownload(evidenceId: string, userId: string): Promise<any> {
+    console.log('🔍 getEvidenceForDownload - evidenceId:', evidenceId, 'userId:', userId);
+    
     // Verificar que la evidencia existe y el usuario tiene permisos
     const evidence = await this.prisma.evidence.findUnique({
       where: { id: evidenceId },
@@ -182,8 +184,11 @@ export class UploadsService {
     });
 
     if (!evidence) {
+      console.log('❌ Evidencia no encontrada:', evidenceId);
       throw new BadRequestException('La evidencia no existe');
     }
+    
+    console.log('✅ Evidencia encontrada:', evidence.link);
 
     // Validar permisos
     const projectMember = await this.prisma.project_member.findFirst({
