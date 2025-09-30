@@ -88,8 +88,6 @@ export class UploadsService {
     taskId: string,
     uploaderId: string,
   ): Promise<UploadResponse> {
-    console.log('🔍 Upload Debug - taskId:', taskId, 'uploaderId:', uploaderId, 'file:', file?.originalname);
-    
     // Validar que la tarea existe
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
@@ -97,11 +95,8 @@ export class UploadsService {
     });
 
     if (!task) {
-      console.log('❌ Tarea no encontrada:', taskId);
       throw new BadRequestException('La tarea especificada no existe');
     }
-    
-    console.log('✅ Tarea encontrada:', task.name);
 
     // Validar permisos: puede ser project_member o task_member
     const projectMember = await this.prisma.project_member.findFirst({
@@ -207,8 +202,8 @@ export class UploadsService {
     // Extraer nombre del archivo de la ruta
     const filename = evidence.link.split('/').pop() || '';
     
-    // Extraer nombre original del archivo (remover el UUID)
-    const originalName = filename.replace(/_[a-f0-9-]{36}\./, '.');
+    // Como ya no usamos UUID en el nombre, el filename ES el nombre original
+    const originalName = filename;
 
     return {
       filename,
