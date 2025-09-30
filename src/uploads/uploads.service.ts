@@ -122,11 +122,9 @@ export class UploadsService {
       },
     });
 
-    // Generar nombre del archivo: {nombreOriginal}_{evidenceId}.{extension}
-    const originalName = file.originalname.replace(/\.[^/.]+$/, ''); // Remover extensión
-    const fileExtension = file.originalname.split('.').pop()?.toLowerCase() || '';
-    const newFilename = `${originalName}_${evidence.id}.${fileExtension}`;
-    const fileUrl = `/uploads/current/${newFilename}`;
+    // Usar el nombre original del archivo (sin UUID)
+    const filename = file.originalname;
+    const fileUrl = `/uploads/current/${filename}`;
 
     try {
       // Actualizar el registro de evidencia con la ruta del archivo
@@ -149,7 +147,7 @@ export class UploadsService {
 
       return {
         evidenceId: evidence.id,
-        filename: newFilename,
+        filename: filename,
         originalName: file.originalname,
         filePath: fileUrl,
         fileUrl: fileUrl,
