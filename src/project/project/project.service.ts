@@ -462,8 +462,11 @@ export class ProjectService {
 
     switch (currentRole) {
       case 'super_admin':
-        // Super_admin ve todos los proyectos
+        // Super_admin ve todos los proyectos (excepto eliminados)
         projects = await this.prisma.project.findMany({
+          where: {
+            status: { not: 'deleted' }
+          },
           include: {
             user: true, // editor
             category: {
@@ -514,7 +517,8 @@ export class ProjectService {
               id_area: {
                 in: areaIds
               }
-            }
+            },
+            status: { not: 'deleted' }
           },
           include: {
             user: true, // editor
@@ -552,7 +556,8 @@ export class ProjectService {
           where: {
             idunit: {
               in: unitIds
-            }
+            },
+            status: { not: 'deleted' }
           },
           include: {
             user: true, // editor
@@ -590,7 +595,8 @@ export class ProjectService {
           where: {
             id: {
               in: projectIds
-            }
+            },
+            status: { not: 'deleted' }
           },
           include: {
             user: true, // editor
@@ -640,7 +646,8 @@ export class ProjectService {
           where: {
             id: {
               in: uniqueTaskProjectIds
-            }
+            },
+            status: { not: 'deleted' }
           },
           include: {
             user: true, // editor
@@ -819,21 +826,54 @@ export class ProjectService {
     // Validar permisos para eliminar proyectos
     await this.validateProjectDeletePermissions(userId, id);
 
-    // Verificar que hay miembros o procesos asociados
-    const members = await this.prisma.project_member.findMany({
-      where: { idproject: id },
-    });
-
+    // Obtener todos los procesos asociados al proyecto
     const processes = await this.prisma.process.findMany({
       where: { idproject: id },
+      include: { task: true },
     });
 
-    if (members.length > 0 || processes.length > 0) {
-      throw new BadRequestException('No se puede eliminar el proyecto porque tiene miembros o procesos asociados');
+    // Para cada proceso, cancelar las tareas que no estén completadas ni canceladas
+    for (const process of processes) {
+      const tasksToCancel = process.task.filter(
+        task => task.status !== 'completed' && task.status !== 'cancelled'
+      );
+
+      // Actualizar tareas a estado cancelado
+      if (tasksToCancel.length > 0) {
+        await this.prisma.task.updateMany({
+          where: {
+            id: { in: tasksToCancel.map(t => t.id) },
+          },
+          data: {
+            status: 'cancelled',
+            editedat: new Date(),
+            ideditor: userId,
+          },
+        });
+      }
     }
 
-    await this.prisma.project.delete({
+    // Marcar procesos como cancelados (usando el campo review)
+    if (processes.length > 0) {
+      await this.prisma.process.updateMany({
+        where: { idproject: id },
+        data: {
+          review: 'cancelled',
+          editedat: new Date(),
+          ideditor: userId,
+        },
+      });
+    }
+
+    // Marcar el proyecto como eliminado (soft delete)
+    // Esto mantiene el historial de procesos y tareas canceladas para auditoría
+    await this.prisma.project.update({
       where: { id },
+      data: {
+        status: 'deleted',
+        editedat: new Date(),
+        ideditor: userId,
+      },
     });
 
     return true;
@@ -841,7 +881,10 @@ export class ProjectService {
 
   async findUnitProjects(unitId: number): Promise<Project[]> {
     const projects = await this.prisma.project.findMany({
-      where: { idunit: unitId },
+      where: { 
+        idunit: unitId,
+        status: { not: 'deleted' }
+      },
       include: {
         user: true, // editor
         category: true,
@@ -859,7 +902,8 @@ export class ProjectService {
       where: {
         category: {
           id_area: areaId
-        }
+        },
+        status: { not: 'deleted' }
       },
       include: {
         user: true, // editor
