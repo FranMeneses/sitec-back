@@ -10,6 +10,8 @@ import { CreateLogInput, LogType } from './dto/logs.dto';
 
 @Injectable()
 export class ActivityService {
+  private readonly EXCLUDE_ARCHIVED = { archived_at: null };
+
   constructor(
     private prisma: PrismaService,
     private userService: UserService,
@@ -17,11 +19,13 @@ export class ActivityService {
 
   // ==================== EVIDENCE METHODS ====================
 
-  async findAllEvidence(userId?: string): Promise<Evidence[]> {
+  async findAllEvidence(userId?: string, includeArchived = false): Promise<Evidence[]> {
     const evidence = await this.prisma.evidence.findMany({
+      where: includeArchived ? {} : this.EXCLUDE_ARCHIVED,
       include: {
         task: true,
         user: true, // uploader
+        user_evidence_archived_byTouser: true, // archived by user
       },
       orderBy: { uploadedat: 'desc' },
     });
@@ -29,25 +33,34 @@ export class ActivityService {
     return evidence.map(ev => this.mapEvidence(ev));
   }
 
-  async findEvidenceById(id: string): Promise<Evidence | null> {
+  async findEvidenceById(id: string, includeArchived = false): Promise<Evidence | null> {
     const evidence = await this.prisma.evidence.findUnique({
       where: { id },
       include: {
         task: true,
         user: true, // uploader
+        user_evidence_archived_byTouser: true, // archived by user
       },
     });
 
     if (!evidence) return null;
+    
+    // Si no incluimos archivadas y está archivada, retornar null
+    if (!includeArchived && evidence.archived_at) return null;
+    
     return this.mapEvidence(evidence);
   }
 
-  async findEvidenceByTask(taskId: string): Promise<Evidence[]> {
+  async findEvidenceByTask(taskId: string, includeArchived = false): Promise<Evidence[]> {
     const evidence = await this.prisma.evidence.findMany({
-      where: { idtask: taskId },
+      where: {
+        idtask: taskId,
+        ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+      },
       include: {
         task: true,
         user: true, // uploader
+        user_evidence_archived_byTouser: true, // archived by user
       },
       orderBy: { uploadedat: 'desc' },
     });
@@ -171,6 +184,158 @@ export class ActivityService {
     });
 
     return true;
+  }
+
+  async archiveEvidence(id: string, userId: string): Promise<Evidence> {
+    // Validar que la evidencia existe y no está archivada
+    const existingEvidence = await this.prisma.evidence.findUnique({
+      where: { id },
+      include: { task: { include: { process: { include: { project: true } } } } },
+    });
+
+    if (!existingEvidence) {
+      throw new NotFoundException('Evidencia no encontrada');
+    }
+
+    if (existingEvidence.archived_at) {
+      throw new BadRequestException('La evidencia ya está archivada');
+    }
+
+    // Validar que el usuario es miembro del proyecto
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: existingEvidence.task.process.idproject,
+        iduser: userId,
+      },
+    });
+
+    if (!projectMember) {
+      throw new ForbiddenException('No tienes permisos para archivar esta evidencia');
+    }
+
+    // Archivar
+    const evidence = await this.prisma.evidence.update({
+      where: { id },
+      data: {
+        archived_at: new Date(),
+        archived_by: userId,
+      },
+      include: {
+        task: true,
+        user: true,
+        user_evidence_archived_byTouser: true,
+      },
+    });
+
+    return this.mapEvidence(evidence);
+  }
+
+  async unarchiveEvidence(id: string, userId: string): Promise<Evidence> {
+    // Validar que la evidencia existe y está archivada
+    const existingEvidence = await this.prisma.evidence.findUnique({
+      where: { id },
+      include: { task: { include: { process: { include: { project: true } } } } },
+    });
+
+    if (!existingEvidence) {
+      throw new NotFoundException('Evidencia no encontrada');
+    }
+
+    if (!existingEvidence.archived_at) {
+      throw new BadRequestException('La evidencia no está archivada');
+    }
+
+    // Validar que el usuario es miembro del proyecto
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: existingEvidence.task.process.idproject,
+        iduser: userId,
+      },
+    });
+
+    if (!projectMember) {
+      throw new ForbiddenException('No tienes permisos para desarchivar esta evidencia');
+    }
+
+    // Desarchivar
+    const evidence = await this.prisma.evidence.update({
+      where: { id },
+      data: {
+        archived_at: null,
+        archived_by: null,
+      },
+      include: {
+        task: true,
+        user: true,
+        user_evidence_archived_byTouser: true,
+      },
+    });
+
+    return this.mapEvidence(evidence);
+  }
+
+  async replaceEvidence(evidenceId: string, newLink: string, userId: string, review?: string): Promise<Evidence> {
+    // Validar que la evidencia existe
+    const existingEvidence = await this.prisma.evidence.findUnique({
+      where: { id: evidenceId },
+      include: { task: { include: { process: { include: { project: true } } } } },
+    });
+
+    if (!existingEvidence) {
+      throw new NotFoundException('Evidencia no encontrada');
+    }
+
+    // Validar permisos: puede ser project_member o task_member
+    const projectMember = await this.prisma.project_member.findFirst({
+      where: {
+        idproject: existingEvidence.task.process.idproject,
+        iduser: userId,
+      },
+    });
+
+    const isTaskMember = await this.userService.isTaskMember(userId, existingEvidence.idtask);
+
+    if (!projectMember && !isTaskMember) {
+      throw new ForbiddenException('No tienes permisos para reemplazar esta evidencia');
+    }
+
+    // Eliminar archivo físico anterior
+    const fs = require('fs').promises;
+    const path = require('path');
+    const oldFilePath = path.join(process.cwd(), existingEvidence.link);
+    
+    try {
+      await fs.unlink(oldFilePath);
+    } catch (error) {
+      // Si el archivo no existe o hay error, continuar igual (log warning)
+      console.warn(`No se pudo eliminar archivo anterior: ${oldFilePath}`, error.message);
+    }
+
+    // Actualizar en BD
+    const updatedEvidence = await this.prisma.evidence.update({
+      where: { id: evidenceId },
+      data: {
+        link: newLink,
+        version: (existingEvidence.version || 1) + 1,
+        reuploaded_at: new Date(),
+        review: review !== undefined ? review : existingEvidence.review,
+      },
+      include: {
+        task: true,
+        user: true,
+        user_evidence_archived_byTouser: true,
+      },
+    });
+
+    // Crear log de actividad
+    await this.createLog({
+      type: LogType.EVIDENCE_REPLACED,
+      taskId: existingEvidence.idtask,
+      processId: existingEvidence.task.idprocess,
+      projectId: existingEvidence.task.process.idproject || undefined,
+    }, userId);
+
+    return this.mapEvidence(updatedEvidence);
   }
 
   // ==================== COMMENT METHODS ====================
@@ -418,6 +583,11 @@ export class ActivityService {
       uploader: evidence.user,
       uploadedAt: evidence.uploadedat,
       review: evidence.review,
+      version: evidence.version,
+      reuploadedAt: evidence.reuploaded_at,
+      archivedAt: evidence.archived_at,
+      archivedBy: evidence.archived_by,
+      archivedByUser: evidence.user_evidence_archived_byTouser,
       createdAt: evidence.createdat,
       updatedAt: evidence.updatedat,
     };

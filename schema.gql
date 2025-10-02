@@ -189,9 +189,13 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 type Evidence {
+  archivedAt: DateTime
+  archivedBy: String
+  archivedByUser: User
   createdAt: DateTime!
   id: ID!
   link: String!
+  reuploadedAt: DateTime
   review: String
   task: Task
   taskId: String!
@@ -199,6 +203,7 @@ type Evidence {
   uploadedAt: DateTime!
   uploader: User
   uploaderId: String!
+  version: Float
 }
 
 input GoogleAuthDto {
@@ -234,6 +239,7 @@ type Logs {
 type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
+  archiveEvidence(id: String!): Evidence!
   assignProjectMemberAsUnitMember(addProjectMemberInput: AddProjectMemberInput!, projectId: String!): Boolean!
   assignSuperAdmin(assignSuperAdminInput: AssignSuperAdminInput!): String!
   assignTaskMember(createTaskMemberInput: CreateTaskMemberInput!): Boolean!
@@ -282,6 +288,8 @@ type Mutation {
   removeUnitMember(id: String!): UnitMember!
   removeUser(id: String!): User!
   removeUserSystemRole(userId: String!): SuccessResponse!
+  replaceEvidence(evidenceId: String!, newLink: String!, review: String): Evidence!
+  unarchiveEvidence(id: String!): Evidence!
   updateArea(updateAreaInput: UpdateAreaInput!): Area!
   updateCategoryAsAreaMember(updateCategoryInput: UpdateCategoryInput!): Category!
   updateComment(updateCommentInput: UpdateCommentInput!): Comment!
@@ -351,6 +359,7 @@ type Query {
   admin(id: String!): Admin!
   admins: [Admin!]!
   allCategoriesForAdmin: [Category!]!
+  archivedEvidenceByTask(taskId: String!): [Evidence!]!
   area(id: Int!): Area!
   areaMembers: [AreaMember!]!
   areaMembersByArea(areaId: Float!): [AreaMember!]!
@@ -362,9 +371,9 @@ type Query {
   commentById(id: String!): Comment
   comments: [Comment!]!
   commentsByTask(taskId: String!): [Comment!]!
-  evidence: [Evidence!]!
-  evidenceById(id: String!): Evidence
-  evidenceByTask(taskId: String!): [Evidence!]!
+  evidence(includeArchived: Boolean! = false): [Evidence!]!
+  evidenceById(id: String!, includeArchived: Boolean! = false): Evidence
+  evidenceByTask(includeArchived: Boolean! = false, taskId: String!): [Evidence!]!
   findAreaProjects(idArea: Float!): [Project!]!
   findByProcessId(idProcess: String!): [Task!]!
   findByTaskId(idTask: String!): [Task!]!

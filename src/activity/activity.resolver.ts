@@ -23,20 +23,35 @@ export class EvidenceResolver {
 
   @Query(() => [Evidence])
   @UseGuards(JwtAuthGuard)
-  async evidence(@CurrentUser() user: User): Promise<Evidence[]> {
-    return this.activityService.findAllEvidence(user.id);
+  async evidence(
+    @CurrentUser() user: User,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Evidence[]> {
+    return this.activityService.findAllEvidence(user.id, includeArchived);
   }
 
   @Query(() => Evidence, { nullable: true })
   @UseGuards(JwtAuthGuard)
-  async evidenceById(@Args('id') id: string): Promise<Evidence | null> {
-    return this.activityService.findEvidenceById(id);
+  async evidenceById(
+    @Args('id') id: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Evidence | null> {
+    return this.activityService.findEvidenceById(id, includeArchived);
   }
 
   @Query(() => [Evidence])
   @UseGuards(JwtAuthGuard)
-  async evidenceByTask(@Args('taskId') taskId: string): Promise<Evidence[]> {
-    return this.activityService.findEvidenceByTask(taskId);
+  async evidenceByTask(
+    @Args('taskId') taskId: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Evidence[]> {
+    return this.activityService.findEvidenceByTask(taskId, includeArchived);
+  }
+
+  @Query(() => [Evidence])
+  @UseGuards(JwtAuthGuard)
+  async archivedEvidenceByTask(@Args('taskId') taskId: string): Promise<Evidence[]> {
+    return this.activityService.findEvidenceByTask(taskId, true);
   }
 
   // ==================== EVIDENCE MUTATIONS ====================
@@ -66,6 +81,35 @@ export class EvidenceResolver {
     @CurrentUser() user: User,
   ): Promise<boolean> {
     return this.activityService.deleteEvidence(id, user.id);
+  }
+
+  @Mutation(() => Evidence)
+  @UseGuards(JwtAuthGuard)
+  async archiveEvidence(
+    @Args('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<Evidence> {
+    return this.activityService.archiveEvidence(id, user.id);
+  }
+
+  @Mutation(() => Evidence)
+  @UseGuards(JwtAuthGuard)
+  async unarchiveEvidence(
+    @Args('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<Evidence> {
+    return this.activityService.unarchiveEvidence(id, user.id);
+  }
+
+  @Mutation(() => Evidence)
+  @UseGuards(JwtAuthGuard)
+  async replaceEvidence(
+    @Args('evidenceId') evidenceId: string,
+    @Args('newLink') newLink: string,
+    @Args('review', { nullable: true }) review: string,
+    @CurrentUser() user: User,
+  ): Promise<Evidence> {
+    return this.activityService.replaceEvidence(evidenceId, newLink, user.id, review);
   }
 
   @Query(() => [Evidence])

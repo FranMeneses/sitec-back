@@ -15,6 +15,7 @@ export enum LogType {
   TASK_STATUS_CHANGED = 'task_status_changed',
   TASK_REACTIVATED = 'task_reactivated',
   EVIDENCE_UPLOADED = 'evidence_uploaded',
+  EVIDENCE_REPLACED = 'evidence_replaced',
   COMMENT_ADDED = 'comment_added',
   MEMBER_ADDED = 'member_added',
   MEMBER_REMOVED = 'member_removed'

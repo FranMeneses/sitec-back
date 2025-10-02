@@ -52,14 +52,19 @@ model comment {
 }
 
 model evidence {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  idtask     String    @db.Uuid
-  link       String
-  iduploader String    @db.Uuid
-  uploadedat DateTime? @default(now()) @db.Timestamp(6)
-  review     String?
-  task       task      @relation(fields: [idtask], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  user       user      @relation(fields: [iduploader], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  idtask                          String    @db.Uuid
+  link                            String
+  iduploader                      String    @db.Uuid
+  uploadedat                      DateTime? @default(now()) @db.Timestamp(6)
+  review                          String?
+  archived_at                     DateTime? @db.Timestamp(6)
+  archived_by                     String?   @db.Uuid
+  version                         Int?      @default(1)
+  reuploaded_at                   DateTime? @db.Timestamp(6)
+  user_evidence_archived_byTouser user?     @relation("evidence_archived_byTouser", fields: [archived_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task                            task      @relation(fields: [idtask], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user                            user      @relation(fields: [iduploader], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model logs {
@@ -77,39 +82,45 @@ model logs {
 }
 
 model process {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String?   @db.VarChar
-  description String?   @db.VarChar
-  startdate   DateTime? @db.Timestamp(6)
-  duedate     DateTime? @db.Timestamp(6)
-  editedat    DateTime? @db.Timestamp(6)
-  ideditor    String?   @db.Uuid
-  idproject   String?   @db.Uuid
-  review      String?
-  logs        logs[]
-  user        user?     @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  project     project?  @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  task        task[]
+  id                             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                           String?   @db.VarChar
+  description                    String?   @db.VarChar
+  startdate                      DateTime? @db.Timestamp(6)
+  duedate                        DateTime? @db.Timestamp(6)
+  editedat                       DateTime? @db.Timestamp(6)
+  ideditor                       String?   @db.Uuid
+  idproject                      String?   @db.Uuid
+  review                         String?
+  archived_at                    DateTime? @db.Timestamp(6)
+  archived_by                    String?   @db.Uuid
+  logs                           logs[]
+  user_process_archived_byTouser user?     @relation("process_archived_byTouser", fields: [archived_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user                           user?     @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project                        project?  @relation(fields: [idproject], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task                           task[]
 }
 
 model project {
-  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String?          @db.VarChar
-  description    String?
-  startdate      DateTime?        @db.Timestamp(6)
-  duedate        DateTime?        @db.Timestamp(6)
-  editedat       DateTime?        @db.Timestamp(6)
-  ideditor       String?          @db.Uuid
-  idunit         Int?
-  idcategory     String?          @db.Uuid
-  review         String?
-  status         String?          @default("active") @db.VarChar
-  logs           logs[]
-  process        process[]
-  category       category?        @relation(fields: [idcategory], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_project_category")
-  user           user?            @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  unit           unit?            @relation(fields: [idunit], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  project_member project_member[]
+  id                             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                           String?          @db.VarChar
+  description                    String?
+  startdate                      DateTime?        @db.Timestamp(6)
+  duedate                        DateTime?        @db.Timestamp(6)
+  editedat                       DateTime?        @db.Timestamp(6)
+  ideditor                       String?          @db.Uuid
+  idunit                         Int?
+  idcategory                     String?          @db.Uuid
+  review                         String?
+  status                         String?          @default("active") @db.VarChar
+  archived_at                    DateTime?        @db.Timestamp(6)
+  archived_by                    String?          @db.Uuid
+  logs                           logs[]
+  process                        process[]
+  category                       category?        @relation(fields: [idcategory], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_project_category")
+  user_project_archived_byTouser user?            @relation("project_archived_byTouser", fields: [archived_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user                           user?            @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unit                           unit?            @relation(fields: [idunit], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_member                 project_member[]
 }
 
 model project_member {
@@ -141,25 +152,28 @@ model system_role {
 }
 
 model task {
-  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String?       @db.VarChar
-  description String?
-  startdate   DateTime?     @db.Timestamp(6)
-  duedateat   DateTime?     @db.Timestamp(6)
-  status      String?       @db.VarChar
-  editedat    DateTime?     @db.Timestamp(6)
-  ideditor    String?       @db.Uuid
-  idprocess   String        @db.Uuid
-  report      String?
-  budget      Int?
-  expense     Int?
-  review      String?
-  comment     comment[]
-  evidence    evidence[]
-  logs        logs[]
-  user        user?         @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  process     process       @relation(fields: [idprocess], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  task_member task_member[]
+  id                          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                        String?       @db.VarChar
+  description                 String?
+  startdate                   DateTime?     @db.Timestamp(6)
+  duedateat                   DateTime?     @db.Timestamp(6)
+  status                      String?       @db.VarChar
+  editedat                    DateTime?     @db.Timestamp(6)
+  ideditor                    String?       @db.Uuid
+  idprocess                   String        @db.Uuid
+  report                      String?
+  budget                      Int?
+  expense                     Int?
+  review                      String?
+  archived_at                 DateTime?     @db.Timestamp(6)
+  archived_by                 String?       @db.Uuid
+  comment                     comment[]
+  evidence                    evidence[]
+  logs                        logs[]
+  user_task_archived_byTouser user?         @relation("task_archived_byTouser", fields: [archived_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user                        user?         @relation(fields: [ideditor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  process                     process       @relation(fields: [idprocess], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task_member                 task_member[]
 }
 
 model task_member {
@@ -203,22 +217,26 @@ model unit_member {
 }
 
 model user {
-  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String?          @db.VarChar
-  email          String           @unique @db.VarChar
-  password       String?          @db.VarChar
-  isactive       Boolean?         @default(true)
-  havepassword   Boolean?         @default(false)
-  admin          admin[]
-  area_member    area_member[]
-  comment        comment[]
-  evidence       evidence[]
-  logs           logs[]
-  process        process[]
-  project        project[]
-  project_member project_member[]
-  system_role    system_role?
-  task           task[]
-  task_member    task_member[]
-  unit_member    unit_member[]
+  id                                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                                String?          @db.VarChar
+  email                               String           @unique @db.VarChar
+  password                            String?          @db.VarChar
+  isactive                            Boolean?         @default(true)
+  havepassword                        Boolean?         @default(false)
+  admin                               admin[]
+  area_member                         area_member[]
+  comment                             comment[]
+  evidence_evidence_archived_byTouser evidence[]       @relation("evidence_archived_byTouser")
+  evidence                            evidence[]
+  logs                                logs[]
+  process_process_archived_byTouser   process[]        @relation("process_archived_byTouser")
+  process                             process[]
+  project_project_archived_byTouser   project[]        @relation("project_archived_byTouser")
+  project                             project[]
+  project_member                      project_member[]
+  system_role                         system_role?
+  task_task_archived_byTouser         task[]           @relation("task_archived_byTouser")
+  task                                task[]
+  task_member                         task_member[]
+  unit_member                         unit_member[]
 }

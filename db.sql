@@ -169,3 +169,20 @@ CREATE TABLE area_member (
 ALTER TABLE project ADD COLUMN status VARCHAR DEFAULT 'active';
 
 ALTER TABLE unit ADD COLUMN idAdmin UUID REFERENCES admin(id);
+
+ALTER TABLE project ADD COLUMN archived_at TIMESTAMP;
+ALTER TABLE project ADD COLUMN archived_by UUID REFERENCES "user"(id);
+
+ALTER TABLE process ADD COLUMN archived_at TIMESTAMP;
+ALTER TABLE process ADD COLUMN archived_by UUID REFERENCES "user"(id);
+
+ALTER TABLE task ADD COLUMN archived_at TIMESTAMP;
+ALTER TABLE task ADD COLUMN archived_by UUID REFERENCES "user"(id);
+
+ALTER TABLE evidence ADD COLUMN archived_at TIMESTAMP;
+ALTER TABLE evidence ADD COLUMN archived_by UUID REFERENCES "user"(id);
+
+CREATE INDEX idx_project_archived ON project(archived_at) WHERE archived_at IS NULL;
+CREATE INDEX idx_process_archived ON process(archived_at) WHERE archived_at IS NULL;
+CREATE INDEX idx_task_archived ON task(archived_at) WHERE archived_at IS NULL;
+CREATE INDEX idx_evidence_archived ON evidence(archived_at) WHERE archived_at IS NULL;

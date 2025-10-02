@@ -28,6 +28,21 @@ export class Evidence {
   @Field({ nullable: true })
   review?: string;
 
+  @Field({ nullable: true })
+  version?: number;
+
+  @Field({ nullable: true })
+  reuploadedAt?: Date;
+
+  @Field({ nullable: true })
+  archivedAt?: Date;
+
+  @Field({ nullable: true })
+  archivedBy?: string;
+
+  @Field(() => User, { nullable: true })
+  archivedByUser?: User;
+
   @Field()
   createdAt?: Date;
 
