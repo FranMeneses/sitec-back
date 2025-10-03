@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { UserService } from '../../auth/user/user.service';
+import { ProcessService } from '../../process/process.service';
 import { Project } from '../entities/project.entity';
 import { Category } from '../entities/category.entity';
 import { ProjectMember } from '../entities/project-member.entity';
@@ -13,9 +14,12 @@ import { AssignProcessMemberInput, RemoveProcessMemberInput } from '../dto/proje
 
 @Injectable()
 export class ProjectService {
+  private readonly EXCLUDE_ARCHIVED = { archived_at: null };
+
   constructor(
     private prisma: PrismaService,
     private userService: UserService,
+    private processService: ProcessService,
   ) {}
 
   // ==================== VALIDATION METHODS ====================
@@ -681,17 +685,22 @@ export class ProjectService {
     return projects.map(project => this.mapProject(project));
   }
 
-  async findProjectById(id: string): Promise<Project | null> {
+  async findProjectById(id: string, includeArchived = false): Promise<Project | null> {
     const project = await this.prisma.project.findUnique({
       where: { id },
       include: {
         user: true, // editor
         category: true,
         unit: true,
+        user_project_archived_byTouser: true, // archived by user
       },
     });
 
     if (!project) return null;
+    
+    // Si no incluimos archivados y está archivado, retornar null
+    if (!includeArchived && project.archived_at) return null;
+    
     return this.mapProject(project);
   }
 
@@ -1345,6 +1354,9 @@ export class ProjectService {
       unitId: project.idunit,
       review: project.review,
       status: project.status || 'active',
+      archivedAt: project.archived_at,
+      archivedBy: project.archived_by,
+      archivedByUser: project.user_project_archived_byTouser,
     };
   }
 
@@ -1862,5 +1874,134 @@ export class ProjectService {
       activeProjects: activeProjects.map(project => this.mapProject(project)),
       inactiveProjects: inactiveProjects.map(project => this.mapProject(project)),
     };
+  }
+
+  // ==================== PROJECT ARCHIVING METHODS ====================
+
+  /**
+   * Archiva solo el proyecto (sin tocar los procesos)
+   * Uso: Cuando todos los procesos ya están archivados (automático)
+   */
+  async archiveProjectOnly(projectId: string, userId: string | null): Promise<Project> {
+    const existingProject = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { 
+        user: true,
+        category: true,
+        unit: true,
+        user_project_archived_byTouser: true,
+      },
+    });
+
+    if (!existingProject) {
+      throw new NotFoundException('Proyecto no encontrado');
+    }
+
+    if (existingProject.archived_at) {
+      throw new BadRequestException('El proyecto ya está archivado');
+    }
+
+    // Archivar el proyecto
+    const archivedProject = await this.prisma.project.update({
+      where: { id: projectId },
+      data: {
+        archived_at: new Date(),
+        archived_by: userId, // NULL si es automático, userId si es manual
+      },
+      include: {
+        user: true,
+        category: true,
+        unit: true,
+        user_project_archived_byTouser: true,
+      },
+    });
+
+    return this.mapProject(archivedProject);
+  }
+
+  /**
+   * Archiva el proyecto y TODOS sus procesos (con tareas y evidencias en cascada)
+   * Uso: Archivado manual por admin
+   */
+  async archiveProjectWithProcesses(projectId: string, userId: string): Promise<Project> {
+    const existingProject = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { category: true, unit: true },
+    });
+
+    if (!existingProject) {
+      throw new NotFoundException('Proyecto no encontrado');
+    }
+
+    if (existingProject.archived_at) {
+      throw new BadRequestException('El proyecto ya está archivado');
+    }
+
+    // Validar permisos para archivar proyecto
+    await this.validateProjectDeletePermissions(userId, projectId);
+
+    // 1. Obtener todos los procesos NO archivados del proyecto
+    const activeProcesses = await this.prisma.process.findMany({
+      where: {
+        idproject: projectId,
+        archived_at: null,
+      },
+    });
+
+    // 2. Archivar cada proceso con sus tareas y evidencias
+    for (const process of activeProcesses) {
+      await this.processService.archiveProcessWithTasks(process.id, userId);
+    }
+
+    // 3. Archivar el proyecto
+    const archivedProject = await this.prisma.project.update({
+      where: { id: projectId },
+      data: {
+        archived_at: new Date(),
+        archived_by: userId,
+      },
+      include: {
+        user: true,
+        category: true,
+        unit: true,
+        user_project_archived_byTouser: true,
+      },
+    });
+
+    return this.mapProject(archivedProject);
+  }
+
+  async unarchiveProject(projectId: string, userId: string): Promise<Project> {
+    const existingProject = await this.prisma.project.findUnique({
+      where: { id: projectId },
+    });
+
+    if (!existingProject) {
+      throw new NotFoundException('Proyecto no encontrado');
+    }
+
+    if (!existingProject.archived_at) {
+      throw new BadRequestException('El proyecto no está archivado');
+    }
+
+    // Validar permisos
+    await this.validateProjectDeletePermissions(userId, projectId);
+
+    // Desarchivar el proyecto (los procesos permanecen archivados)
+    const unarchivedProject = await this.prisma.project.update({
+      where: { id: projectId },
+      data: {
+        archived_at: null,
+        archived_by: null,
+      },
+      include: {
+        user: true,
+        category: true,
+        unit: true,
+        user_project_archived_byTouser: true,
+      },
+    });
+
+    return this.mapProject(unarchivedProject);
   }
 }

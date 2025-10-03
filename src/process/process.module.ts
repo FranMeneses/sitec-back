@@ -14,6 +14,7 @@ import { SystemRoleService } from '../auth/system-role/system-role.service';
     TaskMemberResolver,
     UserService, 
     SystemRoleService
-  ]
+  ],
+  exports: [ProcessService], // Export para que ProjectModule pueda usar ProcessService
 })
 export class ProcessModule {}

@@ -37,6 +37,15 @@ export class Project {
   @Field(() => String, { nullable: true })
   status?: string;
 
+  @Field({ nullable: true })
+  archivedAt?: Date;
+
+  @Field({ nullable: true })
+  archivedBy?: string;
+
+  @Field(() => User, { nullable: true })
+  archivedByUser?: User;
+
   @Field()
   createdAt?: Date;
 
@@ -50,6 +59,6 @@ export class Project {
   // @Field(() => Unit, { nullable: true })
   // unit?: Unit;
   
-  // @Field(() => [ProjectMember])
+  // @Field () => [ProjectMember])
   // members?: ProjectMember[];
 }

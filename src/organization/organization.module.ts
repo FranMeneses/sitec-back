@@ -5,18 +5,20 @@ import { UnitMemberResolver } from './unit-member.resolver';
 import { AreaMemberResolver } from './area-member.resolver';
 import { PrismaModule } from '../common/prisma/prisma.module';
 import { UserService } from '../auth/user/user.service';
-import { ProjectService } from '../project/project/project.service';
+import { ProjectModule } from '../project/project.module';
 import { SystemRoleService } from '../auth/system-role/system-role.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [
+    PrismaModule,
+    ProjectModule, // Importar ProjectModule para acceder a ProjectService
+  ],
   providers: [
     OrganizationService, 
     OrganizationResolver, 
     UnitMemberResolver,
     AreaMemberResolver,
     UserService,
-    ProjectService,
     SystemRoleService
   ],
   exports: [OrganizationService],

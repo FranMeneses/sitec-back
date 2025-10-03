@@ -24,8 +24,11 @@ export class ProjectResolver {
 
   @Query(() => Project, { nullable: true })
   @UseGuards(JwtAuthGuard)
-  async project(@Args('id') id: string): Promise<Project | null> {
-    return this.projectService.findProjectById(id);
+  async project(
+    @Args('id') id: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Project | null> {
+    return this.projectService.findProjectById(id, includeArchived);
   }
 
   @Query(() => [ProjectMember])
@@ -95,6 +98,24 @@ export class ProjectResolver {
     @CurrentUser() user: User,
   ): Promise<boolean> {
     return this.projectService.deleteProject(id, user.id);
+  }
+
+  @Mutation(() => Project)
+  @UseGuards(JwtAuthGuard)
+  async archiveProject(
+    @Args('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<Project> {
+    return this.projectService.archiveProjectWithProcesses(id, user.id);
+  }
+
+  @Mutation(() => Project)
+  @UseGuards(JwtAuthGuard)
+  async unarchiveProject(
+    @Args('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<Project> {
+    return this.projectService.unarchiveProject(id, user.id);
   }
 
   @Mutation(() => ProjectMember)

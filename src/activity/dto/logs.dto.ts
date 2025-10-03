@@ -5,6 +5,8 @@ export enum LogType {
   PROJECT_CREATED = 'project_created',
   PROJECT_UPDATED = 'project_updated',
   PROJECT_DELETED = 'project_deleted',
+  PROJECT_ARCHIVED = 'project_archived',
+  PROJECT_UNARCHIVED = 'project_unarchived',
   PROCESS_CREATED = 'process_created',
   PROCESS_UPDATED = 'process_updated',
   PROCESS_DELETED = 'process_deleted',

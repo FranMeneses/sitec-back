@@ -241,6 +241,7 @@ type Mutation {
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
   archiveEvidence(id: String!): Evidence!
   archiveProcess(id: String!): Process!
+  archiveProject(id: String!): Project!
   archiveTask(id: String!): Task!
   assignProjectMemberAsUnitMember(addProjectMemberInput: AddProjectMemberInput!, projectId: String!): Boolean!
   assignSuperAdmin(assignSuperAdminInput: AssignSuperAdminInput!): String!
@@ -293,6 +294,7 @@ type Mutation {
   replaceEvidence(evidenceId: String!, newLink: String!, review: String): Evidence!
   unarchiveEvidence(id: String!): Evidence!
   unarchiveProcess(id: String!): Process!
+  unarchiveProject(id: String!): Project!
   unarchiveTask(id: String!): Task!
   updateArea(updateAreaInput: UpdateAreaInput!): Area!
   updateCategoryAsAreaMember(updateCategoryInput: UpdateCategoryInput!): Category!
@@ -333,6 +335,9 @@ type Process {
 }
 
 type Project {
+  archivedAt: DateTime
+  archivedBy: String
+  archivedByUser: User
   category: Category
   categoryId: String
   createdAt: DateTime!
@@ -421,7 +426,7 @@ type Query {
   process(id: String!, includeArchived: Boolean! = false): Process
   processes(includeArchived: Boolean! = false): [Process!]!
   processesByProject(includeArchived: Boolean! = false, projectId: String!): [Process!]!
-  project(id: String!): Project
+  project(id: String!, includeArchived: Boolean! = false): Project
   projectMember(id: String!): ProjectMember!
   projectMembers(projectId: String!): [ProjectMember!]!
   projectProcessesByProcessId(idProcess: String!): [Process!]!

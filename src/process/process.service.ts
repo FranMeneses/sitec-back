@@ -580,7 +580,59 @@ export class ProcessService {
       },
     });
 
+    // Verificar si todos los procesos del proyecto están archivados
+    if (existingProcess.idproject) {
+      await this.checkAndArchiveProject(existingProcess.idproject);
+    }
+
     return this.mapProcess(archivedProcess);
+  }
+
+  /**
+   * Verifica si todos los procesos de un proyecto están archivados
+   * Si es así, archiva el proyecto automáticamente
+   */
+  private async checkAndArchiveProject(projectId: string): Promise<void> {
+    // Contar total de procesos del proyecto
+    const totalProcesses = await this.prisma.process.count({
+      where: { idproject: projectId },
+    });
+
+    // Contar procesos archivados del proyecto
+    const archivedProcesses = await this.prisma.process.count({
+      where: {
+        idproject: projectId,
+        archived_at: { not: null },
+      },
+    });
+
+    // Si todos están archivados y hay al menos un proceso, archivar el proyecto
+    if (totalProcesses > 0 && totalProcesses === archivedProcesses) {
+      // Verificar que el proyecto no esté ya archivado
+      const project = await this.prisma.project.findUnique({
+        where: { id: projectId },
+      });
+
+      if (project && !project.archived_at) {
+        // Archivar el proyecto directamente (no necesitamos llamar a ProjectService)
+        await this.prisma.project.update({
+          where: { id: projectId },
+          data: {
+            archived_at: new Date(),
+            archived_by: null, // null porque es archivado automático
+          },
+        });
+
+        // Crear log de archivado automático
+        await this.prisma.logs.create({
+          data: {
+            type: 'project_archived',
+            idcreator: project.ideditor || '00000000-0000-0000-0000-000000000000', // Sistema
+            idproject: projectId,
+          },
+        });
+      }
+    }
   }
 
   /**
