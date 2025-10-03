@@ -904,7 +904,47 @@ export class ProcessService {
       throw new ForbiddenException('No tienes permisos para editar esta tarea');
     }
 
-    // Solo permitir actualizar status, report, budget y expense
+    // Detectar si el estado cambió a COMPLETED o CANCELLED
+    const statusChanged = updateTaskInput.status && updateTaskInput.status !== existingTask.status;
+    const shouldArchive = statusChanged && 
+                          (updateTaskInput.status === 'completed' || 
+                           updateTaskInput.status === 'cancelled');
+
+    // Si debe archivarse, primero actualizar y luego archivar
+    if (shouldArchive) {
+      // Preparar datos de actualización
+      const updateData: any = {
+        editedat: new Date(),
+        ideditor: memberId,
+      };
+
+      if (updateTaskInput.status !== undefined) {
+        updateData.status = updateTaskInput.status;
+      }
+
+      if (updateTaskInput.report !== undefined) {
+        updateData.report = updateTaskInput.report;
+      }
+
+      if (updateTaskInput.budget !== undefined) {
+        updateData.budget = updateTaskInput.budget;
+      }
+
+      if (updateTaskInput.expense !== undefined) {
+        updateData.expense = updateTaskInput.expense;
+      }
+
+      // Actualizar la tarea primero
+      await this.prisma.task.update({
+        where: { id: updateTaskInput.id },
+        data: updateData,
+      });
+
+      // Archivar en cascada (incluye evidencias)
+      return await this.archiveTaskWithEvidences(updateTaskInput.id, memberId);
+    }
+
+    // Actualización normal (sin archivar)
     const updateData: any = {
       editedat: new Date(),
     };
@@ -1293,13 +1333,15 @@ export class ProcessService {
       throw new NotFoundException('Tarea no encontrada');
     }
 
-    // Reactivar la tarea (cambiar estado a pending)
+    // Reactivar la tarea (cambiar estado a pending y desarchivar si está archivada)
     const reactivatedTask = await this.prisma.task.update({
       where: { id: taskId },
       data: {
         status: 'pending',
         editedat: new Date(),
         ideditor: userId,
+        archived_at: null,  // Desarchivar automáticamente
+        archived_by: null,
       },
       include: {
         user: true,
