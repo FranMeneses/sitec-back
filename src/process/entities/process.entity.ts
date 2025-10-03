@@ -28,6 +28,15 @@ export class Process {
   @Field({ nullable: true })
   review?: string;
 
+  @Field({ nullable: true })
+  archivedAt?: Date;
+
+  @Field({ nullable: true })
+  archivedBy?: string;
+
+  @Field(() => User, { nullable: true })
+  archivedByUser?: User;
+
   @Field()
   projectId: string;
 

@@ -377,11 +377,13 @@ export class ProcessService {
 
   // ==================== PROCESS METHODS ====================
 
-  async findAllProcesses(userId?: string): Promise<Process[]> {
+  async findAllProcesses(userId?: string, includeArchived = false): Promise<Process[]> {
     const processes = await this.prisma.process.findMany({
+      where: includeArchived ? {} : this.EXCLUDE_ARCHIVED,
       include: {
         user: true, // editor
         project: true,
+        user_process_archived_byTouser: true, // archived by user
       },
       orderBy: { name: 'asc' },
     });
@@ -389,25 +391,34 @@ export class ProcessService {
     return processes.map(process => this.mapProcess(process));
   }
 
-  async findProcessById(id: string): Promise<Process | null> {
+  async findProcessById(id: string, includeArchived = false): Promise<Process | null> {
     const process = await this.prisma.process.findUnique({
       where: { id },
       include: {
         user: true, // editor
         project: true,
+        user_process_archived_byTouser: true, // archived by user
       },
     });
 
     if (!process) return null;
+    
+    // Si no incluimos archivados y está archivado, retornar null
+    if (!includeArchived && process.archived_at) return null;
+    
     return this.mapProcess(process);
   }
 
-  async findProcessesByProject(projectId: string): Promise<Process[]> {
+  async findProcessesByProject(projectId: string, includeArchived = false): Promise<Process[]> {
     const processes = await this.prisma.process.findMany({
-      where: { idproject: projectId },
+      where: {
+        idproject: projectId,
+        ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+      },
       include: {
         user: true, // editor
         project: true,
+        user_process_archived_byTouser: true, // archived by user
       },
       orderBy: { name: 'asc' },
     });
@@ -535,6 +546,130 @@ export class ProcessService {
     });
 
     return true;
+  }
+
+  /**
+   * Archiva solo el proceso (sin tocar las tareas)
+   * Uso: Cuando todas las tareas ya están archivadas (automático)
+   */
+  async archiveProcessOnly(processId: string, userId: string | null): Promise<Process> {
+    const existingProcess = await this.prisma.process.findUnique({
+      where: { id: processId },
+      include: { project: true, user: true, user_process_archived_byTouser: true },
+    });
+
+    if (!existingProcess) {
+      throw new NotFoundException('Proceso no encontrado');
+    }
+
+    if (existingProcess.archived_at) {
+      throw new BadRequestException('El proceso ya está archivado');
+    }
+
+    // Archivar el proceso
+    const archivedProcess = await this.prisma.process.update({
+      where: { id: processId },
+      data: {
+        archived_at: new Date(),
+        archived_by: userId, // NULL si es automático, userId si es manual
+      },
+      include: {
+        user: true,
+        project: true,
+        user_process_archived_byTouser: true,
+      },
+    });
+
+    return this.mapProcess(archivedProcess);
+  }
+
+  /**
+   * Archiva el proceso y TODAS sus tareas (con evidencias en cascada)
+   * Uso: Cuando se archiva un proyecto (desde Project service)
+   */
+  async archiveProcessWithTasks(processId: string, userId: string): Promise<Process> {
+    const existingProcess = await this.prisma.process.findUnique({
+      where: { id: processId },
+      include: { project: true },
+    });
+
+    if (!existingProcess) {
+      throw new NotFoundException('Proceso no encontrado');
+    }
+
+    if (existingProcess.archived_at) {
+      throw new BadRequestException('El proceso ya está archivado');
+    }
+
+    // 1. Obtener todas las tareas NO archivadas del proceso
+    const activeTasks = await this.prisma.task.findMany({
+      where: {
+        idprocess: processId,
+        archived_at: null,
+      },
+    });
+
+    // 2. Archivar cada tarea con sus evidencias
+    for (const task of activeTasks) {
+      await this.archiveTaskWithEvidences(task.id, null); // userId=null porque es cascada
+    }
+
+    // 3. Archivar el proceso
+    const archivedProcess = await this.prisma.process.update({
+      where: { id: processId },
+      data: {
+        archived_at: new Date(),
+        archived_by: userId,
+      },
+      include: {
+        user: true,
+        project: true,
+        user_process_archived_byTouser: true,
+      },
+    });
+
+    return this.mapProcess(archivedProcess);
+  }
+
+  async unarchiveProcess(processId: string, userId: string): Promise<Process> {
+    const existingProcess = await this.prisma.process.findUnique({
+      where: { id: processId },
+      include: { project: true },
+    });
+
+    if (!existingProcess) {
+      throw new NotFoundException('Proceso no encontrado');
+    }
+
+    if (!existingProcess.archived_at) {
+      throw new BadRequestException('El proceso no está archivado');
+    }
+
+    // Validar permisos
+    if (!existingProcess.idproject) {
+      throw new BadRequestException('El proceso no está asociado a un proyecto');
+    }
+
+    const canAccess = await this.canAccessProject(existingProcess.idproject, userId);
+    if (!canAccess) {
+      throw new ForbiddenException('No tienes permisos para desarchivar este proceso');
+    }
+
+    // Desarchivar el proceso (las tareas permanecen archivadas)
+    const unarchivedProcess = await this.prisma.process.update({
+      where: { id: processId },
+      data: {
+        archived_at: null,
+        archived_by: null,
+      },
+      include: {
+        user: true,
+        project: true,
+        user_process_archived_byTouser: true,
+      },
+    });
+
+    return this.mapProcess(unarchivedProcess);
   }
 
   // ==================== TASK METHODS ====================
@@ -1135,7 +1270,7 @@ export class ProcessService {
     return true;
   }
 
-  async archiveTaskWithEvidences(taskId: string, userId: string): Promise<Task> {
+  async archiveTaskWithEvidences(taskId: string, userId: string | null): Promise<Task> {
     // 1. Obtener la tarea con toda su información
     const existingTask = await this.prisma.task.findUnique({
       where: { id: taskId },
@@ -1189,7 +1324,42 @@ export class ProcessService {
       },
     });
 
+    // 5. Verificar si todas las tareas del proceso están archivadas
+    const processId = existingTask.idprocess;
+    await this.checkAndArchiveProcess(processId);
+
     return this.mapTask(archivedTask);
+  }
+
+  /**
+   * Verifica si todas las tareas de un proceso están archivadas
+   * Si es así, archiva el proceso automáticamente
+   */
+  private async checkAndArchiveProcess(processId: string): Promise<void> {
+    // Contar total de tareas del proceso
+    const totalTasks = await this.prisma.task.count({
+      where: { idprocess: processId },
+    });
+
+    // Contar tareas archivadas del proceso
+    const archivedTasks = await this.prisma.task.count({
+      where: {
+        idprocess: processId,
+        archived_at: { not: null },
+      },
+    });
+
+    // Si todas están archivadas y hay al menos una tarea, archivar el proceso
+    if (totalTasks > 0 && totalTasks === archivedTasks) {
+      // Verificar que el proceso no esté ya archivado
+      const process = await this.prisma.process.findUnique({
+        where: { id: processId },
+      });
+
+      if (process && !process.archived_at) {
+        await this.archiveProcessOnly(processId, null); // userId=null porque es automático
+      }
+    }
   }
 
   async unarchiveTask(taskId: string, userId: string): Promise<Task> {
@@ -1246,6 +1416,10 @@ export class ProcessService {
       dueDate: process.duedate,
       editedAt: process.editedat,
       editor: process.user,
+      review: process.review,
+      archivedAt: process.archived_at,
+      archivedBy: process.archived_by,
+      archivedByUser: process.user_process_archived_byTouser,
       projectId: process.idproject,
       project: process.project,
       createdAt: process.createdat,

@@ -240,6 +240,7 @@ type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
   archiveEvidence(id: String!): Evidence!
+  archiveProcess(id: String!): Process!
   archiveTask(id: String!): Task!
   assignProjectMemberAsUnitMember(addProjectMemberInput: AddProjectMemberInput!, projectId: String!): Boolean!
   assignSuperAdmin(assignSuperAdminInput: AssignSuperAdminInput!): String!
@@ -291,6 +292,7 @@ type Mutation {
   removeUserSystemRole(userId: String!): SuccessResponse!
   replaceEvidence(evidenceId: String!, newLink: String!, review: String): Evidence!
   unarchiveEvidence(id: String!): Evidence!
+  unarchiveProcess(id: String!): Process!
   unarchiveTask(id: String!): Task!
   updateArea(updateAreaInput: UpdateAreaInput!): Area!
   updateCategoryAsAreaMember(updateCategoryInput: UpdateCategoryInput!): Category!
@@ -312,6 +314,9 @@ type Mutation {
 }
 
 type Process {
+  archivedAt: DateTime
+  archivedBy: String
+  archivedByUser: User
   createdAt: DateTime!
   description: String
   dueDate: DateTime
@@ -413,9 +418,9 @@ type Query {
   myRoles: [Role!]!
   myUnitMemberships: [UnitMember!]!
   myUnitsAsAdmin: [Unit!]!
-  process(id: String!): Process
-  processes: [Process!]!
-  processesByProject(projectId: String!): [Process!]!
+  process(id: String!, includeArchived: Boolean! = false): Process
+  processes(includeArchived: Boolean! = false): [Process!]!
+  processesByProject(includeArchived: Boolean! = false, projectId: String!): [Process!]!
   project(id: String!): Project
   projectMember(id: String!): ProjectMember!
   projectMembers(projectId: String!): [ProjectMember!]!

@@ -8,6 +8,8 @@ export enum LogType {
   PROCESS_CREATED = 'process_created',
   PROCESS_UPDATED = 'process_updated',
   PROCESS_DELETED = 'process_deleted',
+  PROCESS_ARCHIVED = 'process_archived',
+  PROCESS_UNARCHIVED = 'process_unarchived',
   TASK_CREATED = 'task_created',
   TASK_UPDATED = 'task_updated',
   TASK_DELETED = 'task_deleted',

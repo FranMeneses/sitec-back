@@ -18,20 +18,29 @@ export class ProcessResolver {
 
   @Query(() => [Process])
   @UseGuards(JwtAuthGuard)
-  async processes(@CurrentUser() user: User): Promise<Process[]> {
-    return this.processService.findAllProcesses(user.id);
+  async processes(
+    @CurrentUser() user: User,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Process[]> {
+    return this.processService.findAllProcesses(user.id, includeArchived);
   }
 
   @Query(() => Process, { nullable: true })
   @UseGuards(JwtAuthGuard)
-  async process(@Args('id') id: string): Promise<Process | null> {
-    return this.processService.findProcessById(id);
+  async process(
+    @Args('id') id: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Process | null> {
+    return this.processService.findProcessById(id, includeArchived);
   }
 
   @Query(() => [Process])
   @UseGuards(JwtAuthGuard)
-  async processesByProject(@Args('projectId') projectId: string): Promise<Process[]> {
-    return this.processService.findProcessesByProject(projectId);
+  async processesByProject(
+    @Args('projectId') projectId: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Process[]> {
+    return this.processService.findProcessesByProject(projectId, includeArchived);
   }
 
   @Query(() => [Task])
@@ -67,6 +76,24 @@ export class ProcessResolver {
     @CurrentUser() user: User,
   ): Promise<boolean> {
     return this.processService.deleteProcess(id, user.id);
+  }
+
+  @Mutation(() => Process)
+  @UseGuards(JwtAuthGuard)
+  async archiveProcess(
+    @Args('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<Process> {
+    return this.processService.archiveProcessWithTasks(id, user.id);
+  }
+
+  @Mutation(() => Process)
+  @UseGuards(JwtAuthGuard)
+  async unarchiveProcess(
+    @Args('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<Process> {
+    return this.processService.unarchiveProcess(id, user.id);
   }
 
   @Mutation(() => String)
