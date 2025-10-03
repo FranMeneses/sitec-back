@@ -104,20 +104,29 @@ export class TaskResolver {
 
   @Query(() => [Task])
   @UseGuards(JwtAuthGuard)
-  async tasks(@CurrentUser() user: User): Promise<Task[]> {
-    return this.processService.findAllTasks(user.id);
+  async tasks(
+    @CurrentUser() user: User,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Task[]> {
+    return this.processService.findAllTasks(user.id, includeArchived);
   }
 
   @Query(() => Task, { nullable: true })
   @UseGuards(JwtAuthGuard)
-  async task(@Args('id') id: string): Promise<Task | null> {
-    return this.processService.findTaskById(id);
+  async task(
+    @Args('id') id: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Task | null> {
+    return this.processService.findTaskById(id, includeArchived);
   }
 
   @Query(() => [Task])
   @UseGuards(JwtAuthGuard)
-  async tasksByProcess(@Args('processId') processId: string): Promise<Task[]> {
-    return this.processService.findTasksByProcess(processId);
+  async tasksByProcess(
+    @Args('processId') processId: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Task[]> {
+    return this.processService.findTasksByProcess(processId, includeArchived);
   }
 
   @Query(() => [Task])
@@ -170,7 +179,23 @@ export class TaskResolver {
     return this.processService.deleteTask(id, user.id);
   }
 
+  @Mutation(() => Task)
+  @UseGuards(JwtAuthGuard)
+  async archiveTask(
+    @Args('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<Task> {
+    return this.processService.archiveTaskWithEvidences(id, user.id);
+  }
 
+  @Mutation(() => Task)
+  @UseGuards(JwtAuthGuard)
+  async unarchiveTask(
+    @Args('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<Task> {
+    return this.processService.unarchiveTask(id, user.id);
+  }
 
   @ResolveField(() => [TaskMember])
   async taskMembers(@Parent() task: Task): Promise<TaskMember[]> {

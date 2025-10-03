@@ -240,6 +240,7 @@ type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
   archiveEvidence(id: String!): Evidence!
+  archiveTask(id: String!): Task!
   assignProjectMemberAsUnitMember(addProjectMemberInput: AddProjectMemberInput!, projectId: String!): Boolean!
   assignSuperAdmin(assignSuperAdminInput: AssignSuperAdminInput!): String!
   assignTaskMember(createTaskMemberInput: CreateTaskMemberInput!): Boolean!
@@ -290,6 +291,7 @@ type Mutation {
   removeUserSystemRole(userId: String!): SuccessResponse!
   replaceEvidence(evidenceId: String!, newLink: String!, review: String): Evidence!
   unarchiveEvidence(id: String!): Evidence!
+  unarchiveTask(id: String!): Task!
   updateArea(updateAreaInput: UpdateAreaInput!): Area!
   updateCategoryAsAreaMember(updateCategoryInput: UpdateCategoryInput!): Category!
   updateComment(updateCommentInput: UpdateCommentInput!): Comment!
@@ -422,9 +424,9 @@ type Query {
   projects: [Project!]!
   role(id: Int!): Role
   roles: [Role!]!
-  task(id: String!): Task
-  tasks: [Task!]!
-  tasksByProcess(processId: String!): [Task!]!
+  task(id: String!, includeArchived: Boolean! = false): Task
+  tasks(includeArchived: Boolean! = false): [Task!]!
+  tasksByProcess(includeArchived: Boolean! = false, processId: String!): [Task!]!
   tasksByProjectId(idProject: String!): [Task!]!
   type(id: Int!): Type!
   types: [Type!]!
@@ -478,6 +480,9 @@ type SystemRoleResponse {
 }
 
 type Task {
+  archivedAt: DateTime
+  archivedBy: String
+  archivedByUser: User
   budget: Float
   createdAt: DateTime!
   description: String

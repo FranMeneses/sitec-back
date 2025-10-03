@@ -10,6 +10,8 @@ import { User } from '../auth/entities/user.entity';
 
 @Injectable()
 export class ProcessService {
+  private readonly EXCLUDE_ARCHIVED = { archived_at: null };
+
   constructor(
     private prisma: PrismaService,
     private userService: UserService,
@@ -537,11 +539,13 @@ export class ProcessService {
 
   // ==================== TASK METHODS ====================
 
-  async findAllTasks(userId?: string): Promise<Task[]> {
+  async findAllTasks(userId?: string, includeArchived = false): Promise<Task[]> {
     const tasks = await this.prisma.task.findMany({
+      where: includeArchived ? {} : this.EXCLUDE_ARCHIVED,
       include: {
         user: true, // editor
         process: true,
+        user_task_archived_byTouser: true, // archived by user
       },
       orderBy: { name: 'asc' },
     });
@@ -549,25 +553,34 @@ export class ProcessService {
     return tasks.map(task => this.mapTask(task));
   }
 
-  async findTaskById(id: string): Promise<Task | null> {
+  async findTaskById(id: string, includeArchived = false): Promise<Task | null> {
     const task = await this.prisma.task.findUnique({
       where: { id },
       include: {
         user: true, // editor
         process: true,
+        user_task_archived_byTouser: true, // archived by user
       },
     });
 
     if (!task) return null;
+    
+    // Si no incluimos archivadas y está archivada, retornar null
+    if (!includeArchived && task.archived_at) return null;
+    
     return this.mapTask(task);
   }
 
-  async findTasksByProcess(processId: string): Promise<Task[]> {
+  async findTasksByProcess(processId: string, includeArchived = false): Promise<Task[]> {
     const tasks = await this.prisma.task.findMany({
-      where: { idprocess: processId },
+      where: {
+        idprocess: processId,
+        ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+      },
       include: {
         user: true, // editor
         process: true,
+        user_task_archived_byTouser: true, // archived by user
       },
       orderBy: { name: 'asc' },
     });
@@ -814,6 +827,37 @@ export class ProcessService {
       throw new ForbiddenException('No tienes permisos para editar esta tarea');
     }
 
+    // Detectar si el estado cambió a COMPLETED o CANCELLED
+    const statusChanged = updateTaskInput.status && updateTaskInput.status !== existingTask.status;
+    const shouldArchive = statusChanged && 
+                          (updateTaskInput.status === TaskStatus.COMPLETED || 
+                           updateTaskInput.status === TaskStatus.CANCELLED);
+
+    // Si debe archivarse, primero actualizar y luego archivar
+    if (shouldArchive) {
+      // Actualizar la tarea primero
+      await this.prisma.task.update({
+        where: { id: updateTaskInput.id },
+        data: {
+          name: updateTaskInput.name,
+          description: updateTaskInput.description,
+          startdate: updateTaskInput.startDate ? new Date(updateTaskInput.startDate) : null,
+          duedateat: updateTaskInput.dueDate ? new Date(updateTaskInput.dueDate) : null,
+          status: updateTaskInput.status,
+          ideditor: editorId,
+          report: updateTaskInput.report,
+          budget: updateTaskInput.budget,
+          expense: updateTaskInput.expense,
+          review: updateTaskInput.review,
+          editedat: new Date(),
+        },
+      });
+
+      // Archivar en cascada (incluye evidencias)
+      return await this.archiveTaskWithEvidences(updateTaskInput.id, editorId);
+    }
+
+    // Actualización normal (sin archivar)
     const task = await this.prisma.task.update({
       where: { id: updateTaskInput.id },
       data: {
@@ -1051,6 +1095,105 @@ export class ProcessService {
     return true;
   }
 
+  async archiveTaskWithEvidences(taskId: string, userId: string): Promise<Task> {
+    // 1. Obtener la tarea con toda su información
+    const existingTask = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { 
+        process: { include: { project: true } },
+        user: true,
+        user_task_archived_byTouser: true,
+      },
+    });
+
+    if (!existingTask) {
+      throw new NotFoundException('Tarea no encontrada');
+    }
+
+    if (existingTask.archived_at) {
+      throw new BadRequestException('La tarea ya está archivada');
+    }
+
+    // 2. Obtener todas las evidencias NO archivadas de la tarea
+    const activeEvidences = await this.prisma.evidence.findMany({
+      where: {
+        idtask: taskId,
+        archived_at: null,
+      },
+    });
+
+    // 3. Archivar todas las evidencias en cascada (archived_by = null)
+    if (activeEvidences.length > 0) {
+      await this.prisma.evidence.updateMany({
+        where: {
+          id: { in: activeEvidences.map(e => e.id) },
+        },
+        data: {
+          archived_at: new Date(),
+          archived_by: null, // Cascada automática
+        },
+      });
+    }
+
+    // 4. Archivar la tarea
+    const archivedTask = await this.prisma.task.update({
+      where: { id: taskId },
+      data: {
+        archived_at: new Date(),
+        archived_by: userId,
+      },
+      include: {
+        user: true,
+        process: true,
+        user_task_archived_byTouser: true,
+      },
+    });
+
+    return this.mapTask(archivedTask);
+  }
+
+  async unarchiveTask(taskId: string, userId: string): Promise<Task> {
+    // Validar que la tarea existe y está archivada
+    const existingTask = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { process: { include: { project: true } } },
+    });
+
+    if (!existingTask) {
+      throw new NotFoundException('Tarea no encontrada');
+    }
+
+    if (!existingTask.archived_at) {
+      throw new BadRequestException('La tarea no está archivada');
+    }
+
+    // Validar permisos
+    if (!existingTask.process.idproject) {
+      throw new BadRequestException('El proceso no está asociado a un proyecto');
+    }
+
+    const canEdit = await this.canCreateTask(existingTask.process.idproject, userId);
+    if (!canEdit) {
+      throw new ForbiddenException('No tienes permisos para desarchivar esta tarea');
+    }
+
+    // Desarchivar la tarea (las evidencias permanecen archivadas)
+    const unarchivedTask = await this.prisma.task.update({
+      where: { id: taskId },
+      data: {
+        archived_at: null,
+        archived_by: null,
+      },
+      include: {
+        user: true,
+        process: true,
+        user_task_archived_byTouser: true,
+      },
+    });
+
+    return this.mapTask(unarchivedTask);
+  }
+
 
   // ==================== HELPER METHODS ====================
 
@@ -1121,6 +1264,9 @@ export class ProcessService {
       report: task.report,
       budget: task.budget,
       expense: task.expense,
+      archivedAt: task.archived_at,
+      archivedBy: task.archived_by,
+      archivedByUser: task.user_task_archived_byTouser,
       processId: task.idprocess,
       process: task.process,
       createdAt: task.createdat,
