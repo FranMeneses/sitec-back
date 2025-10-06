@@ -314,7 +314,7 @@ export class UserService {
   }
 
   async getAdminArea(userId: string): Promise<number | null> {
-    // Obtener el área del admin
+    // Obtener el área del admin (mantener para compatibilidad)
     const adminRecord = await this.prisma.admin.findFirst({
       where: { iduser: userId },
       select: { idarea: true }

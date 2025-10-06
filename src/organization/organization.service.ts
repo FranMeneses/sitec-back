@@ -89,42 +89,25 @@ export class OrganizationService {
 
     // Verificar si el usuario es admin
     const isAdmin = await this.isUserAdmin(currentUser.id);
-    if (isAdmin) {
-      // Admin ve solo su área
-      const adminArea = await this.getAdminArea(currentUser.id);
-      if (!adminArea) {
-        throw new ForbiddenException('Admin no asociado a ningún área');
+    const isAreaMember = await this.userService.isAreaMemberOfAny(currentUser.id);
+    
+    if (isAdmin || isAreaMember) {
+      // Obtener todas las áreas donde el usuario tiene permisos
+      const adminAreas = isAdmin ? await this.getAdminAreas(currentUser.id) : [];
+      const memberAreas = isAreaMember ? await this.getAreaMemberAreas(currentUser.id) : [];
+      
+      // Combinar áreas y eliminar duplicados
+      const allUserAreas = [...new Set([...adminAreas, ...memberAreas])];
+      
+      if (allUserAreas.length === 0) {
+        throw new ForbiddenException('Usuario no asociado a ningún área');
       }
 
       return this.prisma.area.findMany({
-        where: { id: adminArea },
-        include: {
-          admin: {
-            include: {
-              user: true
-            }
-          },
-          category: true,
-          area_member: {
-            include: {
-              user: true
-            }
-          }
-        },
-      });
-    }
-
-    // Verificar si el usuario es area_member
-    const isAreaMember = await this.userService.isAreaMemberOfAny(currentUser.id);
-    if (isAreaMember) {
-      // Area_member ve solo las áreas donde es miembro
-      return this.prisma.area.findMany({
-        where: {
-          area_member: {
-            some: {
-              iduser: currentUser.id
-            }
-          }
+        where: { 
+          id: { 
+            in: allUserAreas 
+          } 
         },
         include: {
           admin: {
@@ -1371,13 +1354,33 @@ export class OrganizationService {
 
   // ===== HELPER METHODS FOR ADMIN AREA =====
   private async getAdminArea(userId: string): Promise<number | null> {
-    // Obtener el área del admin
+    // Obtener el área del admin (mantener para compatibilidad con código existente)
     const adminRecord = await this.prisma.admin.findFirst({
       where: { iduser: userId },
       select: { idarea: true }
     });
 
     return adminRecord?.idarea || null;
+  }
+
+  private async getAdminAreas(userId: string): Promise<number[]> {
+    // Obtener TODAS las áreas donde el usuario es admin
+    const adminRecords = await this.prisma.admin.findMany({
+      where: { iduser: userId },
+      select: { idarea: true }
+    });
+
+    return adminRecords.map(record => record.idarea).filter((id): id is number => id !== null);
+  }
+
+  private async getAreaMemberAreas(userId: string): Promise<number[]> {
+    // Obtener TODAS las áreas donde el usuario es area_member
+    const areaMemberRecords = await this.prisma.area_member.findMany({
+      where: { iduser: userId },
+      select: { idarea: true }
+    });
+
+    return areaMemberRecords.map(record => record.idarea).filter((id): id is number => id !== null);
   }
 
   private async isAdminOfArea(userId: string, areaId: number): Promise<boolean> {
