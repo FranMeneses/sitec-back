@@ -1742,52 +1742,29 @@ export class OrganizationService {
       }));
     }
 
-    // Admin puede ver categorías de sus áreas
-    if (userRoles.includes('admin')) {
-      const adminAreas = await this.prisma.admin.findMany({
-        where: { iduser: userId },
-        select: { idarea: true }
-      });
-      
-      if (adminAreas.length === 0) {
-        throw new ForbiddenException('Admin no asignado a ningún área');
-      }
-
-      const areaIds = adminAreas.map(admin => admin.idarea).filter((id): id is number => id !== null);
-      const categories = await this.prisma.category.findMany({
-        where: { id_area: { in: areaIds } },
-        include: {
-          area: true,
-          project: true,
-        },
-      });
-      
-      return categories.map(category => ({
-        id: category.id,
-        name: category.name,
-        description: category.description || undefined,
-        areaId: category.id_area,
-        area: category.area ? {
-          id: category.area.id,
-          name: category.area.name || undefined,
-        } : undefined,
-        createdAt: undefined,
-        updatedAt: undefined,
-      }));
-    }
-
-    // Area member puede ver categorías de su área
-    const areaMember = await this.prisma.area_member.findFirst({
+    // Obtener TODAS las áreas donde el usuario tiene permisos
+    const adminAreas = userRoles.includes('admin') ? await this.prisma.admin.findMany({
       where: { iduser: userId },
-    });
+      select: { idarea: true }
+    }) : [];
 
-    if (!areaMember) {
-      throw new ForbiddenException('Usuario no asignado a ningún área como miembro');
+    const areaMemberAreas = userRoles.includes('area_member') ? await this.prisma.area_member.findMany({
+      where: { iduser: userId },
+      select: { idarea: true }
+    }) : [];
+
+    // Combinar todas las áreas y eliminar duplicados
+    const adminAreaIds = adminAreas.map(admin => admin.idarea).filter((id): id is number => id !== null);
+    const memberAreaIds = areaMemberAreas.map(member => member.idarea).filter((id): id is number => id !== null);
+    const allAreaIds = [...new Set([...adminAreaIds, ...memberAreaIds])];
+
+    if (allAreaIds.length === 0) {
+      throw new ForbiddenException('Usuario no asignado a ningún área');
     }
 
-    // Obtener categorías del área del usuario
+    // Obtener categorías de TODAS las áreas donde tiene permisos
     const categories = await this.prisma.category.findMany({
-      where: { id_area: areaMember.idarea },
+      where: { id_area: { in: allAreaIds } },
       include: {
         area: true,
         project: true,
@@ -1803,8 +1780,8 @@ export class OrganizationService {
         id: category.area.id,
         name: category.area.name || undefined,
       } : undefined,
-      createdAt: undefined, // No hay campo created_at en el esquema
-      updatedAt: undefined, // No hay campo updated_at en el esquema
+      createdAt: undefined,
+      updatedAt: undefined,
     }));
   }
 
