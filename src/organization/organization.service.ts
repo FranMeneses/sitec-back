@@ -1710,16 +1710,20 @@ export class OrganizationService {
   // ==================== CATEGORY MANAGEMENT FOR AREA_MEMBER ====================
 
   async getCategoriesAsAreaMember(userId: string): Promise<any[]> {
-    // Obtener información del usuario con roles
-    const userWithRoles = await this.userService.findByIdWithRoles(userId);
+    // Verificar que el usuario existe
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }
+    });
     
-    if (!userWithRoles) {
+    if (!user) {
       throw new ForbiddenException('Usuario no encontrado');
     }
 
-    const userRoles = userWithRoles.roles?.map(r => r.name) || [];
+    // Verificar si es super_admin (solo para este caso especial)
+    const userWithRoles = await this.userService.findByIdWithRoles(userId);
+    const userRoles = userWithRoles?.roles?.map(r => r.name) || [];
     
-    // Super admin puede ver todas las categorías
+    // Super admin puede ver todas las categorías del sistema
     if (userRoles.includes('super_admin')) {
       const categories = await this.prisma.category.findMany({
         include: {
@@ -1742,16 +1746,16 @@ export class OrganizationService {
       }));
     }
 
-    // Obtener TODAS las áreas donde el usuario tiene permisos
-    const adminAreas = userRoles.includes('admin') ? await this.prisma.admin.findMany({
+    // Consultar DIRECTAMENTE las tablas admin y area_member (sin depender del sistema de roles)
+    const adminAreas = await this.prisma.admin.findMany({
       where: { iduser: userId },
       select: { idarea: true }
-    }) : [];
+    });
 
-    const areaMemberAreas = userRoles.includes('area_member') ? await this.prisma.area_member.findMany({
+    const areaMemberAreas = await this.prisma.area_member.findMany({
       where: { iduser: userId },
       select: { idarea: true }
-    }) : [];
+    });
 
     // Combinar todas las áreas y eliminar duplicados
     const adminAreaIds = adminAreas.map(admin => admin.idarea).filter((id): id is number => id !== null);
