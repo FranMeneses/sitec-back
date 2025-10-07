@@ -18,8 +18,11 @@ export class ProjectResolver {
 
   @Query(() => [Project])
   @UseGuards(JwtAuthGuard)
-  async projects(@CurrentUser() user: User): Promise<Project[]> {
-    return this.projectService.findAllProjects(user.id);
+  async projects(
+    @CurrentUser() user: User,
+    @Args('includeArchived', { type: () => Boolean, nullable: true, defaultValue: false }) includeArchived?: boolean,
+  ): Promise<Project[]> {
+    return this.projectService.findAllProjects(user.id, includeArchived);
   }
 
   @Query(() => Project, { nullable: true })

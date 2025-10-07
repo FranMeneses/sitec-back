@@ -448,7 +448,7 @@ export class ProjectService {
 
   // ==================== PROJECT METHODS ====================
 
-  async findAllProjects(userId?: string): Promise<Project[]> {
+  async findAllProjects(userId?: string, includeArchived = false): Promise<Project[]> {
     // Si no hay usuario, no puede ver proyectos
     if (!userId) {
       throw new ForbiddenException('Debe estar autenticado para ver proyectos');
@@ -469,7 +469,8 @@ export class ProjectService {
         // Super_admin ve todos los proyectos (excepto eliminados)
         projects = await this.prisma.project.findMany({
           where: {
-            status: { not: 'deleted' }
+            status: { not: 'deleted' },
+            ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
           },
           include: {
             user: true, // editor
@@ -522,7 +523,8 @@ export class ProjectService {
                 in: areaIds
               }
             },
-            status: { not: 'deleted' }
+            status: { not: 'deleted' },
+            ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
           },
           include: {
             user: true, // editor
@@ -561,7 +563,8 @@ export class ProjectService {
             idunit: {
               in: unitIds
             },
-            status: { not: 'deleted' }
+            status: { not: 'deleted' },
+            ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
           },
           include: {
             user: true, // editor
@@ -600,7 +603,8 @@ export class ProjectService {
             id: {
               in: projectIds
             },
-            status: { not: 'deleted' }
+            status: { not: 'deleted' },
+            ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
           },
           include: {
             user: true, // editor
@@ -651,7 +655,8 @@ export class ProjectService {
             id: {
               in: uniqueTaskProjectIds
             },
-            status: { not: 'deleted' }
+            status: { not: 'deleted' },
+            ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
           },
           include: {
             user: true, // editor

@@ -431,7 +431,7 @@ type Query {
   projectMembers(projectId: String!): [ProjectMember!]!
   projectProcessesByProcessId(idProcess: String!): [Process!]!
   projectProcessesByProjectId(idProject: String!): [Process!]!
-  projects: [Project!]!
+  projects(includeArchived: Boolean = false): [Project!]!
   role(id: Int!): Role
   roles: [Role!]!
   task(id: String!, includeArchived: Boolean! = false): Task
