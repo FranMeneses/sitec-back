@@ -19,8 +19,11 @@ export class TaskMemberResolver {
 
   @Query(() => [Task], { name: 'myAssignedTasks' })
   @UseGuards(JwtAuthGuard)
-  async myAssignedTasks(@CurrentUser() user: User): Promise<any[]> {
-    return this.userService.findUserAssignedTasks(user.id);
+  async myAssignedTasks(
+    @CurrentUser() user: User,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<any[]> {
+    return this.userService.findUserAssignedTasks(user.id, includeArchived);
   }
 
   @Mutation(() => Task, { name: 'updateTaskAsMember' })

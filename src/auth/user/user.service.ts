@@ -403,24 +403,28 @@ export class UserService {
 
   // ==================== TASK_MEMBER METHODS ====================
 
-  async findUserAssignedTasks(userId: string): Promise<any[]> {
+  async findUserAssignedTasks(userId: string, includeArchived = false): Promise<any[]> {
     // Obtener todas las tareas donde el usuario es task_member
     const taskMembers = await this.prisma.task_member.findMany({
-      where: { iduser: userId },
+      where: { 
+        iduser: userId,
+        task: includeArchived ? {} : { archived_at: null }
+      },
       include: {
-        task: {
-          include: {
-            process: {
+            task: {
               include: {
-                project: {
+                process: {
                   include: {
-                    unit: true,
-                    category: true,
+                    project: {
+                      include: {
+                        unit: true,
+                        category: true,
+                      }
+                    }
                   }
-                }
-              }
-            },
-            user: true, // editor
+                },
+                user: true, // editor
+                user_task_archived_byTouser: true, // archived by user
             comment: {
               include: {
                 user: true,

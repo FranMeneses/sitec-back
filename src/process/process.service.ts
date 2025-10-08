@@ -775,14 +775,18 @@ export class ProcessService {
     return tasks.map(task => this.mapTask(task));
   }
 
-  async findTasksByTaskId(taskId: string): Promise<Task[]> {
+  async findTasksByTaskId(taskId: string, includeArchived = false): Promise<Task[]> {
     // Esta query retorna la tarea específica con su proceso asociado
     // Es útil para obtener información completa de una tarea y su proceso
     const task = await this.prisma.task.findUnique({
-      where: { id: taskId },
+      where: { 
+        id: taskId,
+        ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
+      },
       include: {
         user: true, // editor
         process: true,
+        user_task_archived_byTouser: true, // archived by user
       },
     });
 

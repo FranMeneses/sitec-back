@@ -387,8 +387,8 @@ type Query {
   evidenceById(id: String!, includeArchived: Boolean! = false): Evidence
   evidenceByTask(includeArchived: Boolean! = false, taskId: String!): [Evidence!]!
   findAreaProjects(idArea: Float!): [Project!]!
-  findByProcessId(idProcess: String!): [Task!]!
-  findByTaskId(idTask: String!): [Task!]!
+  findByProcessId(idProcess: String!, includeArchived: Boolean! = false): [Task!]!
+  findByTaskId(idTask: String!, includeArchived: Boolean! = false): [Task!]!
   findLogsByProcessId(idProcess: String!): [Logs!]!
   findLogsByProjectId(idProject: String!): [Logs!]!
   findLogsByTaskId(idTask: String!): [Logs!]!
@@ -418,7 +418,7 @@ type Query {
   me: User!
   myAreaMemberships: [AreaMember!]!
   myAreaTypes: [Type!]!
-  myAssignedTasks: [Task!]!
+  myAssignedTasks(includeArchived: Boolean! = false): [Task!]!
   myProjectMemberships: [ProjectMember!]!
   myRoles: [Role!]!
   myUnitMemberships: [UnitMember!]!

@@ -45,8 +45,11 @@ export class ProcessResolver {
 
   @Query(() => [Task])
   @UseGuards(JwtAuthGuard)
-  async findByProcessId(@Args('idProcess') idProcess: string): Promise<Task[]> {
-    return this.processService.findTasksByProcess(idProcess);
+  async findByProcessId(
+    @Args('idProcess') idProcess: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Task[]> {
+    return this.processService.findTasksByProcess(idProcess, includeArchived);
   }
 
   // ==================== PROCESS MUTATIONS ====================
@@ -119,7 +122,9 @@ export class ProcessResolver {
 
   @ResolveField(() => [Task])
   async processTasks(@Parent() process: Process): Promise<Task[]> {
-    return this.processService.findTasksByProcess(process.id);
+    // Si el proceso está archivado, incluir también las tareas archivadas
+    const includeArchived = !!process.archivedAt;
+    return this.processService.findTasksByProcess(process.id, includeArchived);
   }
 }
 
@@ -158,8 +163,11 @@ export class TaskResolver {
 
   @Query(() => [Task])
   @UseGuards(JwtAuthGuard)
-  async findByTaskId(@Args('idTask') idTask: string): Promise<Task[]> {
-    return this.processService.findTasksByTaskId(idTask);
+  async findByTaskId(
+    @Args('idTask') idTask: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+  ): Promise<Task[]> {
+    return this.processService.findTasksByTaskId(idTask, includeArchived);
   }
 
   @Query(() => [TaskMember])
@@ -232,7 +240,9 @@ export class TaskResolver {
 
   @ResolveField(() => Process)
   async process(@Parent() task: Task): Promise<Process | null> {
-    return this.processService.findProcessById(task.processId);
+    // Si la tarea está archivada, incluir también procesos archivados
+    const includeArchived = !!task.archivedAt;
+    return this.processService.findProcessById(task.processId, includeArchived);
   }
 
   // ==================== AREA_MEMBER QUERIES ====================
