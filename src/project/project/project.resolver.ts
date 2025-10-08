@@ -14,7 +14,7 @@ import { Unit } from '../../organization/entities/unit.entity';
 
 @Resolver(() => Project)
 export class ProjectResolver {
-  constructor(private projectService: ProjectService) {}
+  constructor(private projectService: ProjectService) { }
 
   @Query(() => [Project])
   @UseGuards(JwtAuthGuard)
@@ -118,7 +118,7 @@ export class ProjectResolver {
     @Args('id') id: string,
     @CurrentUser() user: User,
   ): Promise<Project> {
-    return this.projectService.unarchiveProject(id, user.id);
+    return this.projectService.unarchiveProjectWithProcesses(id, user.id);
   }
 
   @Mutation(() => ProjectMember)
@@ -203,7 +203,7 @@ export class ProjectResolver {
     if (!isAdmin) {
       throw new ForbiddenException('Solo los administradores del proyecto pueden ver usuarios no asignados');
     }
-    
+
     return this.projectService.getUsersNotInProject(projectId);
   }
 
