@@ -48,6 +48,9 @@ export class OrganizationService {
       },
     });
 
+    // Promover automáticamente el system_role del usuario
+    await this.promoteUserSystemRole(currentUser.id);
+
     return area;
   }
 
@@ -246,6 +249,9 @@ export class OrganizationService {
           idunit: unit.id,
         },
       });
+
+      // Promover automáticamente el system_role del usuario
+      await this.promoteUserSystemRole(currentUser.id);
     }
 
     return unit;
@@ -474,36 +480,8 @@ export class OrganizationService {
       },
     });
 
-    // Actualizar system_role según la jerarquía de prevalencia:
-    // - Si es 'super_admin' → se mantiene como 'super_admin'
-    // - Si es 'area_role' → se mantiene como 'area_role' 
-    // - Si es 'unit_role' → se mantiene como 'unit_role'
-    // - Si es 'user' → podría cambiar a 'unit_role' si se considera apropiado
-    const userRole = await this.prisma.system_role.findUnique({
-      where: { user_id: createUnitMemberInput.iduser },
-      include: { role: true }
-    });
-
-    const currentRole = userRole?.role?.name;
-    
-    // Solo cambiar a unit_role si es 'user' (no degradar roles superiores)
-    if (currentRole === 'user') {
-      const unitRole = await this.prisma.role.findFirst({
-        where: { name: 'unit_role' }
-      });
-
-      if (unitRole) {
-        // Actualizar system_role a unit_role
-        await this.prisma.system_role.upsert({
-          where: { user_id: createUnitMemberInput.iduser },
-          update: { role_id: unitRole.id },
-          create: {
-            user_id: createUnitMemberInput.iduser,
-            role_id: unitRole.id
-          }
-        });
-      }
-    }
+    // Promover automáticamente el system_role del usuario
+    await this.promoteUserSystemRole(createUnitMemberInput.iduser);
 
     return unitMember;
   }
@@ -649,9 +627,16 @@ export class OrganizationService {
     }
     // Los super_admin pueden eliminar miembros de cualquier unidad (no necesitan verificación adicional)
 
-    return this.prisma.unit_member.delete({
+    const deletedMember = await this.prisma.unit_member.delete({
       where: { id },
     });
+
+    // Recalcular automáticamente el system_role basado en membresías restantes
+    if (deletedMember.iduser) {
+      await this.promoteUserSystemRole(deletedMember.iduser);
+    }
+
+    return deletedMember;
   }
 
   async findUnitMembers(unitId: number, currentUser?: User) {
@@ -1157,39 +1142,8 @@ export class OrganizationService {
       },
     });
 
-    // Actualizar system_role según la jerarquía de prevalencia:
-    // - Si es 'super_admin' → se mantiene como 'super_admin' (máxima prevalencia)
-    // - Si es 'admin' → se mantiene como 'admin' (máxima prevalencia)
-    // - Si es 'area_member' → cambia a 'admin' (ascenso)
-    // - Si es 'unit_member' → cambia a 'admin' (ascenso)
-    // - Si es 'project_member' → cambia a 'admin' (ascenso)
-    // - Si es 'task_member' → cambia a 'admin' (ascenso)
-    // - Si es 'user' → cambia a 'admin' (ascenso)
-    const userRole = await this.prisma.system_role.findUnique({
-      where: { user_id: createAdminInput.idUser },
-      include: { role: true }
-    });
-
-    const currentRole = userRole?.role?.name;
-    
-    // Cambiar a admin para todos los roles excepto super_admin y admin
-    if (currentRole !== 'super_admin' && currentRole !== 'admin') {
-      const adminRole = await this.prisma.role.findFirst({
-        where: { name: 'admin' }
-      });
-
-      if (adminRole) {
-        // Actualizar o crear system_role
-        await this.prisma.system_role.upsert({
-          where: { user_id: createAdminInput.idUser },
-          update: { role_id: adminRole.id },
-          create: {
-            user_id: createAdminInput.idUser,
-            role_id: adminRole.id
-          }
-        });
-      }
-    }
+    // Promover automáticamente el system_role del usuario
+    await this.promoteUserSystemRole(createAdminInput.idUser);
 
     return {
       id: admin.id,
@@ -1235,20 +1189,9 @@ export class OrganizationService {
       where: { id },
     });
 
-    // Verificar si el usuario tiene otros roles de admin en otras áreas
-    const otherAdminRoles = await this.prisma.admin.findFirst({
-      where: { iduser: admin.iduser }
-    });
-
-    // Si no tiene otros roles de admin, revertir su system_role a "user"
-    if (!otherAdminRoles && admin.iduser) {
-      const userRole = await this.prisma.role.findFirst({
-        where: { name: 'user' }
-      });
-
-      if (userRole) {
-        await this.systemRoleService.updateUserSystemRole(admin.iduser, userRole.id);
-      }
+    // Recalcular automáticamente el system_role basado en membresías restantes
+    if (admin.iduser) {
+      await this.promoteUserSystemRole(admin.iduser);
     }
 
     return `Administrador con ID ${id} eliminado exitosamente`;
@@ -1291,6 +1234,9 @@ export class OrganizationService {
 
     // Asignar el rol super_admin al usuario usando SystemRoleService
     await this.systemRoleService.updateUserSystemRole(assignSuperAdminInput.idUser, superAdminRole.id);
+
+    // Nota: No llamamos a promoteUserSystemRole aquí porque super_admin es una asignación directa
+    // que anula cualquier lógica de promoción basada en membresías
 
     // Obtener el system_role actualizado para la respuesta
     const systemRole = await this.prisma.system_role.findUnique({
@@ -1560,39 +1506,8 @@ export class OrganizationService {
       },
     });
 
-    // Actualizar system_role según la jerarquía de prevalencia:
-    // area_member es un ASCENSO DE ROL, no solo una clasificación
-    // - Si es 'super_admin' → se mantiene como 'super_admin' (máxima prevalencia)
-    // - Si es 'admin' → se mantiene como 'admin' (máxima prevalencia)
-    // - Si es 'unit_member' → cambia a 'area_member' (ascenso)
-    // - Si es 'project_member' → cambia a 'area_member' (ascenso)
-    // - Si es 'task_member' → cambia a 'area_member' (ascenso)
-    // - Si es 'user' → cambia a 'area_member' (ascenso)
-    const userRole = await this.prisma.system_role.findUnique({
-      where: { user_id: createAreaMemberInput.userId },
-      include: { role: true }
-    });
-
-    const currentRole = userRole?.role?.name;
-    
-    // Cambiar a area_member para todos los roles excepto super_admin y admin
-    if (currentRole !== 'super_admin' && currentRole !== 'admin') {
-      const areaMemberRole = await this.prisma.role.findFirst({
-        where: { name: 'area_member' }
-      });
-
-      if (areaMemberRole) {
-        // Actualizar o crear system_role
-        await this.prisma.system_role.upsert({
-          where: { user_id: createAreaMemberInput.userId },
-          update: { role_id: areaMemberRole.id },
-          create: {
-            user_id: createAreaMemberInput.userId,
-            role_id: areaMemberRole.id
-          }
-        });
-      }
-    }
+    // Promover automáticamente el system_role del usuario
+    await this.promoteUserSystemRole(createAreaMemberInput.userId);
 
     return this.mapAreaMember(areaMember);
   }
@@ -2025,5 +1940,68 @@ export class OrganizationService {
     });
 
     return areaMembers.map(areaMember => this.mapAreaMember(areaMember));
+  }
+
+  // ==================== HELPER METHODS FOR ROLE PROMOTION ====================
+
+  private async promoteUserSystemRole(userId: string): Promise<void> {
+    // Verificar membresías del usuario para determinar el rol más alto
+    const userMemberships = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        admin: true,
+        area_member: true,
+        unit_member: true,
+        system_role: {
+          include: { role: true }
+        }
+      }
+    });
+
+    if (!userMemberships) return;
+
+    let targetRoleName = 'user'; // Rol por defecto
+
+    // Verificar el rol actual
+    const currentRoleName = userMemberships.system_role?.role?.name;
+
+    // Si ya es super_admin, NUNCA degradar (es el nivel más alto)
+    if (currentRoleName === 'super_admin') {
+      return; // Mantener super_admin siempre
+    }
+
+    // Determinar el rol más alto basado en membresías (jerarquía descendente)
+    if (userMemberships.admin.length > 0 || userMemberships.area_member.length > 0) {
+      targetRoleName = 'area_role';
+    } else if (userMemberships.unit_member.length > 0) {
+      targetRoleName = 'unit_role';
+    }
+
+    // Verificar si ya tiene el rol correcto
+    if (currentRoleName === targetRoleName) {
+      return; // Ya tiene el rol correcto
+    }
+
+    // Buscar el rol objetivo
+    const targetRole = await this.prisma.role.findFirst({
+      where: { name: targetRoleName }
+    });
+
+    if (!targetRole) {
+      console.error(`Rol ${targetRoleName} no encontrado en el sistema`);
+      return;
+    }
+
+    // Actualizar o crear system_role
+    await this.prisma.system_role.upsert({
+      where: { user_id: userId },
+      update: { role_id: targetRole.id },
+      create: {
+        user_id: userId,
+        role_id: targetRole.id
+      }
+    });
+
+    console.log(`✅ Usuario ${userId} promovido automáticamente a system_role: ${targetRoleName}`);
   }
 }
