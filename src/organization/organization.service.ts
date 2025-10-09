@@ -1681,10 +1681,10 @@ export class OrganizationService {
       throw new ForbiddenException('Usuario no encontrado');
     }
 
-    const userRoles = userWithRoles.roles?.map(r => r.name) || [];
+    const userSystemRole = userWithRoles.systemRole?.role?.name;
     
     // Super admin puede crear categorías en cualquier área
-    if (userRoles.includes('super_admin')) {
+    if (userSystemRole === 'super_admin') {
       // Verificar que el área existe
       const area = await this.prisma.area.findUnique({
         where: { id: createCategoryInput.areaId }
@@ -1693,40 +1693,43 @@ export class OrganizationService {
       if (!area) {
         throw new BadRequestException('El área especificada no existe');
       }
-    } else if (userRoles.includes('admin')) {
-      // Admin puede crear categorías solo en sus áreas asignadas
+    } else if (userSystemRole === 'area_role') {
+      // area_role puede crear categorías solo en sus áreas asignadas
+      // Verificar si es admin (tiene membresía admin)
       const adminAreas = await this.prisma.admin.findMany({
         where: { iduser: userId },
         select: { idarea: true }
       });
       
+      // Si no es admin, verificar si es area_member
       if (adminAreas.length === 0) {
-        throw new ForbiddenException('Admin no asignado a ningún área');
-      }
+        const areaMember = await this.prisma.area_member.findFirst({
+          where: { iduser: userId },
+        });
 
-      const areaIds = adminAreas.map(admin => admin.idarea);
-      
-      if (!areaIds.includes(createCategoryInput.areaId)) {
-        throw new ForbiddenException('Solo puedes crear categorías en las áreas donde eres admin');
+        if (!areaMember) {
+          throw new ForbiddenException('Usuario no asignado a ningún área como miembro');
+        }
+
+        // Verificar que está creando la categoría en su área
+        if (createCategoryInput.areaId !== areaMember.idarea) {
+          throw new ForbiddenException('Solo puedes crear categorías en tu área asignada');
+        }
+      } else {
+        // Es admin, verificar que está creando en su área
+        const areaIds = adminAreas.map(admin => admin.idarea);
+        
+        if (!areaIds.includes(createCategoryInput.areaId)) {
+          throw new ForbiddenException('Solo puedes crear categorías en las áreas donde eres admin');
+        }
       }
     } else {
-      // Area member puede crear categorías solo en su área
-      const areaMember = await this.prisma.area_member.findFirst({
-        where: { iduser: userId },
-      });
-
-      if (!areaMember) {
-        throw new ForbiddenException('Usuario no asignado a ningún área como miembro');
-      }
-
-      // Verificar que está creando la categoría en su área
-      if (createCategoryInput.areaId !== areaMember.idarea) {
-        throw new ForbiddenException('Solo puedes crear categorías en tu área asignada');
-      }
+      // Otros roles no pueden crear categorías
+      throw new ForbiddenException('No tienes permisos para crear categorías');
     }
 
     // Verificar que el área existe (solo si no es super_admin, ya que ellos ya verificaron)
-    if (!userRoles.includes('super_admin')) {
+    if (userSystemRole !== 'super_admin') {
       const area = await this.prisma.area.findUnique({
         where: { id: createCategoryInput.areaId }
       });
