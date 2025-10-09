@@ -6,6 +6,8 @@ import { ProjectMember } from '../entities/project-member.entity';
 import { Category } from '../entities/category.entity';
 import { CreateProjectInput, UpdateProjectInput, AddProjectMemberInput, UpdateProjectMemberInput } from '../dto/project.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { RequireAuth } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../auth/entities/user.entity';
 import { Process } from '../../process/entities/process.entity';
@@ -26,12 +28,14 @@ export class ProjectResolver {
   }
 
   @Query(() => Project, { nullable: true })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async project(
     @Args('id') id: string,
     @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+    @CurrentUser() user: User,
   ): Promise<Project | null> {
-    return this.projectService.findProjectById(id, includeArchived);
+    return this.projectService.findProjectById(id, includeArchived, user.id);
   }
 
   @Query(() => [ProjectMember])

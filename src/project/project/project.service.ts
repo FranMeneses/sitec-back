@@ -491,34 +491,51 @@ export class ProjectService {
         });
         break;
 
-      case 'admin':
-      case 'area_member':
-        // Admin/area_member ven proyectos de su área
+      case 'area_role':
+        // Admin/area_member ven proyectos de su área + proyectos donde es project_member
         const userAreas = await this.prisma.area_member.findMany({
           where: { iduser: userId },
           select: { idarea: true }
         });
 
-        // También incluir área del admin si es admin
-        if (currentRole === 'admin') {
-          const adminArea = await this.prisma.admin.findFirst({
-            where: { iduser: userId },
-            select: { idarea: true }
-          });
-          if (adminArea) {
-            userAreas.push({ idarea: adminArea.idarea! });
-          }
+        // También incluir área del admin si tiene membresía admin
+        const adminArea = await this.prisma.admin.findFirst({
+          where: { iduser: userId },
+          select: { idarea: true }
+        });
+        if (adminArea) {
+          userAreas.push({ idarea: adminArea.idarea! });
         }
 
         const areaIds = [...new Set(userAreas.map(ua => ua.idarea))];
 
+        // Obtener proyectos donde es project_member
+        const areaProjectMembers = await this.prisma.project_member.findMany({
+          where: { iduser: userId },
+          select: { idproject: true }
+        });
+        const areaProjectMemberIds = areaProjectMembers.map(pm => pm.idproject).filter(id => id !== null);
+
+        // Combinar filtros: proyectos de área OR proyectos como member
+        const areaWhereConditions: any[] = [];
+        
+        if (areaIds.length > 0) {
+          areaWhereConditions.push({
+            category: {
+              id_area: { in: areaIds }
+            }
+          });
+        }
+
+        if (areaProjectMemberIds.length > 0) {
+          areaWhereConditions.push({
+            id: { in: areaProjectMemberIds }
+          });
+        }
+
         projects = await this.prisma.project.findMany({
           where: {
-            category: {
-              id_area: {
-                in: areaIds
-              }
-            },
+            OR: areaWhereConditions,
             status: { not: 'deleted' },
             ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
           },
@@ -544,8 +561,8 @@ export class ProjectService {
         });
         break;
 
-      case 'unit_member':
-        // Unit_member ve proyectos de su unidad
+      case 'unit_role':
+        // Unit_role ve proyectos de su unidad + proyectos donde es project_member
         const userUnits = await this.prisma.unit_member.findMany({
           where: { iduser: userId },
           select: { idunit: true }
@@ -553,50 +570,31 @@ export class ProjectService {
 
         const unitIds = userUnits.map(uu => uu.idunit).filter(id => id !== null);
 
-        projects = await this.prisma.project.findMany({
-          where: {
-            idunit: {
-              in: unitIds
-            },
-            status: { not: 'deleted' },
-            ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
-          },
-          include: {
-            user: true, // editor
-            category: {
-              include: {
-                area: true
-              }
-            },
-            unit: {
-              include: {
-                type: true
-              }
-            },
-            project_member: {
-              include: {
-                user: true,
-              }
-            }
-          },
-          orderBy: { name: 'asc' },
-        });
-        break;
-
-      case 'project_member':
-        // Project_member ve proyectos donde es miembro
-        const userProjects = await this.prisma.project_member.findMany({
+        // Obtener proyectos donde es project_member
+        const unitProjectMembers = await this.prisma.project_member.findMany({
           where: { iduser: userId },
           select: { idproject: true }
         });
+        const unitProjectMemberIds = unitProjectMembers.map(pm => pm.idproject).filter(id => id !== null);
 
-        const projectIds = userProjects.map(up => up.idproject).filter(id => id !== null);
+        // Combinar filtros: proyectos de unidad OR proyectos como member
+        const unitWhereConditions: any[] = [];
+        
+        if (unitIds.length > 0) {
+          unitWhereConditions.push({
+            idunit: { in: unitIds }
+          });
+        }
+
+        if (unitProjectMemberIds.length > 0) {
+          unitWhereConditions.push({
+            id: { in: unitProjectMemberIds }
+          });
+        }
 
         projects = await this.prisma.project.findMany({
           where: {
-            id: {
-              in: projectIds
-            },
+            OR: unitWhereConditions,
             status: { not: 'deleted' },
             ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
           },
@@ -622,74 +620,63 @@ export class ProjectService {
         });
         break;
 
-      case 'task_member':
-        // Task_member ve proyectos de las tareas donde es miembro
-        const userTasks = await this.prisma.task_member.findMany({
-          where: { iduser: userId },
-          include: {
-            task: {
-              include: {
-                process: {
-                  select: { idproject: true }
-                }
-              }
-            }
-          }
-        });
-
-        const taskProjectIds = userTasks
-          .map(ut => ut.task.process?.idproject)
-          .filter(id => id !== null && id !== undefined);
-
-        const uniqueTaskProjectIds = [...new Set(taskProjectIds)];
-
-        projects = await this.prisma.project.findMany({
-          where: {
-            id: {
-              in: uniqueTaskProjectIds
-            },
-            status: { not: 'deleted' },
-            ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
-          },
-          include: {
-            user: true, // editor
-            category: {
-              include: {
-                area: true
-              }
-            },
-            unit: {
-              include: {
-                type: true
-              }
-            },
-            project_member: {
-              include: {
-                user: true,
-              }
-            }
-          },
-          orderBy: { name: 'asc' },
-        });
-        break;
 
       case 'user':
       default:
-        // User no puede ver proyectos
-        throw new ForbiddenException('No tiene permisos para ver proyectos');
+        // User puede ver proyectos donde es project_member
+        const userDirectProjects = await this.prisma.project_member.findMany({
+          where: { iduser: userId },
+          select: { idproject: true }
+        });
+        const userDirectProjectIds = userDirectProjects.map(pm => pm.idproject).filter(id => id !== null);
+
+        if (userDirectProjectIds.length === 0) {
+          // Si no es member de ningún proyecto, retornar array vacío
+          projects = [];
+        } else {
+          projects = await this.prisma.project.findMany({
+            where: {
+              id: {
+                in: userDirectProjectIds
+              },
+              status: { not: 'deleted' },
+              ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
+            },
+            include: {
+              user: true, // editor
+              category: {
+                include: {
+                  area: true
+                }
+              },
+              unit: {
+                include: {
+                  type: true
+                }
+              },
+              project_member: {
+                include: {
+                  user: true,
+                }
+              }
+            },
+            orderBy: { name: 'asc' },
+          });
+        }
     }
 
     return projects.map(project => this.mapProject(project));
   }
 
-  async findProjectById(id: string, includeArchived = false): Promise<Project | null> {
+  async findProjectById(id: string, includeArchived = false, userId?: string): Promise<Project | null> {
     const project = await this.prisma.project.findUnique({
       where: { id },
       include: {
         user: true, // editor
-        category: true,
-        unit: true,
+        category: { include: { area: true } },
+        unit: { include: { type: true } },
         user_project_archived_byTouser: true, // archived by user
+        project_member: { include: { user: true } }
       },
     });
 
@@ -698,7 +685,88 @@ export class ProjectService {
     // Si no incluimos archivados y está archivado, retornar null
     if (!includeArchived && project.archived_at) return null;
     
+    // Si se proporciona userId, validar permisos
+    if (userId) {
+      const hasPermission = await this.validateProjectViewPermissions(userId, project);
+      if (!hasPermission) {
+        throw new ForbiddenException('No tienes permisos para ver este proyecto');
+      }
+    }
+    
     return this.mapProject(project);
+  }
+
+  private async validateProjectViewPermissions(userId: string, project: any): Promise<boolean> {
+    // Obtener el system_role del usuario
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
+    });
+
+    const currentRole = userSystemRole?.role?.name;
+
+    switch (currentRole) {
+      case 'super_admin':
+        // Super_admin puede ver todos los proyectos
+        return true;
+
+      case 'area_role':
+        // area_role puede ver proyectos de su área + proyectos donde es project_member
+        const userAreas = await this.prisma.area_member.findMany({
+          where: { iduser: userId },
+          select: { idarea: true }
+        });
+
+        // También incluir área del admin si tiene membresía admin
+        const adminArea = await this.prisma.admin.findFirst({
+          where: { iduser: userId },
+          select: { idarea: true }
+        });
+        if (adminArea) {
+          userAreas.push({ idarea: adminArea.idarea! });
+        }
+
+        const areaIds = [...new Set(userAreas.map(ua => ua.idarea))];
+        
+        // Verificar si el proyecto pertenece a alguna de sus áreas
+        if (project.category && areaIds.includes(project.category.id_area)) {
+          return true;
+        }
+
+        // Verificar si es project_member del proyecto
+        const isAreaProjectMember = await this.prisma.project_member.findFirst({
+          where: { iduser: userId, idproject: project.id }
+        });
+        return !!isAreaProjectMember;
+
+      case 'unit_role':
+        // unit_role puede ver proyectos de su unidad + proyectos donde es project_member
+        const userUnits = await this.prisma.unit_member.findMany({
+          where: { iduser: userId },
+          select: { idunit: true }
+        });
+
+        const unitIds = userUnits.map(uu => uu.idunit).filter(id => id !== null);
+        
+        // Verificar si el proyecto pertenece a alguna de sus unidades
+        if (project.idunit && unitIds.includes(project.idunit)) {
+          return true;
+        }
+
+        // Verificar si es project_member del proyecto
+        const isUnitProjectMember = await this.prisma.project_member.findFirst({
+          where: { iduser: userId, idproject: project.id }
+        });
+        return !!isUnitProjectMember;
+
+      case 'user':
+      default:
+        // user solo puede ver proyectos donde es project_member
+        const isDirectProjectMember = await this.prisma.project_member.findFirst({
+          where: { iduser: userId, idproject: project.id }
+        });
+        return !!isDirectProjectMember;
+    }
   }
 
   async createProject(createProjectInput: CreateProjectInput, editorId: string): Promise<Project> {
@@ -759,6 +827,9 @@ export class ProjectService {
         iduser: editorId,
       },
     });
+
+    // Aplicar jerarquía de roles para el creador también
+    await this.applyRoleHierarchyForProjectMember(editorId);
 
     return this.mapProject(project);
   }
@@ -1963,4 +2034,5 @@ export class ProjectService {
 
     return this.mapProject(unarchivedProject);
   }
+
 }
