@@ -402,10 +402,10 @@ export class ProcessService {
     });
 
     if (!process) return null;
-    
+
     // Si no incluimos archivados y está archivado, retornar null
     if (!includeArchived && process.archived_at) return null;
-    
+
     return this.mapProcess(process);
   }
 
@@ -792,7 +792,7 @@ export class ProcessService {
     });
 
     if (!task) return null;
-    
+
     // Si no incluimos archivadas y está archivada, retornar null
     if (!includeArchived && task.archived_at) return null;
 
@@ -834,7 +834,7 @@ export class ProcessService {
     // Esta query retorna la tarea específica con su proceso asociado
     // Es útil para obtener información completa de una tarea y su proceso
     const task = await this.prisma.task.findUnique({
-      where: { 
+      where: {
         id: taskId,
         ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED)
       },
@@ -944,7 +944,7 @@ export class ProcessService {
     if (!process.idproject) {
       throw new BadRequestException('El proceso no está asociado a un proyecto');
     }
-    
+
     const canCreateTask = await this.canCreateTask(process.idproject, editorId);
     if (!canCreateTask) {
       throw new ForbiddenException('No tienes permisos para crear tareas en este proceso');
@@ -1007,7 +1007,7 @@ export class ProcessService {
         if (assignment.userId === editorId) {
           continue; // Saltar, ya fue asignado automáticamente
         }
-        
+
         await this.prisma.task_member.create({
           data: {
             idtask: task.id,
@@ -1057,7 +1057,7 @@ export class ProcessService {
     if (!existingTask.process.idproject) {
       throw new BadRequestException('El proceso no está asociado a un proyecto');
     }
-    
+
     const canEditTask = await this.canCreateTask(existingTask.process.idproject, editorId);
     if (!canEditTask) {
       throw new ForbiddenException('No tienes permisos para editar esta tarea');
@@ -1065,9 +1065,9 @@ export class ProcessService {
 
     // Detectar si el estado cambió a COMPLETED o CANCELLED
     const statusChanged = updateTaskInput.status && updateTaskInput.status !== existingTask.status;
-    const shouldArchive = statusChanged && 
-                          (updateTaskInput.status === TaskStatus.COMPLETED || 
-                           updateTaskInput.status === TaskStatus.CANCELLED);
+    const shouldArchive = statusChanged &&
+      (updateTaskInput.status === TaskStatus.COMPLETED ||
+        updateTaskInput.status === TaskStatus.CANCELLED);
 
     // Si debe archivarse, primero actualizar y luego archivar
     if (shouldArchive) {
@@ -1174,9 +1174,9 @@ export class ProcessService {
 
     // Detectar si el estado cambió a COMPLETED o CANCELLED
     const statusChanged = updateTaskInput.status && updateTaskInput.status !== existingTask.status;
-    const shouldArchive = statusChanged && 
-                          (updateTaskInput.status === 'completed' || 
-                           updateTaskInput.status === 'cancelled');
+    const shouldArchive = statusChanged &&
+      (updateTaskInput.status === 'completed' ||
+        updateTaskInput.status === 'cancelled');
 
     // Si debe archivarse, primero actualizar y luego archivar
     if (shouldArchive) {
@@ -1416,7 +1416,7 @@ export class ProcessService {
     if (!existingTask.process.idproject) {
       throw new BadRequestException('El proceso no está asociado a un proyecto');
     }
-    
+
     const canDeleteTask = await this.canCreateTask(existingTask.process.idproject, userId);
     if (!canDeleteTask) {
       throw new ForbiddenException('No tienes permisos para eliminar esta tarea');
@@ -1433,7 +1433,7 @@ export class ProcessService {
     // 1. Obtener la tarea con toda su información
     const existingTask = await this.prisma.task.findUnique({
       where: { id: taskId },
-      include: { 
+      include: {
         process: { include: { project: true } },
         user: true,
         user_task_archived_byTouser: true,
@@ -1563,6 +1563,69 @@ export class ProcessService {
     return this.mapTask(unarchivedTask);
   }
 
+
+  async unarchiveTaskWithEvidences(taskId: string, userId: string): Promise<Task> {
+    // Validar que la tarea existe y está archivada
+    const existingTask = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { process: { include: { project: true } } },
+    });
+
+    if (!existingTask) {
+      throw new NotFoundException('Tarea no encontrada');
+    }
+
+    if (!existingTask.archived_at) {
+      throw new BadRequestException('La tarea no está archivada');
+    }
+
+    // Validar permisos
+    if (!existingTask.process.idproject) {
+      throw new BadRequestException('El proceso no está asociado a un proyecto');
+    }
+
+    const canEdit = await this.canCreateTask(existingTask.process.idproject, userId);
+    if (!canEdit) {
+      throw new ForbiddenException('No tienes permisos para desarchivar esta tarea');
+    }
+
+    // 1. Obtener todas las evidencias archivadas de la tarea
+    const archivedEvidences = await this.prisma.evidence.findMany({
+      where: {
+        idtask: taskId,
+        archived_at: { not: null },
+      },
+    });
+
+    // 2. Desarchivar todas las evidencias en cascada
+    if (archivedEvidences.length > 0) {
+      await this.prisma.evidence.updateMany({
+        where: {
+          id: { in: archivedEvidences.map(e => e.id) },
+        },
+        data: {
+          archived_at: null,
+          archived_by: null,
+        },
+      });
+    }
+
+    // 3. Desarchivar la tarea
+    const unarchivedTask = await this.prisma.task.update({
+      where: { id: taskId },
+      data: {
+        archived_at: null,
+        archived_by: null,
+      },
+      include: {
+        user: true,
+        process: true,
+        user_task_archived_byTouser: true,
+      },
+    });
+
+    return this.mapTask(unarchivedTask);
+  }
 
   // ==================== HELPER METHODS ====================
 
@@ -1764,7 +1827,7 @@ export class ProcessService {
     // Verificar permisos: solo project_members pueden ver usuarios disponibles para tareas
     const isProjectMember = await this.userService.isProjectMember(currentUser.id, task.process.project.id);
     const isSuperAdmin = await this.userService.isSuperAdmin(currentUser.id);
-    
+
     if (!isProjectMember && !isSuperAdmin) {
       throw new ForbiddenException('Solo los miembros del proyecto pueden ver usuarios disponibles para tareas');
     }
@@ -1779,7 +1842,7 @@ export class ProcessService {
 
     // Obtener todos los project_members del proyecto (son elegibles para ser task_members)
     const projectMembers = task.process.project.project_member || [];
-    
+
     // Filtrar usuarios: solo project_members que NO sean ya task_members de esta tarea
     const availableUsers = projectMembers.filter(member => {
       return member.user && !existingTaskMemberIds.includes(member.user.id);
@@ -1803,5 +1866,46 @@ export class ProcessService {
           projectId: task.process!.project!.id,
         }
       }));
+  }
+
+
+  async unarchiveProcessWithTasks(processId: string, userId: string) {
+    const process = await this.prisma.process.findUnique({
+      where: { id: processId },
+    });
+
+    if (!process) throw new NotFoundException('Proceso no encontrado');
+
+    if (!process.archived_at) {
+      throw new BadRequestException('El proceso no está archivado');
+    }
+
+    // Desarchivar tareas del proceso
+    await this.prisma.task.updateMany({
+      where: { idprocess: processId },
+      data: { archived_at: null, archived_by: null },
+    });
+
+    const archivedTasks = await this.prisma.task.findMany({
+      where: {
+        idprocess: processId,
+        archived_at: null,
+      },
+    });
+
+    // 🔁 Desarchivar evidencias y tareas del proceso
+    for (const task of archivedTasks) {
+      // Desarchivar evidencias asociadas
+      await this.unarchiveTaskWithEvidences(task.id, userId);
+    }
+
+    // Finalmente, desarchivar el proceso
+    return this.prisma.process.update({
+      where: { id: processId },
+      data: {
+        archived_at: null,
+        archived_by: null,
+      },
+    });
   }
 }

@@ -20,7 +20,7 @@ export class ProjectService {
     private prisma: PrismaService,
     private userService: UserService,
     private processService: ProcessService,
-  ) {}
+  ) { }
 
   // ==================== VALIDATION METHODS ====================
 
@@ -424,7 +424,7 @@ export class ProjectService {
     if (startDate && dueDate) {
       const start = new Date(startDate);
       const due = new Date(dueDate);
-      
+
       if (due < start) {
         throw new BadRequestException('La fecha de vencimiento no puede ser anterior a la fecha de inicio');
       }
@@ -432,14 +432,14 @@ export class ProjectService {
   }
 
   private validateProjectDatesForUpdate(
-    existingProject: Project, 
-    startDate?: string, 
+    existingProject: Project,
+    startDate?: string,
     dueDate?: string
   ): void {
     // Usar las fechas del input o las existentes
     const finalStartDate = startDate || existingProject.startDate?.toISOString();
     const finalDueDate = dueDate || existingProject.dueDate?.toISOString();
-    
+
     this.validateProjectDates(finalStartDate, finalDueDate);
   }
 
@@ -681,7 +681,7 @@ export class ProjectService {
     });
 
     if (!project) return null;
-    
+
     // Si no incluimos archivados y está archivado, retornar null
     if (!includeArchived && project.archived_at) return null;
     
@@ -845,8 +845,8 @@ export class ProjectService {
 
     // Validar fechas del proyecto (considerando fechas existentes)
     this.validateProjectDatesForUpdate(
-      existingProject, 
-      updateProjectInput.startDate, 
+      existingProject,
+      updateProjectInput.startDate,
       updateProjectInput.dueDate
     );
 
@@ -950,7 +950,7 @@ export class ProjectService {
 
   async findUnitProjects(unitId: number): Promise<Project[]> {
     const projects = await this.prisma.project.findMany({
-      where: { 
+      where: {
         idunit: unitId,
         status: { not: 'deleted' }
       },
@@ -1337,9 +1337,9 @@ export class ProjectService {
         area: true
       }
     });
-    
+
     if (!category) return null;
-    
+
     return {
       id: category.id,
       name: category.name,
@@ -1359,9 +1359,9 @@ export class ProjectService {
         type: true
       }
     });
-    
+
     if (!unit) return null;
-    
+
     return {
       id: unit.id,
       name: unit.name,
@@ -1612,8 +1612,8 @@ export class ProjectService {
 
     // Obtener proyectos de la categoría
     const projects = await this.prisma.project.findMany({
-      where: { 
-        idcategory: categoryId 
+      where: {
+        idcategory: categoryId
       },
       include: {
         user: true, // editor
@@ -1657,8 +1657,8 @@ export class ProjectService {
 
     // Obtener proyectos de la unidad
     const projects = await this.prisma.project.findMany({
-      where: { 
-        idunit: unitId 
+      where: {
+        idunit: unitId
       },
       include: {
         user: true, // editor
@@ -1915,7 +1915,7 @@ export class ProjectService {
   async archiveProjectOnly(projectId: string, userId: string | null): Promise<Project> {
     const existingProject = await this.prisma.project.findUnique({
       where: { id: projectId },
-      include: { 
+      include: {
         user: true,
         category: true,
         unit: true,
@@ -2001,7 +2001,9 @@ export class ProjectService {
     return this.mapProject(archivedProject);
   }
 
-  async unarchiveProject(projectId: string, userId: string): Promise<Project> {
+
+
+  async unarchiveProjectWithProcesses(projectId: string, userId: string): Promise<Project> {
     const existingProject = await this.prisma.project.findUnique({
       where: { id: projectId },
     });
@@ -2017,7 +2019,20 @@ export class ProjectService {
     // Validar permisos
     await this.validateProjectDeletePermissions(userId, projectId);
 
-    // Desarchivar el proyecto (los procesos permanecen archivados)
+    // 1. Obtener todos los procesos archivados del proyecto
+    const archivedProcesses = await this.prisma.process.findMany({
+      where: {
+        idproject: projectId,
+        archived_at: { not: null },
+      },
+    });
+
+    // 2. Desarchivar cada proceso (con tareas y evidencias)
+    for (const process of archivedProcesses) {
+      await this.processService.unarchiveProcessWithTasks(process.id, userId);
+    }
+
+    // 3. Desarchivar el proyecto
     const unarchivedProject = await this.prisma.project.update({
       where: { id: projectId },
       data: {
