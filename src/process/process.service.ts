@@ -727,6 +727,34 @@ export class ProcessService {
   // ==================== TASK METHODS ====================
 
   async findAllTasks(userId?: string, includeArchived = false): Promise<Task[]> {
+    // Si no hay userId, devolver todas las tareas (caso de admin/super_admin)
+    if (!userId) {
+      const tasks = await this.prisma.task.findMany({
+        where: includeArchived ? {} : this.EXCLUDE_ARCHIVED,
+        include: {
+          user: true, // editor
+          process: true,
+          user_task_archived_byTouser: true, // archived by user
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      return tasks.map(task => this.mapTask(task));
+    }
+
+    // Obtener el rol del usuario para determinar qué tareas puede ver
+    const userWithRoles = await this.userService.findByIdWithRoles(userId);
+    const userSystemRole = userWithRoles?.systemRole?.role?.name;
+
+    // Si el usuario tiene rol "user", solo puede ver tareas donde es task_member
+    if (userSystemRole === 'user') {
+      const userAssignedTasks = await this.userService.findUserAssignedTasks(userId, includeArchived);
+      // Convertir el formato de findUserAssignedTasks al formato esperado por Task[]
+      return userAssignedTasks.map(tm => tm.task);
+    }
+
+    // Para otros roles (admin, area_role, unit_role), devolver todas las tareas
+    // TODO: Aquí se podrían agregar más filtros específicos por rol en el futuro
     const tasks = await this.prisma.task.findMany({
       where: includeArchived ? {} : this.EXCLUDE_ARCHIVED,
       include: {
@@ -740,13 +768,26 @@ export class ProcessService {
     return tasks.map(task => this.mapTask(task));
   }
 
-  async findTaskById(id: string, includeArchived = false): Promise<Task | null> {
+  async findTaskById(id: string, includeArchived = false, userId?: string): Promise<Task | null> {
     const task = await this.prisma.task.findUnique({
       where: { id },
       include: {
         user: true, // editor
         process: true,
         user_task_archived_byTouser: true, // archived by user
+        comment: {
+          include: { user: true },
+          orderBy: { created_at: 'desc' }
+        },
+        evidence: {
+          include: { user: true },
+          orderBy: { uploadedat: 'desc' }
+        },
+        task_member: {
+          include: {
+            user: true,
+          }
+        }
       },
     });
 
@@ -754,6 +795,20 @@ export class ProcessService {
     
     // Si no incluimos archivadas y está archivada, retornar null
     if (!includeArchived && task.archived_at) return null;
+
+    // Si se proporciona userId, verificar permisos según el rol
+    if (userId) {
+      const userWithRoles = await this.userService.findByIdWithRoles(userId);
+      const userSystemRole = userWithRoles?.systemRole?.role?.name;
+
+      // Si el usuario tiene rol "user", solo puede ver tareas donde es task_member
+      if (userSystemRole === 'user') {
+        const isTaskMember = await this.userService.isTaskMember(userId, id);
+        if (!isTaskMember) {
+          return null; // No tiene permisos para ver esta tarea
+        }
+      }
+    }
     
     return this.mapTask(task);
   }
@@ -931,27 +986,19 @@ export class ProcessService {
         task_member: {
           include: {
             user: true,
-            role: true,
           },
         },
       },
     });
 
     // Auto-asignar al creador (project_member) como task_member
-    const taskMemberRole = await this.prisma.role.findFirst({
-      where: { name: 'task_member' }
+    await this.prisma.task_member.create({
+      data: {
+        idtask: task.id,
+        iduser: editorId, // El project_member que creó la tarea
+        assigned_at: new Date(),
+      },
     });
-
-    if (taskMemberRole) {
-      await this.prisma.task_member.create({
-        data: {
-          idtask: task.id,
-          iduser: editorId, // El project_member que creó la tarea
-          idrole: taskMemberRole.id,
-          assigned_at: new Date(),
-        },
-      });
-    }
 
     if (createTaskInput.memberAssignments && createTaskInput.memberAssignments.length > 0) {
       // Asignar los miembros especificados (además del creador)
@@ -965,7 +1012,6 @@ export class ProcessService {
           data: {
             idtask: task.id,
             iduser: assignment.userId,
-            idrole: assignment.roleId,
             assigned_at: new Date(),
           },
         });
@@ -982,7 +1028,6 @@ export class ProcessService {
         task_member: {
           include: {
             user: true,
-            role: true,
           },
         },
       },
@@ -1070,7 +1115,6 @@ export class ProcessService {
         task_member: {
           include: {
             user: true,
-            role: true,
           },
         },
       },
@@ -1080,6 +1124,21 @@ export class ProcessService {
   }
 
   async updateTaskAsMember(updateTaskInput: { id: string; status?: string; report?: string; budget?: number; expense?: number }, memberId: string): Promise<Task> {
+    // Verificar permisos del usuario basado en rol y membresías
+    const userWithRoles = await this.userService.findByIdWithRoles(memberId);
+    const userSystemRole = userWithRoles?.systemRole?.role?.name;
+    
+    // Si es usuario "user", verificar que tenga membresías apropiadas
+    if (userSystemRole === 'user') {
+      const hasProjectMembership = userWithRoles?.projectMemberships?.length > 0;
+      const hasTaskMembership = userWithRoles?.taskMemberships?.length > 0;
+      
+      if (!hasProjectMembership && !hasTaskMembership) {
+        throw new ForbiddenException('Los usuarios sin membresías de proyecto o tarea no pueden editar tareas.');
+      }
+      // Si tiene membresías, continuar con la validación específica más abajo
+    }
+
     // Validar que la tarea existe
     const existingTask = await this.prisma.task.findUnique({
       where: { id: updateTaskInput.id },
@@ -1093,6 +1152,24 @@ export class ProcessService {
     const isTaskMember = await this.userService.isTaskMember(memberId, updateTaskInput.id);
     if (!isTaskMember) {
       throw new ForbiddenException('No tienes permisos para editar esta tarea');
+    }
+
+    // Validación adicional para usuarios "user": verificar membresías específicas
+    if (userSystemRole === 'user') {
+      const isProjectMember = await this.userService.isProjectMember(memberId, existingTask.process.idproject!);
+      
+      // Si es project_member del proyecto, puede editar cualquier tarea del proyecto
+      // Si NO es project_member pero SÍ es task_member, puede editar solo esta tarea
+      // (ya validamos que es task_member arriba)
+      
+      if (!isProjectMember) {
+        // Solo puede editar como task_member (permisos limitados)
+        // Podemos agregar restricciones adicionales aquí si es necesario
+        console.log(`Usuario ${memberId} editando tarea ${updateTaskInput.id} como task_member únicamente`);
+      } else {
+        // Puede editar como project_member (permisos completos en el proyecto)
+        console.log(`Usuario ${memberId} editando tarea ${updateTaskInput.id} como project_member`);
+      }
     }
 
     // Detectar si el estado cambió a COMPLETED o CANCELLED
@@ -1170,7 +1247,21 @@ export class ProcessService {
 
   // ==================== TASK_MEMBER METHODS ====================
 
-  async assignTaskMember(taskId: string, userId: string, roleId: number, projectMemberId: string): Promise<boolean> {
+  async assignTaskMember(taskId: string, userId: string, projectMemberId: string): Promise<boolean> {
+    // Verificar permisos del usuario basado en rol y membresías
+    const userWithRoles = await this.userService.findByIdWithRoles(projectMemberId);
+    const userSystemRole = userWithRoles?.systemRole?.role?.name;
+    
+    // Si es usuario "user", debe ser project_member para gestionar task_members
+    if (userSystemRole === 'user') {
+      const hasProjectMembership = userWithRoles?.projectMemberships?.length > 0;
+      
+      if (!hasProjectMembership) {
+        throw new ForbiddenException('Los usuarios "user" solo pueden gestionar task_members si son project_member del proyecto.');
+      }
+      // Si es project_member, continuar con validación específica del proyecto más abajo
+    }
+
     // Validar que la tarea existe
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
@@ -1213,7 +1304,6 @@ export class ProcessService {
       data: {
         idtask: taskId,
         iduser: userId,
-        idrole: roleId,
         assigned_at: new Date(),
       },
     });
@@ -1222,6 +1312,20 @@ export class ProcessService {
   }
 
   async removeTaskMember(taskId: string, userId: string, projectMemberId: string): Promise<boolean> {
+    // Verificar permisos del usuario basado en rol y membresías
+    const userWithRoles = await this.userService.findByIdWithRoles(projectMemberId);
+    const userSystemRole = userWithRoles?.systemRole?.role?.name;
+    
+    // Si es usuario "user", debe ser project_member para gestionar task_members
+    if (userSystemRole === 'user') {
+      const hasProjectMembership = userWithRoles?.projectMemberships?.length > 0;
+      
+      if (!hasProjectMembership) {
+        throw new ForbiddenException('Los usuarios "user" solo pueden gestionar task_members si son project_member del proyecto.');
+      }
+      // Si es project_member, continuar con validación específica del proyecto más abajo
+    }
+
     // Validar que la tarea existe
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
@@ -1279,7 +1383,6 @@ export class ProcessService {
         task_member: {
           include: {
             user: true,
-            role: true,
           },
         },
         comment: {
@@ -1505,7 +1608,6 @@ export class ProcessService {
       where: { idtask: taskId },
       include: {
         user: true,
-        role: true,
       },
       orderBy: { assigned_at: 'desc' },
     });
@@ -1514,10 +1616,8 @@ export class ProcessService {
       id: tm.id,
       taskId: tm.idtask,
       userId: tm.iduser,
-      roleId: tm.idrole,
       assignedAt: tm.assigned_at,
       user: tm.user,
-      role: tm.role,
     }));
   }
 
@@ -1579,7 +1679,6 @@ export class ProcessService {
         task_member: {
           include: {
             user: true,
-            role: true,
           },
         },
       },
@@ -1624,7 +1723,6 @@ export class ProcessService {
         project_member: {
           include: {
             user: true,
-            role: true,
           },
         },
       },
@@ -1645,7 +1743,6 @@ export class ProcessService {
                 project_member: {
                   include: {
                     user: true,
-                    role: true
                   }
                 }
               }
@@ -1698,13 +1795,12 @@ export class ProcessService {
         isActive: member.user!.isactive ?? true,
         havePassword: member.user!.havepassword ?? false,
         role: {
-          id: member.role?.id || 0,
-          name: member.role?.name || '',
+          id: 0, // En el nuevo esquema no hay roles específicos en project_member
+          name: 'project_member', // Todos los project_member tienen el mismo propósito
         },
         projectMembership: {
           id: member.id,
           projectId: task.process!.project!.id,
-          roleId: member.idrole
         }
       }));
   }

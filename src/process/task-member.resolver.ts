@@ -3,11 +3,13 @@ import { UseGuards } from '@nestjs/common';
 import { UserService } from '../auth/user/user.service';
 import { ProcessService } from './process.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
 import { Task } from './entities/task.entity';
 import { TaskMember } from './entities/task-member.entity';
 import { UpdateTaskAsMemberInput, CreateTaskMemberInput } from './dto/task-member.dto';
+import { RequireAuth, RequireUnitRole } from '../common/decorators/roles.decorator';
 
 
 @Resolver(() => TaskMember)
@@ -18,7 +20,8 @@ export class TaskMemberResolver {
   ) { }
 
   @Query(() => [Task], { name: 'myAssignedTasks' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async myAssignedTasks(
     @CurrentUser() user: User,
     @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
@@ -27,7 +30,8 @@ export class TaskMemberResolver {
   }
 
   @Mutation(() => Task, { name: 'updateTaskAsMember' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async updateTaskAsMember(
     @Args('updateTaskAsMemberInput') updateTaskAsMemberInput: UpdateTaskAsMemberInput,
     @CurrentUser() user: User,
@@ -39,7 +43,8 @@ export class TaskMemberResolver {
   }
 
   @Mutation(() => Boolean, { name: 'assignTaskMember' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async assignTaskMember(
     @Args('createTaskMemberInput') createTaskMemberInput: CreateTaskMemberInput,
     @CurrentUser() user: User,
@@ -47,13 +52,13 @@ export class TaskMemberResolver {
     return this.processService.assignTaskMember(
       createTaskMemberInput.taskId,
       createTaskMemberInput.userId,
-      createTaskMemberInput.roleId,
       user.id,
     );
   }
 
   @Mutation(() => Boolean, { name: 'removeTaskMember' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async removeTaskMember(
     @Args('taskId') taskId: string,
     @Args('userId') userId: string,

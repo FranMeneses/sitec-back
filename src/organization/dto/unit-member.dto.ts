@@ -10,11 +10,6 @@ export class CreateUnitMemberInput {
   @Field(() => Int)
   @IsInt()
   idunit: number;
-
-  @Field(() => Int, { nullable: true })
-  @IsOptional()
-  @IsInt()
-  idrole?: number;
 }
 
 @InputType()
@@ -32,9 +27,4 @@ export class UpdateUnitMemberInput {
   @IsOptional()
   @IsInt()
   idunit?: number;
-
-  @Field(() => Int, { nullable: true })
-  @IsOptional()
-  @IsInt()
-  idrole?: number;
 }

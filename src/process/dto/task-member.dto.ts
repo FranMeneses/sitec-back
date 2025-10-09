@@ -7,19 +7,12 @@ export class CreateTaskMemberInput {
 
   @Field(() => String)
   userId: string;
-
-  @Field(() => Int)
-  roleId: number;
 }
-
 
 @InputType()
 export class TaskMemberAssignmentInput {
   @Field(() => String)
   userId: string;
-
-  @Field(() => Int)
-  roleId: number;
 }
 
 @InputType()
@@ -27,8 +20,8 @@ export class UpdateTaskMemberInput {
   @Field(() => String)
   id: string;
 
-  @Field(() => Int, { nullable: true })
-  roleId?: number;
+  // En el nuevo esquema, task_member solo indica pertenencia
+  // No hay campos específicos que actualizar
 }
 
 @InputType()

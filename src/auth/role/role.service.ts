@@ -104,16 +104,12 @@ export class RoleService {
         throw new NotFoundException(`Rol con ID ${id} no encontrado`);
       }
 
-      // Verificar que no hay usuarios asignados a este rol
-      const usersWithRole = await this.prisma.unit_member.findMany({
-        where: { idrole: id },
+      // Verificar que no hay usuarios asignados a este rol del sistema
+      const systemRolesWithRole = await this.prisma.system_role.findMany({
+        where: { role_id: id },
       });
 
-      const projectMembersWithRole = await this.prisma.project_member.findMany({
-        where: { idrole: id },
-      });
-
-      if (usersWithRole.length > 0 || projectMembersWithRole.length > 0) {
+      if (systemRolesWithRole.length > 0) {
         throw new BadRequestException('No se puede eliminar el rol porque tiene usuarios asignados');
       }
 
@@ -131,33 +127,20 @@ export class RoleService {
   }
 
   async getUserRoles(userId: string): Promise<Role[]> {
-    // Obtener roles del usuario a través de unit_member
-    const unitMemberships = await this.prisma.unit_member.findMany({
-      where: { iduser: userId },
+    // Obtener el rol del sistema del usuario
+    const systemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
       include: { role: true },
     });
 
-    // Obtener roles del usuario a través de project_member
-    const projectMemberships = await this.prisma.project_member.findMany({
-      where: { iduser: userId },
-      include: { role: true },
-    });
+    if (!systemRole || !systemRole.role) {
+      return [];
+    }
 
-    // Combinar y deduplicar roles
-    const allRoles = [
-      ...unitMemberships.filter(um => um.role).map(um => um.role!),
-      ...projectMemberships.filter(pm => pm.role).map(pm => pm.role!),
-    ];
-
-    // Eliminar duplicados basado en ID
-    const uniqueRoles = allRoles.filter((role, index, self) => 
-      index === self.findIndex(r => r.id === role.id)
-    );
-
-    return uniqueRoles.map(role => ({
-      id: role.id,
-      name: role.name || '',
+    return [{
+      id: systemRole.role.id,
+      name: systemRole.role.name || '',
       description: undefined,
-    }));
+    }];
   }
 }

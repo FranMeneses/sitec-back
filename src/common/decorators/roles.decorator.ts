@@ -2,28 +2,33 @@ import { SetMetadata } from '@nestjs/common';
 
 export const ROLES_KEY = 'roles';
 
-// Solo roles críticos del sistema
+// Roles del sistema según el nuevo esquema
 export const SYSTEM_ROLES = {
   SUPER_ADMIN: 'super_admin',
-  ADMIN: 'admin',
-  AREA_MEMBER: 'area_member',
+  AREA_ROLE: 'area_role',
+  UNIT_ROLE: 'unit_role',
   USER: 'user',
 } as const;
 
 // Decorador simple para roles
 export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 
-// Decorador para admin (admin o super_admin)
-export const RequireAdmin = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.ADMIN, SYSTEM_ROLES.SUPER_ADMIN]);
-
 // Decorador para super admin
 export const RequireSuperAdmin = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.SUPER_ADMIN]);
 
-// Decorador para admin de área específica (requiere verificación adicional)
-export const RequireAreaAdmin = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.ADMIN, SYSTEM_ROLES.SUPER_ADMIN]);
+// Decorador para area_role o superior
+export const RequireAreaRole = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.AREA_ROLE, SYSTEM_ROLES.SUPER_ADMIN]);
 
-// Decorador para area_member o superior
-export const RequireAreaMember = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.AREA_MEMBER, SYSTEM_ROLES.ADMIN, SYSTEM_ROLES.SUPER_ADMIN]);
+// Decorador para unit_role o superior
+export const RequireUnitRole = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.UNIT_ROLE, SYSTEM_ROLES.AREA_ROLE, SYSTEM_ROLES.SUPER_ADMIN]);
 
-// Decorador para usuarios autenticados
-export const RequireAuth = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.USER, SYSTEM_ROLES.AREA_MEMBER, SYSTEM_ROLES.ADMIN, SYSTEM_ROLES.SUPER_ADMIN]);
+// Decorador para usuarios autenticados (cualquier rol del sistema)
+export const RequireAuth = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.USER, SYSTEM_ROLES.UNIT_ROLE, SYSTEM_ROLES.AREA_ROLE, SYSTEM_ROLES.SUPER_ADMIN]);
+
+// Decorador específico para rol user (solo lectura)
+export const RequireUser = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.USER]);
+
+// Decoradores de compatibilidad (ahora "admin" es rol interno, no de sistema)
+// Estos decoradores ahora verifican area_role+ ya que admin es rol interno
+export const RequireAdmin = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.AREA_ROLE, SYSTEM_ROLES.SUPER_ADMIN]);
+export const RequireAreaMember = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.AREA_ROLE, SYSTEM_ROLES.SUPER_ADMIN]);

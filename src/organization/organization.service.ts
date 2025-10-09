@@ -239,15 +239,13 @@ export class OrganizationService {
         where: { name: 'admin' }
       });
 
-      if (adminRole) {
-        await this.prisma.unit_member.create({
-          data: {
-            iduser: currentUser.id,
-            idunit: unit.id,
-            idrole: adminRole.id,
-          },
-        });
-      }
+      // Agregar al usuario como unit_member (sin rol específico)
+      await this.prisma.unit_member.create({
+        data: {
+          iduser: currentUser.id,
+          idunit: unit.id,
+        },
+      });
     }
 
     return unit;
@@ -291,7 +289,6 @@ export class OrganizationService {
           unit_member: {
             include: {
               user: true,
-              role: true
             }
           },
         },
@@ -319,7 +316,6 @@ export class OrganizationService {
           unit_member: {
             include: {
               user: true,
-              role: true
             }
           },
         },
@@ -341,7 +337,6 @@ export class OrganizationService {
         unit_member: {
           include: {
             user: true,
-            role: true
           }
         },
       },
@@ -455,15 +450,6 @@ export class OrganizationService {
       throw new NotFoundException(`Usuario con ID ${createUnitMemberInput.iduser} no encontrado`);
     }
 
-    // Verificar que el rol existe
-    const role = await this.prisma.role.findUnique({
-      where: { id: createUnitMemberInput.idrole }
-    });
-
-    if (!role) {
-      throw new NotFoundException(`Rol con ID ${createUnitMemberInput.idrole} no encontrado`);
-    }
-
     // Verificar que no sea ya miembro de esa unidad
     const existingMember = await this.prisma.unit_member.findFirst({
       where: {
@@ -476,27 +462,23 @@ export class OrganizationService {
       throw new ForbiddenException('El usuario ya es miembro de esta unidad');
     }
 
-    // Crear entrada en tabla unit_member
+    // Crear entrada en tabla unit_member (sin rol específico)
     const unitMember = await this.prisma.unit_member.create({
       data: {
         iduser: createUnitMemberInput.iduser,
         idunit: createUnitMemberInput.idunit,
-        idrole: createUnitMemberInput.idrole,
       },
       include: {
         user: true,
         unit: true,
-        role: true,
       },
     });
 
     // Actualizar system_role según la jerarquía de prevalencia:
     // - Si es 'super_admin' → se mantiene como 'super_admin'
-    // - Si es 'admin' → se mantiene como 'admin' 
-    // - Si es 'area_member' → se mantiene como 'area_member'
-    // - Si es 'project_member' → se mantiene como 'project_member'
-    // - Si es 'task_member' → se mantiene como 'task_member'
-    // - Si es 'user' → cambia a 'unit_member'
+    // - Si es 'area_role' → se mantiene como 'area_role' 
+    // - Si es 'unit_role' → se mantiene como 'unit_role'
+    // - Si es 'user' → podría cambiar a 'unit_role' si se considera apropiado
     const userRole = await this.prisma.system_role.findUnique({
       where: { user_id: createUnitMemberInput.iduser },
       include: { role: true }
@@ -504,20 +486,20 @@ export class OrganizationService {
 
     const currentRole = userRole?.role?.name;
     
-    // Solo cambiar a unit_member si es 'user' (no degradar roles superiores)
+    // Solo cambiar a unit_role si es 'user' (no degradar roles superiores)
     if (currentRole === 'user') {
-      const unitMemberRole = await this.prisma.role.findFirst({
-        where: { name: 'unit_member' }
+      const unitRole = await this.prisma.role.findFirst({
+        where: { name: 'unit_role' }
       });
 
-      if (unitMemberRole) {
-        // Actualizar o crear system_role
+      if (unitRole) {
+        // Actualizar system_role a unit_role
         await this.prisma.system_role.upsert({
           where: { user_id: createUnitMemberInput.iduser },
-          update: { role_id: unitMemberRole.id },
+          update: { role_id: unitRole.id },
           create: {
             user_id: createUnitMemberInput.iduser,
-            role_id: unitMemberRole.id
+            role_id: unitRole.id
           }
         });
       }
@@ -596,28 +578,15 @@ export class OrganizationService {
       }
     }
 
-    // Verificar que el rol existe
-    if (updateUnitMemberInput.idrole) {
-      const role = await this.prisma.role.findUnique({
-        where: { id: updateUnitMemberInput.idrole }
-      });
-
-      if (!role) {
-        throw new NotFoundException(`Rol con ID ${updateUnitMemberInput.idrole} no encontrado`);
-      }
-    }
-
     return this.prisma.unit_member.update({
       where: { id: updateUnitMemberInput.id },
       data: {
         iduser: updateUnitMemberInput.iduser,
         idunit: updateUnitMemberInput.idunit,
-        idrole: updateUnitMemberInput.idrole,
       },
       include: {
         user: true,
         unit: true,
-        role: true,
       },
     });
   }
@@ -693,7 +662,6 @@ export class OrganizationService {
         include: {
           user: true,
           unit: true,
-          role: true,
         },
       });
     }
@@ -718,7 +686,6 @@ export class OrganizationService {
         include: {
           user: true,
           unit: true,
-          role: true,
         },
       });
     }
@@ -758,7 +725,6 @@ export class OrganizationService {
       include: {
         user: true,
         unit: true,
-        role: true,
       },
     });
   }
@@ -911,7 +877,6 @@ export class OrganizationService {
         unit_member: {
           include: {
             user: true,
-            role: true
           }
         },
       },
@@ -938,20 +903,24 @@ export class OrganizationService {
   }
 
   private async isUserUnitAdmin(userId: string, unitId: number): Promise<boolean> {
-    // Verificar si es admin general
+    // Verificar si es admin general (tabla admin)
     const isAdmin = await this.isUserAdmin(userId);
     if (isAdmin) return true;
 
-    // Verificar si es admin de la unidad específica
-    const unitMember = await this.prisma.unit_member.findFirst({
-      where: {
-        iduser: userId,
-        idunit: unitId,
-        idrole: 1, // Asumiendo que el role ID 1 es admin
-      },
+    // En el nuevo esquema, no hay roles específicos en unit_member
+    // Un usuario puede gestionar una unidad si es admin del área correspondiente
+    // o si tiene rol de sistema area_role o superior
+    
+    // Verificar rol de sistema
+    const systemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
     });
 
-    return !!unitMember;
+    const roleName = systemRole?.role?.name;
+    
+    // super_admin y area_role pueden gestionar unidades
+    return roleName === 'super_admin' || roleName === 'area_role';
   }
 
   // ===== TYPE METHODS =====

@@ -4,13 +4,9 @@ CREATE TABLE role (
 );
 
 INSERT INTO role (name) VALUES ('super_admin');
-INSERT INTO role (name) VALUES ('admin');
+INSERT INTO role (name) VALUES ('area_role');
+INSERT INTO role (name) VALUES ('unit_role');
 INSERT INTO role (name) VALUES ('user');
-INSERT INTO role (name) VALUES ('unit_member');
-INSERT INTO role (name) VALUES ('project_member');
-INSERT INTO role (name) VALUES ('process_member');
-INSERT INTO role (name) VALUES ('task_member');
-INSERT INTO role (name) VALUES ('area_member');
 
 CREATE TABLE "user" (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

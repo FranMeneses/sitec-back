@@ -1,7 +1,6 @@
-import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
+import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { Project } from './project.entity';
 import { User } from '../../auth/entities/user.entity';
-import { Role } from '../../auth/entities/role.entity';
 
 @ObjectType()
 export class ProjectMember {
@@ -14,9 +13,6 @@ export class ProjectMember {
   @Field(() => String)
   userId: string;
 
-  @Field(() => Int)
-  roleId: number;
-
   @Field(() => Date, { nullable: true })
   assignedAt?: Date;
 
@@ -25,7 +21,4 @@ export class ProjectMember {
 
   @Field(() => User, { nullable: true })
   user?: User;
-
-  @Field(() => Role, { nullable: true })
-  role?: Role;
 }

@@ -1,4 +1,4 @@
-import { InputType, Field, Int } from '@nestjs/graphql';
+import { InputType, Field } from '@nestjs/graphql';
 
 @InputType()
 export class CreateProjectMemberInput {
@@ -7,9 +7,6 @@ export class CreateProjectMemberInput {
 
   @Field(() => String)
   userId: string;
-
-  @Field(() => Int)
-  roleId: number;
 }
 
 @InputType()
@@ -17,8 +14,8 @@ export class UpdateProjectMemberInput {
   @Field(() => String)
   id: string;
 
-  @Field(() => Int, { nullable: true })
-  roleId?: number;
+  // En el nuevo esquema, project_member solo indica pertenencia
+  // No hay campos específicos que actualizar
 }
 
 @InputType()
@@ -28,9 +25,6 @@ export class AssignProcessMemberInput {
 
   @Field(() => String)
   userId: string;
-
-  @Field(() => Int)
-  roleId: number;
 }
 
 @InputType()

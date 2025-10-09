@@ -7,8 +7,10 @@ import { TaskMember } from './entities/task-member.entity';
 import { CreateProcessInput, UpdateProcessInput } from './dto/process.dto';
 import { CreateTaskInput, UpdateTaskInput } from './dto/task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
+import { RequireAuth, RequireUnitRole } from '../common/decorators/roles.decorator';
 
 @Resolver(() => Process)
 export class ProcessResolver {
@@ -55,7 +57,8 @@ export class ProcessResolver {
   // ==================== PROCESS MUTATIONS ====================
 
   @Mutation(() => Process)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async createProcess(
     @Args('createProcessInput') createProcessInput: CreateProcessInput,
     @CurrentUser() user: User,
@@ -64,7 +67,8 @@ export class ProcessResolver {
   }
 
   @Mutation(() => Process)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async updateProcess(
     @Args('updateProcessInput') updateProcessInput: UpdateProcessInput,
     @CurrentUser() user: User,
@@ -135,7 +139,8 @@ export class TaskResolver {
   // ==================== TASK QUERIES ====================
 
   @Query(() => [Task])
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async tasks(
     @CurrentUser() user: User,
     @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
@@ -144,12 +149,14 @@ export class TaskResolver {
   }
 
   @Query(() => Task, { nullable: true })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async task(
     @Args('id') id: string,
     @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+    @CurrentUser() user: User,
   ): Promise<Task | null> {
-    return this.processService.findTaskById(id, includeArchived);
+    return this.processService.findTaskById(id, includeArchived, user.id);
   }
 
   @Query(() => [Task])
@@ -188,7 +195,8 @@ export class TaskResolver {
   // ==================== TASK MUTATIONS ====================
 
   @Mutation(() => Task)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async createTask(
     @Args('createTaskInput') createTaskInput: CreateTaskInput,
     @CurrentUser() user: User,
@@ -197,7 +205,8 @@ export class TaskResolver {
   }
 
   @Mutation(() => Task)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async updateTask(
     @Args('updateTaskInput') updateTaskInput: UpdateTaskInput,
     @CurrentUser() user: User,

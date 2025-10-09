@@ -54,56 +54,21 @@ export class UserService {
             role: true
           }
         },
-        unit_member: {
-          include: {
-            role: true
-          }
-        },
-        project_member: {
-          include: {
-            role: true
-          }
-        },
-        task_member: {
-          include: {
-            role: true
-          }
-        },
+        unit_member: true,
+        project_member: true,
+        task_member: true,
+        area_member: true,
         admin: true
       }
     });
     
     if (!user) return null;
     
-    // Recopilar todos los roles del usuario
-    const allRoles: any[] = [];
-    
-    // Agregar system_role si existe
+    // Solo hay un rol del sistema por usuario
+    const userRoles: any[] = [];
     if (user.system_role?.role) {
-      allRoles.push(user.system_role.role);
+      userRoles.push(user.system_role.role);
     }
-    
-    // Agregar roles de unit_member
-    user.unit_member.forEach(um => {
-      if (um.role) allRoles.push(um.role);
-    });
-    
-    // Agregar roles de project_member
-    user.project_member.forEach(pm => {
-      if (pm.role) allRoles.push(pm.role);
-    });
-    
-    // Ya no usamos process_member
-    
-    // Agregar roles de task_member
-    user.task_member.forEach(tm => {
-      if (tm.role) allRoles.push(tm.role);
-    });
-    
-    // Eliminar duplicados basado en ID
-    const uniqueRoles = allRoles.filter((role, index, self) => 
-      index === self.findIndex(r => r.id === role.id)
-    );
     
     return {
       id: user.id,
@@ -119,8 +84,13 @@ export class UserService {
         createdAt: user.system_role.created_at,
         role: user.system_role.role
       } : null,
-      roles: uniqueRoles, // Todos los roles del usuario
-      admin: user.admin.length > 0 ? user.admin[0] : null
+      roles: userRoles, // Solo el rol del sistema
+      // Información de pertenencia (no roles)
+      admin: user.admin.length > 0 ? user.admin[0] : null,
+      unitMemberships: user.unit_member,
+      projectMemberships: user.project_member,
+      taskMemberships: user.task_member,
+      areaMemberships: user.area_member
     };
   }
 
@@ -268,27 +238,13 @@ export class UserService {
   }
 
   async hasRole(userId: string, roleName: string): Promise<boolean> {
-    // Verificar en unit_member
-    const unitMember = await this.prisma.unit_member.findFirst({
-      where: { 
-        iduser: userId,
-        role: { name: roleName }
-      },
+    // Los roles ahora solo se verifican en system_role
+    const systemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
       include: { role: true }
     });
 
-    if (unitMember) return true;
-
-    // Verificar en project_member
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: { 
-        iduser: userId,
-        role: { name: roleName }
-      },
-      include: { role: true }
-    });
-
-    return !!projectMember;
+    return systemRole?.role?.name === roleName;
   }
 
   async isAdmin(userId: string): Promise<boolean> {
@@ -440,12 +396,10 @@ export class UserService {
             task_member: {
               include: {
                 user: true,
-                role: true,
               }
             }
           }
         },
-        role: true,
       },
       orderBy: { assigned_at: 'desc' }
     });
@@ -453,7 +407,6 @@ export class UserService {
     return taskMembers.map(tm => ({
       id: tm.id,
       assignedAt: tm.assigned_at,
-      role: tm.role,
       task: tm.task,
     }));
   }
@@ -507,7 +460,6 @@ export class UserService {
                     task_member: {
                       include: {
                         user: true,
-                        role: true,
                       }
                     }
                   }
@@ -516,7 +468,6 @@ export class UserService {
             }
           }
         },
-        role: true,
       },
       orderBy: { id: 'desc' }
     });
@@ -524,7 +475,6 @@ export class UserService {
     return projectMembers.map(pm => ({
       id: pm.id,
       assignedAt: null, // project_member no tiene assigned_at en el esquema
-      role: pm.role || null,
       project: pm.project || null,
     }));
   }
@@ -588,7 +538,6 @@ export class UserService {
                         task_member: {
                           include: {
                             user: true,
-                            role: true,
                           }
                         }
                       }
@@ -599,7 +548,6 @@ export class UserService {
             }
           }
         },
-        role: true,
       },
       orderBy: { id: 'desc' }
     });
@@ -607,7 +555,6 @@ export class UserService {
     return unitMembers.map(um => ({
       id: um.id,
       assignedAt: null, // unit_member no tiene assigned_at en el esquema
-      role: um.role || null,
       unit: um.unit || null,
     }));
   }

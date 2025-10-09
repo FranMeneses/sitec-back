@@ -130,31 +130,28 @@ export class ProjectService {
 
     const currentRole = userSystemRole?.role?.name;
 
-    // Si el usuario ya tiene un rol superior o igual a project_member, mantenerlo
+    // Si el usuario ya tiene un rol superior, mantenerlo
     if (currentRole === 'super_admin' || 
-        currentRole === 'admin' || 
-        currentRole === 'area_member' || 
-        currentRole === 'unit_member' || 
-        currentRole === 'project_member') {
+        currentRole === 'area_role' || 
+        currentRole === 'unit_role') {
       // Mantener el system_role actual, solo agregar a project_member
       return;
     }
 
-    // Si el usuario tiene un rol inferior, ascender a project_member
-    const projectMemberRole = await this.prisma.role.findFirst({
-      where: { name: 'project_member' }
-    });
+    // Si el usuario tiene rol "user", actualizarlo a "unit_role" ya que ahora puede gestionar proyectos
+    if (currentRole === 'user') {
+      const unitRole = await this.prisma.role.findFirst({
+        where: { name: 'unit_role' }
+      });
 
-    if (!projectMemberRole) {
-      throw new BadRequestException('Rol project_member no encontrado en el sistema');
+      if (unitRole) {
+        await this.prisma.system_role.upsert({
+          where: { user_id: userId },
+          update: { role_id: unitRole.id },
+          create: { user_id: userId, role_id: unitRole.id }
+        });
+      }
     }
-
-    // Actualizar el system_role a project_member
-    await this.prisma.system_role.upsert({
-      where: { user_id: userId },
-      update: { role_id: projectMemberRole.id },
-      create: { user_id: userId, role_id: projectMemberRole.id }
-    });
   }
 
   private async validateProjectUpdatePermissions(userId: string, projectId: string): Promise<void> {
@@ -487,7 +484,6 @@ export class ProjectService {
             project_member: {
               include: {
                 user: true,
-                role: true
               }
             }
           },
@@ -541,7 +537,6 @@ export class ProjectService {
             project_member: {
               include: {
                 user: true,
-                role: true
               }
             }
           },
@@ -581,7 +576,6 @@ export class ProjectService {
             project_member: {
               include: {
                 user: true,
-                role: true
               }
             }
           },
@@ -621,7 +615,6 @@ export class ProjectService {
             project_member: {
               include: {
                 user: true,
-                role: true
               }
             }
           },
@@ -673,7 +666,6 @@ export class ProjectService {
             project_member: {
               include: {
                 user: true,
-                role: true
               }
             }
           },
@@ -739,14 +731,7 @@ export class ProjectService {
       }
     }
 
-    // Obtener el rol 'project_member' para asignarlo al creador
-    const projectMemberRole = await this.prisma.role.findFirst({
-      where: { name: 'project_member' }
-    });
-
-    if (!projectMemberRole) {
-      throw new BadRequestException('Rol project_member no encontrado en el sistema');
-    }
+    // En el nuevo esquema, no necesitamos asignar roles específicos
 
     const project = await this.prisma.project.create({
       data: {
@@ -772,7 +757,6 @@ export class ProjectService {
       data: {
         idproject: project.id,
         iduser: editorId,
-        idrole: projectMemberRole.id,
       },
     });
 
@@ -1036,7 +1020,6 @@ export class ProjectService {
       where: { id },
       include: {
         user: true,
-        role: true,
         project: true,
       },
     });
@@ -1140,7 +1123,6 @@ export class ProjectService {
       where: {
         idproject: projectId,
         iduser: userId,
-        idrole: adminRole.id,
       },
     });
 
@@ -1154,7 +1136,6 @@ export class ProjectService {
       where: { idproject: projectId },
       include: {
         user: true,
-        role: true,
         project: true,
       },
     });
@@ -1180,13 +1161,7 @@ export class ProjectService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    // Verificar que el rol existe
-    const role = await this.prisma.role.findUnique({
-      where: { id: addMemberInput.roleId },
-    });
-    if (!role) {
-      throw new NotFoundException('Rol no encontrado');
-    }
+    // En el nuevo esquema, no hay roles específicos en project_member
 
     // Verificar que el usuario no es ya miembro del proyecto
     const existingMember = await this.prisma.project_member.findFirst({
@@ -1207,11 +1182,9 @@ export class ProjectService {
       data: {
         idproject: addMemberInput.projectId,
         iduser: addMemberInput.userId,
-        idrole: addMemberInput.roleId,
       },
       include: {
         user: true,
-        role: true,
         project: true,
       },
     });
@@ -1250,7 +1223,6 @@ export class ProjectService {
       where: { id: updateProjectMemberInput.id },
       include: {
         user: true,
-        role: true,
         project: true,
       },
     });
@@ -1270,21 +1242,14 @@ export class ProjectService {
       throw new ForbiddenException('Solo los administradores del proyecto pueden actualizar miembros');
     }
 
-    // Verificar que el rol existe
-    const role = await this.prisma.role.findUnique({
-      where: { id: updateProjectMemberInput.idRole },
-    });
-    if (!role) {
-      throw new NotFoundException('Rol no encontrado');
-    }
+    // En el nuevo esquema, no hay roles específicos en project_member
 
-    // Actualizar el rol del miembro
+    // En el nuevo esquema, project_member solo indica pertenencia, no hay roles específicos
     const updatedMember = await this.prisma.project_member.update({
       where: { id: updateProjectMemberInput.id },
-      data: { idrole: updateProjectMemberInput.idRole },
+      data: {}, // No hay campos que actualizar en el nuevo esquema
       include: {
         user: true,
-        role: true,
         project: true,
       },
     });
@@ -1370,7 +1335,6 @@ export class ProjectService {
       id: member.id,
       userId: member.iduser,
       projectId: member.idproject,
-      roleId: member.idrole,
       user: member.user ? {
         id: member.user.id,
         name: member.user.name || '',
@@ -1378,11 +1342,6 @@ export class ProjectService {
         password: member.user.password || undefined,
         isActive: member.user.isactive ?? true,
         havePassword: member.user.havepassword ?? false,
-      } : undefined,
-      role: member.role ? {
-        id: member.role.id,
-        name: member.role.name || '',
-        description: undefined,
       } : undefined,
       project: member.project ? this.mapProject(member.project) : undefined,
     };
@@ -1484,7 +1443,6 @@ export class ProjectService {
             task_member: {
               include: {
                 user: true,
-                role: true,
               },
             },
           },
@@ -1603,7 +1561,6 @@ export class ProjectService {
                 task_member: {
                   include: {
                     user: true,
-                    role: true,
                   }
                 }
               }
@@ -1649,7 +1606,6 @@ export class ProjectService {
                 task_member: {
                   include: {
                     user: true,
-                    role: true,
                   }
                 }
               }
@@ -1841,7 +1797,6 @@ export class ProjectService {
         project_member: {
           include: {
             user: true,
-            role: true,
           },
         },
       },
@@ -1869,7 +1824,6 @@ export class ProjectService {
         project_member: {
           include: {
             user: true,
-            role: true,
           },
         },
       },

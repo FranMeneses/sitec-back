@@ -154,7 +154,6 @@ input CreateTaskInput {
 }
 
 input CreateTaskMemberInput {
-  roleId: Int!
   taskId: String!
   userId: String!
 }
@@ -169,7 +168,6 @@ input CreateUnitInput {
 }
 
 input CreateUnitMemberInput {
-  idrole: Int
   idunit: Int!
   iduser: String!
 }
@@ -361,8 +359,6 @@ type ProjectMember {
   id: ID!
   project: Project
   projectId: String!
-  role: Role
-  roleId: Int!
   user: User
   userId: String!
 }
@@ -515,8 +511,6 @@ type Task {
 type TaskMember {
   assignedAt: DateTime
   id: ID!
-  role: Role
-  roleId: Int!
   task: Task
   taskId: String!
   user: User
@@ -524,7 +518,6 @@ type TaskMember {
 }
 
 input TaskMemberAssignmentInput {
-  roleId: Int!
   userId: String!
 }
 
@@ -543,7 +536,6 @@ type Unit {
 
 type UnitMember {
   id: String!
-  idrole: Int
   idunit: Int
   iduser: String
 }
@@ -631,7 +623,6 @@ input UpdateUnitInput {
 
 input UpdateUnitMemberInput {
   id: String!
-  idrole: Int
   idunit: Int
   iduser: String
 }
