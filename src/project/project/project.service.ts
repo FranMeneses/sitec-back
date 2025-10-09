@@ -352,8 +352,8 @@ export class ProjectService {
         // Super_admin puede crear proyectos en cualquier área
         return;
 
-      case 'admin':
-        // Admin puede crear proyectos solo en su área
+      case 'area_role':
+        // area_role puede crear proyectos en sus áreas asignadas
         if (!categoryId) {
           throw new ForbiddenException('Debe especificar una categoría para crear el proyecto');
         }
@@ -367,53 +367,64 @@ export class ProjectService {
           throw new BadRequestException('La categoría especificada no existe');
         }
 
+        // Verificar si es admin (tiene membresía admin)
         const adminArea = await this.prisma.admin.findFirst({
           where: { iduser: userId },
           select: { idarea: true }
         });
 
-        if (!adminArea) {
-          throw new ForbiddenException('Admin no asociado a ningún área');
-        }
+        if (adminArea) {
+          // Es admin, verificar que está creando en su área
+          if (category.id_area !== adminArea.idarea) {
+            throw new ForbiddenException('Solo puedes crear proyectos en categorías de tu área');
+          }
+        } else {
+          // No es admin, verificar si es area_member
+          const isAreaMember = await this.prisma.area_member.findFirst({
+            where: {
+              iduser: userId,
+              idarea: category.id_area
+            }
+          });
 
-        if (category.id_area !== adminArea.idarea) {
-          throw new ForbiddenException('Solo puedes crear proyectos en categorías de tu área');
+          if (!isAreaMember) {
+            throw new ForbiddenException('Solo puedes crear proyectos en categorías de áreas donde eres miembro');
+          }
         }
         return;
 
-      case 'area_member':
-        // Area_member puede crear proyectos en las áreas donde es miembro
+      case 'unit_role':
+        // unit_role puede crear proyectos en sus unidades asignadas
         if (!categoryId) {
           throw new ForbiddenException('Debe especificar una categoría para crear el proyecto');
         }
 
-        const categoryForAreaMember = await this.prisma.category.findUnique({
+        const categoryForUnit = await this.prisma.category.findUnique({
           where: { id: categoryId },
           select: { id_area: true }
         });
 
-        if (!categoryForAreaMember) {
+        if (!categoryForUnit) {
           throw new BadRequestException('La categoría especificada no existe');
         }
 
-        const isAreaMember = await this.prisma.area_member.findFirst({
-          where: {
-            iduser: userId,
-            idarea: categoryForAreaMember.id_area
-          }
+        // Verificar si es unit_member de alguna unidad
+        const unitMemberships = await this.prisma.unit_member.findMany({
+          where: { iduser: userId },
+          select: { idunit: true }
         });
 
-        if (!isAreaMember) {
-          throw new ForbiddenException('Solo puedes crear proyectos en categorías de áreas donde eres miembro');
+        if (unitMemberships.length === 0) {
+          throw new ForbiddenException('No tienes unidades asignadas para crear proyectos');
         }
+
+        // Para unit_role, pueden crear proyectos en cualquier categoría
+        // ya que las unidades pueden trabajar en diferentes áreas
         return;
 
-      case 'unit_member':
-      case 'project_member':
-      case 'task_member':
       case 'user':
       default:
-        // Ningún otro rol puede crear proyectos
+        // user no puede crear proyectos
         throw new ForbiddenException('No tiene permisos para crear proyectos, por favor contacte con un administrador');
     }
   }
