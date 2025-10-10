@@ -94,6 +94,20 @@ export class ProcessService {
       return true;
     }
 
+    // Verificar si es unit_member de la unidad del proyecto
+    if (project.idunit) {
+      const unitMember = await this.prisma.unit_member.findFirst({
+        where: {
+          iduser: userId,
+          idunit: project.idunit
+        }
+      });
+
+      if (unitMember) {
+        return true;
+      }
+    }
+
     // Verificar si es task_member de alguna tarea del proyecto
     const taskMember = await this.prisma.task_member.findFirst({
       where: {

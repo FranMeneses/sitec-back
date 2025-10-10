@@ -77,6 +77,8 @@ export class OrganizationResolver {
 
   // ===== UNIT RESOLVERS =====
   @Mutation(() => Unit)
+  @UseGuards(RolesGuard)
+  @RequireSuperAdmin()
   async createUnit(
     @Args('createUnitInput') createUnitInput: CreateUnitInput,
     @CurrentUser() currentUser: User,
@@ -101,6 +103,8 @@ export class OrganizationResolver {
   }
 
   @Mutation(() => Unit)
+  @UseGuards(RolesGuard)
+  @RequireSuperAdmin()
   async updateUnit(
     @Args('updateUnitInput') updateUnitInput: UpdateUnitInput,
     @CurrentUser() currentUser: User,
@@ -109,6 +113,8 @@ export class OrganizationResolver {
   }
 
   @Mutation(() => Unit)
+  @UseGuards(RolesGuard)
+  @RequireSuperAdmin()
   async removeUnit(
     @Args('id', { type: () => Int }) id: number,
     @CurrentUser() currentUser: User,
@@ -118,6 +124,8 @@ export class OrganizationResolver {
 
   // ===== UNIT MEMBER RESOLVERS =====
   @Mutation(() => UnitMember)
+  @UseGuards(RolesGuard)
+  @RequireSuperAdmin()
   async addUnitMember(
     @Args('createUnitMemberInput') createUnitMemberInput: CreateUnitMemberInput,
     @CurrentUser() currentUser: User,
@@ -126,6 +134,8 @@ export class OrganizationResolver {
   }
 
   @Mutation(() => UnitMember)
+  @UseGuards(RolesGuard)
+  @RequireSuperAdmin()
   async updateUnitMember(
     @Args('updateUnitMemberInput') updateUnitMemberInput: UpdateUnitMemberInput,
     @CurrentUser() currentUser: User,
@@ -134,6 +144,8 @@ export class OrganizationResolver {
   }
 
   @Mutation(() => UnitMember)
+  @UseGuards(RolesGuard)
+  @RequireSuperAdmin()
   async removeUnitMember(
     @Args('id', { type: () => String }) id: string,
     @CurrentUser() currentUser: User,

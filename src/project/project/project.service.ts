@@ -98,6 +98,36 @@ export class ProjectService {
         }
         return;
 
+      case 'unit_role':
+        // unit_role puede agregar miembros de su unidad a proyectos de su unidad
+        const projectForUnitMember = await this.prisma.project.findUnique({
+          where: { id: projectId },
+          include: {
+            category: {
+              include: {
+                area: true
+              }
+            }
+          }
+        });
+
+        if (!projectForUnitMember) {
+          throw new BadRequestException('Proyecto no encontrado');
+        }
+
+        // Verificar que el usuario es unit_member de la unidad del proyecto
+        const userUnits = await this.prisma.unit_member.findMany({
+          where: { iduser: userId },
+          select: { idunit: true }
+        });
+
+        const unitIds = userUnits.map(uu => uu.idunit).filter(id => id !== null);
+        
+        if (!projectForUnitMember.idunit || !unitIds.includes(projectForUnitMember.idunit)) {
+          throw new ForbiddenException('Solo puedes agregar miembros a proyectos de tu unidad');
+        }
+        return;
+
       case 'project_member':
         // Project_member puede agregar miembros solo a proyectos donde es miembro
         const isProjectMember = await this.prisma.project_member.findFirst({
@@ -112,7 +142,6 @@ export class ProjectService {
         }
         return;
 
-      case 'unit_member':
       case 'task_member':
       case 'user':
       default:
@@ -1241,6 +1270,35 @@ export class ProjectService {
     });
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
+    }
+
+    // Validación adicional para unit_member: solo puede agregar otros miembros de su unidad
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: requestUserId },
+      include: { role: true }
+    });
+
+    if (userSystemRole?.role?.name === 'unit_role') {
+      // Obtener las unidades del usuario que está agregando
+      const targetUserUnits = await this.prisma.unit_member.findMany({
+        where: { iduser: addMemberInput.userId },
+        select: { idunit: true }
+      });
+
+      // Obtener las unidades del usuario que está haciendo la solicitud
+      const requesterUnits = await this.prisma.unit_member.findMany({
+        where: { iduser: requestUserId },
+        select: { idunit: true }
+      });
+
+      const targetUnitIds = targetUserUnits.map(uu => uu.idunit).filter(id => id !== null);
+      const requesterUnitIds = requesterUnits.map(uu => uu.idunit).filter(id => id !== null);
+
+      // Verificar que comparten al menos una unidad
+      const sharedUnits = targetUnitIds.filter(id => requesterUnitIds.includes(id));
+      if (sharedUnits.length === 0) {
+        throw new ForbiddenException('Solo puedes agregar miembros de tu misma unidad al proyecto');
+      }
     }
 
     // En el nuevo esquema, no hay roles específicos en project_member
