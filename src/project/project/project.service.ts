@@ -38,8 +38,8 @@ export class ProjectService {
         // Super_admin puede agregar miembros a cualquier proyecto
         return;
 
-      case 'admin':
-        // Admin puede agregar miembros solo a proyectos de su área
+      case 'area_role':
+        // area_role puede agregar miembros solo a proyectos de su área
         const project = await this.prisma.project.findUnique({
           where: { id: projectId },
           include: {

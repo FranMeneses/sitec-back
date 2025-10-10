@@ -2,7 +2,7 @@ import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { RequireAreaMember } from '../common/decorators/roles.decorator';
+import { RequireAreaMember, RequireAreaRole } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
 import { OrganizationService } from './organization.service';
@@ -42,13 +42,13 @@ export class AreaMemberResolver {
   // ==================== AREA_MEMBER MUTATIONS ====================
 
   @Mutation(() => AreaMember)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAreaRole()
   async createAreaMember(
     @Args('createAreaMemberInput') createAreaMemberInput: CreateAreaMemberInput,
     @CurrentUser() user: User,
   ): Promise<AreaMember> {
-    // TODO: Agregar verificación de permisos de admin
-    return this.organizationService.createAreaMember(createAreaMemberInput);
+    return this.organizationService.createAreaMember(createAreaMemberInput, user);
   }
 
   @Mutation(() => Boolean)
