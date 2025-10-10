@@ -2119,4 +2119,43 @@ export class ProjectService {
     return this.mapProject(unarchivedProject);
   }
 
+  async completeProject(projectId: string, userId: string, review: string): Promise<boolean> {
+    // Verificar que el proyecto existe
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        process: {
+          include: {
+            task: true,
+          },
+        },
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException(`Proyecto con ID ${projectId} no encontrado`);
+    }
+
+    // Actualizar el estado de todas las tareas asociadas a "completed"
+    for (const process of project.process) {
+      await this.prisma.task.updateMany({
+        where: { idprocess: process.id },
+        data: { status: "completed" },
+      });
+    }
+
+    // Actualizar el estado de todos los procesos asociados a "completed"
+    await this.prisma.process.updateMany({
+      where: { idproject: projectId },
+      data: { review: "completed" },
+    });
+
+    // Actualizar el estado y el review del proyecto a "completed"
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: { status: "completed", review },
+    });
+
+    return true;
+  }
 }
