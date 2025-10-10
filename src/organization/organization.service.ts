@@ -21,12 +21,11 @@ export class OrganizationService {
 
   // ===== AREA METHODS =====
   async createArea(createAreaInput: CreateAreaInput, currentUser: User) {
-    // Verificar si el usuario es admin o super_admin
-    const isAdmin = await this.isUserAdmin(currentUser.id);
+    // Verificar si el usuario es super_admin (solo super_admin puede crear áreas)
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
     
-    if (!isAdmin && !isSuperAdmin) {
-      throw new ForbiddenException('Solo los administradores y super administradores pueden crear áreas');
+    if (!isSuperAdmin) {
+      throw new ForbiddenException('Solo los super administradores pueden crear áreas');
     }
 
     // Crear el área
@@ -40,16 +39,9 @@ export class OrganizationService {
       },
     });
 
-    // Auto-asignar al creador (admin) como area_member
-    await this.prisma.area_member.create({
-      data: {
-        idarea: area.id,
-        iduser: currentUser.id,
-      },
-    });
-
-    // Promover automáticamente el system_role del usuario
-    await this.promoteUserSystemRole(currentUser.id);
+    // NOTA: No auto-asignar al super_admin como area_member
+    // El super_admin tiene acceso global y no necesita ser miembro de áreas específicas
+    // Solo se auto-asigna cuando un admin (no super_admin) crea un área
 
     return area;
   }
@@ -1167,11 +1159,12 @@ export class OrganizationService {
   }
 
   async removeAdmin(id: string, currentUser: User): Promise<string> {
-    // Verificar si el usuario actual es super_admin (solo super_admin puede eliminar admins)
+    // Verificar si el usuario actual es super_admin o admin
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
+    const isAdmin = await this.isUserAdmin(currentUser.id);
     
-    if (!isSuperAdmin) {
-      throw new ForbiddenException('Solo los super administradores pueden eliminar otros administradores');
+    if (!isSuperAdmin && !isAdmin) {
+      throw new ForbiddenException('Solo los administradores pueden eliminar otros administradores');
     }
 
     // Verificar que el admin existe
@@ -1180,6 +1173,17 @@ export class OrganizationService {
     });
     if (!admin) {
       throw new NotFoundException(`Administrador con ID ${id} no encontrado`);
+    }
+
+    // Si es admin (no super_admin), verificar que está eliminando de su área
+    if (isAdmin && !isSuperAdmin) {
+      const adminArea = await this.getAdminArea(currentUser.id);
+      if (!adminArea) {
+        throw new ForbiddenException('Admin no asociado a ningún área');
+      }
+      if (admin.idarea !== adminArea) {
+        throw new ForbiddenException('Solo puedes eliminar administradores de tu área');
+      }
     }
 
     // Verificar que no se esté eliminando a sí mismo
@@ -1584,7 +1588,51 @@ export class OrganizationService {
     return areaMembers.map(areaMember => this.mapAreaMember(areaMember));
   }
 
-  async deleteAreaMember(id: string) {
+  async deleteAreaMember(id: string, currentUser: User) {
+    // Verificar permisos: solo super_admin y admin pueden eliminar miembros del área
+    const userWithRoles = await this.userService.findByIdWithRoles(currentUser.id);
+    if (!userWithRoles) {
+      throw new ForbiddenException('Usuario no encontrado');
+    }
+
+    const userSystemRole = userWithRoles.systemRole?.role?.name;
+    
+    if (userSystemRole === 'super_admin') {
+      // Super admin puede eliminar miembros de cualquier área
+    } else if (userSystemRole === 'area_role') {
+      // area_role puede eliminar miembros solo si es admin (no area_member)
+      const isAdmin = await this.prisma.admin.findFirst({
+        where: { iduser: currentUser.id }
+      });
+      
+      if (!isAdmin) {
+        throw new ForbiddenException('Solo los admins pueden eliminar usuarios del área');
+      }
+      
+      // Verificar que el admin puede eliminar miembros de esta área específica
+      const areaMember = await this.prisma.area_member.findUnique({
+        where: { id },
+        include: { area: true }
+      });
+      
+      if (!areaMember) {
+        throw new NotFoundException('Miembro del área no encontrado');
+      }
+      
+      const adminArea = await this.prisma.admin.findFirst({
+        where: { 
+          iduser: currentUser.id,
+          idarea: areaMember.idarea
+        }
+      });
+      
+      if (!adminArea) {
+        throw new ForbiddenException('Solo puedes eliminar usuarios de las áreas que administras');
+      }
+    } else {
+      throw new ForbiddenException('No tienes permisos para eliminar usuarios del área');
+    }
+
     const areaMember = await this.prisma.area_member.findUnique({
       where: { id },
     });
@@ -1596,6 +1644,11 @@ export class OrganizationService {
     await this.prisma.area_member.delete({
       where: { id },
     });
+
+    // Recalcular automáticamente el system_role basado en membresías restantes
+    if (areaMember.iduser) {
+      await this.promoteUserSystemRole(areaMember.iduser);
+    }
 
     return true;
   }

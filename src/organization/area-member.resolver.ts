@@ -52,13 +52,13 @@ export class AreaMemberResolver {
   }
 
   @Mutation(() => Boolean)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAreaRole()
   async deleteAreaMember(
     @Args('id') id: string,
     @CurrentUser() user: User,
   ): Promise<boolean> {
-    // TODO: Agregar verificación de permisos de admin
-    return this.organizationService.deleteAreaMember(id);
+    return this.organizationService.deleteAreaMember(id, user);
   }
 
   // ==================== AREA USER MANAGEMENT FOR AREA_MEMBER ====================

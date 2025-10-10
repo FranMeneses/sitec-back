@@ -15,7 +15,7 @@ import { AreaMember } from './entities/area-member.entity';
 import { Category } from '../project/entities/category.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { RequireAreaMember } from '../common/decorators/roles.decorator';
+import { RequireAreaMember, RequireSuperAdmin, RequireAreaRole } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
 
@@ -26,6 +26,8 @@ export class OrganizationResolver {
 
   // ===== AREA RESOLVERS =====
   @Mutation(() => Area)
+  @UseGuards(RolesGuard)
+  @RequireSuperAdmin()
   async createArea(
     @Args('createAreaInput') createAreaInput: CreateAreaInput,
     @CurrentUser() currentUser: User,
@@ -54,6 +56,8 @@ export class OrganizationResolver {
   }
 
   @Mutation(() => Area)
+  @UseGuards(RolesGuard)
+  @RequireSuperAdmin()
   async updateArea(
     @Args('updateAreaInput') updateAreaInput: UpdateAreaInput,
     @CurrentUser() currentUser: User,
@@ -62,6 +66,8 @@ export class OrganizationResolver {
   }
 
   @Mutation(() => Area)
+  @UseGuards(RolesGuard)
+  @RequireSuperAdmin()
   async removeArea(
     @Args('id', { type: () => Int }) id: number,
     @CurrentUser() currentUser: User,
@@ -210,6 +216,8 @@ export class OrganizationResolver {
   }
 
   @Mutation(() => Admin)
+  @UseGuards(RolesGuard)
+  @RequireAreaRole()
   async createAdmin(
     @Args('createAdminInput') createAdminInput: CreateAdminInput,
     @CurrentUser() currentUser: User,
@@ -218,6 +226,8 @@ export class OrganizationResolver {
   }
 
   @Mutation(() => String)
+  @UseGuards(RolesGuard)
+  @RequireAreaRole()
   async removeAdmin(
     @Args('id') id: string,
     @CurrentUser() currentUser: User,
