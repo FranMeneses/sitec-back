@@ -246,6 +246,7 @@ type Mutation {
   assignTaskMember(createTaskMemberInput: CreateTaskMemberInput!): Boolean!
   assignUserToAreaAsAdmin(areaId: Int, userId: String!): SuccessResponse!
   assignUserToAreaAsMember(areaId: Int, userId: String!): SuccessResponse!
+  completeProject(projectId: String!, review: String!): Boolean!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
   createAreaMember(createAreaMemberInput: CreateAreaMemberInput!): AreaMember!

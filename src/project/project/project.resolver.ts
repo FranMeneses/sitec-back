@@ -243,4 +243,14 @@ export class ProjectResolver {
   async resolveProjectMembers(@Parent() project: Project): Promise<ProjectMember[]> {
     return this.projectService.getProjectMembers(project.id);
   }
+
+  @Mutation(() => Boolean)
+  @UseGuards(JwtAuthGuard)
+  async completeProject(
+    @Args('projectId') projectId: string,
+    @Args('review') review: string,
+    @CurrentUser() user: User,
+  ): Promise<boolean> {
+    return this.projectService.completeProject(projectId, user.id, review);
+  }
 }
