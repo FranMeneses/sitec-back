@@ -22,6 +22,11 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
 
+    const requireUnitCreation = this.reflector.getAllAndOverride<boolean>('REQUIRE_UNIT_CREATION', [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
     // Si no hay roles requeridos, permitir acceso
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;
@@ -59,6 +64,22 @@ export class RolesGuard implements CanActivate {
 
       if (!isAdmin) {
         throw new ForbiddenException('Acceso denegado. Se requiere membresía de administrador');
+      }
+    }
+
+    // Si se requiere creación de unidades: super_admin O admin con membresía
+    if (requireUnitCreation) {
+      const isSuperAdmin = user.roles && user.roles.some(role => role.name === 'super_admin');
+      
+      if (!isSuperAdmin) {
+        // Si no es super_admin, verificar si tiene membresía de admin
+        const isAdmin = await this.prisma.admin.findFirst({
+          where: { iduser: user.id }
+        });
+
+        if (!isAdmin) {
+          throw new ForbiddenException('Acceso denegado. Se requiere ser super administrador o tener membresía de administrador');
+        }
       }
     }
 
