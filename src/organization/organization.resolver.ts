@@ -15,7 +15,7 @@ import { AreaMember } from './entities/area-member.entity';
 import { Category } from '../project/entities/category.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { RequireAreaMember, RequireSuperAdmin, RequireAreaRole } from '../common/decorators/roles.decorator';
+import { RequireAreaMember, RequireSuperAdmin, RequireAreaRole, RequireAdmin, RequireAdminMembership } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
 
@@ -79,6 +79,7 @@ export class OrganizationResolver {
   @Mutation(() => Unit)
   @UseGuards(RolesGuard)
   @RequireSuperAdmin()
+  @RequireAdminMembership()
   async createUnit(
     @Args('createUnitInput') createUnitInput: CreateUnitInput,
     @CurrentUser() currentUser: User,

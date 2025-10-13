@@ -32,3 +32,6 @@ export const RequireUser = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.USER]);
 // Estos decoradores ahora verifican area_role+ ya que admin es rol interno
 export const RequireAdmin = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.AREA_ROLE, SYSTEM_ROLES.SUPER_ADMIN]);
 export const RequireAreaMember = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.AREA_ROLE, SYSTEM_ROLES.SUPER_ADMIN]);
+
+// Decorador específico para verificar membresía de admin (requiere verificación adicional en el guard)
+export const RequireAdminMembership = () => SetMetadata('REQUIRE_ADMIN_MEMBERSHIP', true);

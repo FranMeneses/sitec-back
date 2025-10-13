@@ -177,12 +177,8 @@ export class OrganizationService {
 
   // ===== UNIT METHODS =====
   async createUnit(createUnitInput: CreateUnitInput, currentUser: User) {
-    // Verificar si el usuario es super_admin (solo super_admin puede crear unidades)
-    const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
-    
-    if (!isSuperAdmin) {
-      throw new ForbiddenException('Solo los super administradores pueden crear unidades');
-    }
+    // La verificación de permisos se hace en el guard (RequireSuperAdmin + RequireAdminMembership)
+    // Esto permite tanto super_admin como admin (con membresía) crear unidades
 
     // Verificar que el tipo de unidad existe
     if (createUnitInput.idtype) {
