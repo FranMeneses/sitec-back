@@ -479,6 +479,17 @@ export class ProcessService {
       },
     });
 
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'PROCESS_CREATED',
+        idcreator: editorId,
+        idproject: createProcessInput.projectId,
+        idprocess: process.id,
+        createdat: new Date(),
+      },
+    });
+
     return this.mapProcess(process);
   }
 
@@ -525,6 +536,17 @@ export class ProcessService {
       },
     });
 
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'PROCESS_UPDATED',
+        idcreator: editorId,
+        idproject: existingProcess.idproject,
+        idprocess: process.id,
+        createdat: new Date(),
+      },
+    });
+
     return this.mapProcess(process);
   }
 
@@ -557,6 +579,17 @@ export class ProcessService {
 
     await this.prisma.process.delete({
       where: { id },
+    });
+
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'PROCESS_DELETED',
+        idcreator: userId,
+        idproject: existingProcess.idproject,
+        idprocess: id,
+        createdat: new Date(),
+      },
     });
 
     return true;
@@ -1047,6 +1080,18 @@ export class ProcessService {
       },
     });
 
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'TASK_CREATED',
+        idcreator: editorId,
+        idproject: process.idproject,
+        idprocess: createTaskInput.processId,
+        idtask: task.id,
+        createdat: new Date(),
+      },
+    });
+
     return this.mapTask(taskWithMembers!);
   }
 
@@ -1131,6 +1176,18 @@ export class ProcessService {
             user: true,
           },
         },
+      },
+    });
+
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'TASK_UPDATED',
+        idcreator: editorId,
+        idproject: existingTask.process.idproject,
+        idprocess: existingTask.idprocess,
+        idtask: task.id,
+        createdat: new Date(),
       },
     });
 
@@ -1322,6 +1379,18 @@ export class ProcessService {
       },
     });
 
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'TASK_ASSIGNED',
+        idcreator: projectMemberId,
+        idproject: task.process.idproject,
+        idprocess: task.idprocess,
+        idtask: taskId,
+        createdat: new Date(),
+      },
+    });
+
     return true;
   }
 
@@ -1369,6 +1438,18 @@ export class ProcessService {
     // Remover la asignación
     await this.prisma.task_member.delete({
       where: { id: taskMember.id },
+    });
+
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'MEMBER_REMOVED',
+        idcreator: projectMemberId,
+        idproject: task.process.idproject,
+        idprocess: task.idprocess,
+        idtask: taskId,
+        createdat: new Date(),
+      },
     });
 
     return true;
@@ -1438,6 +1519,18 @@ export class ProcessService {
 
     await this.prisma.task.delete({
       where: { id },
+    });
+
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'TASK_DELETED',
+        idcreator: userId,
+        idproject: existingTask.process.idproject,
+        idprocess: existingTask.idprocess,
+        idtask: id,
+        createdat: new Date(),
+      },
     });
 
     return true;

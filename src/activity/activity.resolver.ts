@@ -11,6 +11,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
 import { UserService } from '../auth/user/user.service';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/permissions.decorator';
 
 @Resolver(() => Evidence)
 export class EvidenceResolver {
@@ -184,60 +186,90 @@ export class CommentResolver {
 
 @Resolver(() => Logs)
 export class LogsResolver {
-  constructor(private activityService: ActivityService) {}
+  constructor(
+    private activityService: ActivityService,
+    private userService: UserService,
+  ) {}
+
+  // ==================== HELPER METHODS ====================
+
+  private async verifyAdminAccess(userId: string): Promise<void> {
+    const isSuperAdmin = await this.userService.isSuperAdmin(userId);
+    const isAdmin = await this.userService.isAdmin(userId);
+    
+    if (!isSuperAdmin && !isAdmin) {
+      throw new ForbiddenException('Solo los super_admins y admins pueden acceder a los logs del sistema');
+    }
+  }
 
   // ==================== LOGS QUERIES ====================
 
   @Query(() => [Logs])
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('read', 'system_logs')
   async logs(@CurrentUser() user: User): Promise<Logs[]> {
+    await this.verifyAdminAccess(user.id);
     return this.activityService.findAllLogs(user.id);
   }
 
   @Query(() => [Logs])
-  @UseGuards(JwtAuthGuard)
-  async logsByProject(@Args('projectId') projectId: string): Promise<Logs[]> {
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('read', 'system_logs')
+  async logsByProject(@Args('projectId') projectId: string, @CurrentUser() user: User): Promise<Logs[]> {
+    await this.verifyAdminAccess(user.id);
     return this.activityService.findLogsByProject(projectId);
   }
 
   @Query(() => [Logs])
-  @UseGuards(JwtAuthGuard)
-  async logsByProcess(@Args('processId') processId: string): Promise<Logs[]> {
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('read', 'system_logs')
+  async logsByProcess(@Args('processId') processId: string, @CurrentUser() user: User): Promise<Logs[]> {
+    await this.verifyAdminAccess(user.id);
     return this.activityService.findLogsByProcess(processId);
   }
 
   @Query(() => [Logs])
-  @UseGuards(JwtAuthGuard)
-  async logsByTask(@Args('taskId') taskId: string): Promise<Logs[]> {
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('read', 'system_logs')
+  async logsByTask(@Args('taskId') taskId: string, @CurrentUser() user: User): Promise<Logs[]> {
+    await this.verifyAdminAccess(user.id);
     return this.activityService.findLogsByTask(taskId);
   }
 
   @Query(() => [Logs])
-  @UseGuards(JwtAuthGuard)
-  async findLogsByProjectId(@Args('idProject') idProject: string): Promise<Logs[]> {
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('read', 'system_logs')
+  async findLogsByProjectId(@Args('idProject') idProject: string, @CurrentUser() user: User): Promise<Logs[]> {
+    await this.verifyAdminAccess(user.id);
     return this.activityService.findLogsByProject(idProject);
   }
 
   @Query(() => [Logs])
-  @UseGuards(JwtAuthGuard)
-  async findLogsByTaskId(@Args('idTask') idTask: string): Promise<Logs[]> {
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('read', 'system_logs')
+  async findLogsByTaskId(@Args('idTask') idTask: string, @CurrentUser() user: User): Promise<Logs[]> {
+    await this.verifyAdminAccess(user.id);
     return this.activityService.findLogsByTask(idTask);
   }
 
   @Query(() => [Logs])
-  @UseGuards(JwtAuthGuard)
-  async findLogsByProcessId(@Args('idProcess') idProcess: string): Promise<Logs[]> {
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('read', 'system_logs')
+  async findLogsByProcessId(@Args('idProcess') idProcess: string, @CurrentUser() user: User): Promise<Logs[]> {
+    await this.verifyAdminAccess(user.id);
     return this.activityService.findLogsByProcess(idProcess);
   }
 
   // ==================== LOGS MUTATIONS ====================
 
   @Mutation(() => Logs)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('create', 'system_logs')
   async createLog(
     @Args('createLogInput') createLogInput: CreateLogInput,
     @CurrentUser() user: User,
   ): Promise<Logs> {
+    await this.verifyAdminAccess(user.id);
     return this.activityService.createLog(createLogInput, user.id);
   }
 }

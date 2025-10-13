@@ -486,6 +486,14 @@ export class ActivityService {
       where: { id },
     });
 
+    // Crear log de actividad
+    await this.createLog({
+      type: LogType.COMMENT_DELETED,
+      taskId: existingComment.id_task,
+      processId: existingComment.task.idprocess,
+      projectId: existingComment.task.process.idproject || undefined,
+    }, userId);
+
     return true;
   }
 

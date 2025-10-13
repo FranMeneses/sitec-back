@@ -871,6 +871,16 @@ export class ProjectService {
     // Aplicar jerarquía de roles para el creador también
     await this.applyRoleHierarchyForProjectMember(editorId);
 
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'PROJECT_CREATED',
+        idcreator: editorId,
+        idproject: project.id,
+        createdat: new Date(),
+      },
+    });
+
     return this.mapProject(project);
   }
 
@@ -920,6 +930,16 @@ export class ProjectService {
         user: true,
         category: true,
         unit: true,
+      },
+    });
+
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'PROJECT_UPDATED',
+        idcreator: editorId,
+        idproject: project.id,
+        createdat: new Date(),
       },
     });
 
@@ -982,6 +1002,16 @@ export class ProjectService {
         status: 'deleted',
         editedat: new Date(),
         ideditor: userId,
+      },
+    });
+
+    // Crear log de actividad
+    await this.prisma.logs.create({
+      data: {
+        type: 'PROJECT_DELETED',
+        idcreator: userId,
+        idproject: id,
+        createdat: new Date(),
       },
     });
 

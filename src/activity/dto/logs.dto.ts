@@ -23,6 +23,7 @@ export enum LogType {
   EVIDENCE_UPLOADED = 'evidence_uploaded',
   EVIDENCE_REPLACED = 'evidence_replaced',
   COMMENT_ADDED = 'comment_added',
+  COMMENT_DELETED = 'comment_deleted',
   MEMBER_ADDED = 'member_added',
   MEMBER_REMOVED = 'member_removed'
 }
