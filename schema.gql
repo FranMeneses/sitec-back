@@ -116,6 +116,16 @@ input CreateLogInput {
   type: String!
 }
 
+input CreateNotificationInput {
+  message: String!
+  relatedProcessId: String
+  relatedProjectId: String
+  relatedTaskId: String
+  title: String!
+  type: String!
+  userId: String!
+}
+
 input CreateProcessInput {
   description: String
   dueDate: String
@@ -234,6 +244,10 @@ type Logs {
   updatedAt: DateTime!
 }
 
+input MarkNotificationReadInput {
+  notificationId: String!
+}
+
 type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
@@ -255,6 +269,7 @@ type Mutation {
   createEvidence(createEvidenceInput: CreateEvidenceInput!): Evidence!
   createFirstSuperAdmin(email: String!, name: String!, password: String!): AuthResponse!
   createLog(createLogInput: CreateLogInput!): Logs!
+  createNotification(createNotificationInput: CreateNotificationInput!): Notification!
   createProcess(createProcessInput: CreateProcessInput!): Process!
   createProcessAsProjectMember(createProcessInput: CreateProcessInput!): Process!
   createProcessTask(idProcess: String!, idTask: String!): String!
@@ -274,8 +289,13 @@ type Mutation {
   deleteProject(id: String!): Boolean!
   deleteRole(id: Int!): Boolean!
   deleteTask(id: String!): Boolean!
+  generateDailySummaryNotifications: Boolean!
+  generateOverdueTaskNotifications: Boolean!
+  generateTaskDueSoonNotifications: Boolean!
   googleAuth(googleAuthDto: GoogleAuthDto!): GoogleAuthResponse!
   login(loginInput: LoginInput!): AuthResponse!
+  markAllNotificationsAsRead: Boolean!
+  markNotificationAsRead(markNotificationReadInput: MarkNotificationReadInput!): Boolean!
   reactivateTask(taskId: String!): Task!
   register(registerInput: RegisterInput!): AuthResponse!
   removeAdmin(id: String!): String!
@@ -312,6 +332,32 @@ type Mutation {
   updateUnitMember(updateUnitMemberInput: UpdateUnitMemberInput!): UnitMember!
   updateUser(updateUserInput: UpdateUserInput!): User!
   updateUserSystemRole(roleId: Float!, userId: String!): SuccessResponse!
+}
+
+type Notification {
+  createdAt: DateTime!
+  id: ID!
+  isRead: Boolean!
+  message: String!
+  process: Process
+  project: Project
+  relatedProcessId: String
+  relatedProjectId: String
+  relatedTaskId: String
+  task: Task
+  title: String!
+  type: String!
+  user: User
+  userId: String!
+}
+
+input NotificationFilterInput {
+  isRead: Boolean
+  relatedProcessId: String
+  relatedProjectId: String
+  relatedTaskId: String
+  type: String
+  userId: String
 }
 
 type Process {
@@ -416,10 +462,12 @@ type Query {
   myAreaMemberships: [AreaMember!]!
   myAreaTypes: [Type!]!
   myAssignedTasks(includeArchived: Boolean! = false): [Task!]!
+  myNotifications(limit: Int! = 50): [Notification!]!
   myProjectMemberships: [ProjectMember!]!
   myRoles: [Role!]!
   myUnitMemberships: [UnitMember!]!
   myUnitsAsAdmin: [Unit!]!
+  notifications(filter: NotificationFilterInput): [Notification!]!
   process(id: String!, includeArchived: Boolean! = false): Process
   processes(includeArchived: Boolean): [Process!]!
   processesByProject(includeArchived: Boolean! = false, projectId: String!): [Process!]!
@@ -440,6 +488,7 @@ type Query {
   unit(id: Int!): Unit!
   unitMembers(unitId: Int!): [UnitMember!]!
   units: [Unit!]!
+  unreadNotificationCount: Int!
   user(id: String!): User!
   users: [User!]!
 }

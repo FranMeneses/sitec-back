@@ -12,6 +12,7 @@ import { ProcessModule } from './process/process.module';
 import { ActivityModule } from './activity/activity.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { CommonModule } from './common/common.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { CommonModule } from './common/common.module';
     ProcessModule,
     ActivityModule,
     UploadsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

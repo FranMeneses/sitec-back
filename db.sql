@@ -182,3 +182,16 @@ CREATE INDEX idx_project_archived ON project(archived_at) WHERE archived_at IS N
 CREATE INDEX idx_process_archived ON process(archived_at) WHERE archived_at IS NULL;
 CREATE INDEX idx_task_archived ON task(archived_at) WHERE archived_at IS NULL;
 CREATE INDEX idx_evidence_archived ON evidence(archived_at) WHERE archived_at IS NULL;
+
+CREATE TABLE notification (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES "user"(id) NOT NULL,
+    type VARCHAR NOT NULL,
+    title VARCHAR NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    related_project_id UUID REFERENCES project(id),
+    related_process_id UUID REFERENCES process(id),
+    related_task_id UUID REFERENCES task(id)
+);
