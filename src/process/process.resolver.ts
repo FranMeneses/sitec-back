@@ -245,6 +245,20 @@ export class TaskResolver {
   async taskMembers(@Parent() task: Task): Promise<TaskMember[]> {
     return this.processService.getTaskMembers(task.id);
   }
+
+  /**
+   * Obtiene todos los procesos visibles según el rol del usuario autenticado.
+   * @param user Usuario autenticado (token JWT)
+   * @param includeArchived Si es true, incluye procesos archivados.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Query(() => [Process], { name: 'processes' })
+  async findAllProcesses(
+    @CurrentUser() user: { id: string },
+    @Args('includeArchived', { type: () => Boolean, nullable: true }) includeArchived?: boolean,
+  ): Promise<Process[]> {
+    return this.processService.findAllProcesses(user.id, includeArchived ?? false);
+  }
   // ==================== TASK RESOLVE FIELDS ====================
 
   @ResolveField(() => Process)
