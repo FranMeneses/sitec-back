@@ -9,15 +9,15 @@ export class UserService {
   constructor(
     private prisma: PrismaService,
     private systemRoleService: SystemRoleService,
-  ) {}
+  ) { }
 
   async findByEmail(email: string): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
-    
+
     if (!user) return null;
-    
+
     return {
       id: user.id,
       name: user.name || '',
@@ -32,9 +32,9 @@ export class UserService {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
-    
+
     if (!user) return null;
-    
+
     return {
       id: user.id,
       name: user.name || '',
@@ -61,15 +61,15 @@ export class UserService {
         admin: true
       }
     });
-    
+
     if (!user) return null;
-    
+
     // Solo hay un rol del sistema por usuario
     const userRoles: any[] = [];
     if (user.system_role?.role) {
       userRoles.push(user.system_role.role);
     }
-    
+
     return {
       id: user.id,
       name: user.name || '',
@@ -102,7 +102,7 @@ export class UserService {
     idRole?: string;
     idArea?: string;
   }): Promise<User> {
-    const hashedPassword = data.password 
+    const hashedPassword = data.password
       ? await bcrypt.hash(data.password, 12)
       : null;
 
@@ -137,11 +137,11 @@ export class UserService {
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
     const updateData: any = {};
-    
+
     if (data.name) updateData.name = data.name;
     if (data.email) updateData.email = data.email;
     if (data.isActive !== undefined) updateData.isactive = data.isActive;
-    
+
     if (data.password) {
       updateData.password = await bcrypt.hash(data.password, 12);
       updateData.havepassword = true;
@@ -259,7 +259,7 @@ export class UserService {
   async isSuperAdmin(userId: string): Promise<boolean> {
     // Verificar si el usuario es super_admin
     const systemRole = await this.prisma.system_role.findFirst({
-      where: { 
+      where: {
         user_id: userId,
         role: { name: 'super_admin' }
       },
@@ -330,10 +330,10 @@ export class UserService {
 
     // Combinar y eliminar duplicados
     const allProjects = [
-      ...projectMembers.map(pm => pm.project).filter(Boolean), 
+      ...projectMembers.map(pm => pm.project).filter(Boolean),
       ...editedProjects
     ];
-    const uniqueProjects = allProjects.filter((project, index, self) => 
+    const uniqueProjects = allProjects.filter((project, index, self) =>
       project && index === self.findIndex(p => p && p.id === project.id)
     );
 
@@ -362,25 +362,25 @@ export class UserService {
   async findUserAssignedTasks(userId: string, includeArchived = false): Promise<any[]> {
     // Obtener todas las tareas donde el usuario es task_member
     const taskMembers = await this.prisma.task_member.findMany({
-      where: { 
+      where: {
         iduser: userId,
         task: includeArchived ? {} : { archived_at: null }
       },
       include: {
-            task: {
+        task: {
+          include: {
+            process: {
               include: {
-                process: {
+                project: {
                   include: {
-                    project: {
-                      include: {
-                        unit: true,
-                        category: true,
-                      }
-                    }
+                    unit: true,
+                    category: true,
                   }
-                },
-                user: true, // editor
-                user_task_archived_byTouser: true, // archived by user
+                }
+              }
+            },
+            user: true, // editor
+            user_task_archived_byTouser: true, // archived by user
             comment: {
               include: {
                 user: true,
@@ -479,6 +479,8 @@ export class UserService {
     }));
   }
 
+
+
   async isProjectMember(userId: string, projectId: string): Promise<boolean> {
     const projectMember = await this.prisma.project_member.findFirst({
       where: {
@@ -488,6 +490,46 @@ export class UserService {
     });
 
     return !!projectMember;
+  }
+
+  async canViewAllTasksInProject(userId: string, projectId: string): Promise<boolean> {
+    // Buscar el proyecto con sus relaciones mínimas necesarias
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: {
+        id: true,
+        idunit: true,
+        idcategory: true,
+      },
+    });
+
+    if (!project) return false;
+
+    // Si el usuario es miembro de la unidad, tiene acceso
+    if (project.idunit && await this.isUnitMember(userId, project.idunit)) {
+      return true;
+    }
+
+    // Buscar la categoría (para acceder al área)
+    if (!project.idcategory) return false;
+
+    const category = await this.prisma.category.findUnique({
+      where: { id: project.idcategory },
+      select: { id_area: true },
+    });
+    if (!category?.id_area) return false;
+
+    // Verificar si el usuario pertenece al área
+    const isAreaMember = await this.prisma.area_member.findFirst({
+      where: {
+        iduser: userId,
+        idarea: category.id_area,
+      },
+    });
+    if (isAreaMember) return true;
+
+    // Finalmente, verificar si es miembro directo del proyecto
+    return await this.isProjectMember(userId, projectId);
   }
 
   async canCreateProcessInProject(userId: string, projectId: string): Promise<boolean> {
@@ -678,7 +720,7 @@ export class UserService {
     });
 
     if (!task || !task.process.project || !task.process.project.category) return false;
-    
+
     return task.process.project.category.id_area === adminArea;
   }
 
@@ -704,7 +746,7 @@ export class UserService {
     });
 
     if (!process || !process.project || !process.project.category) return false;
-    
+
     return process.project.category.id_area === adminArea;
   }
 
@@ -726,7 +768,7 @@ export class UserService {
     });
 
     if (!project || !project.category) return false;
-    
+
     return project.category.id_area === adminArea;
   }
 
@@ -761,7 +803,7 @@ export class UserService {
     if (unit.unit_member.length > 0) return true;
 
     // Si la unidad tiene proyectos con categorías del área del admin, puede realizar acciones
-    return unit.project.some(project => 
+    return unit.project.some(project =>
       project.category && project.category.id_area === adminArea
     );
   }
@@ -775,7 +817,7 @@ export class UserService {
         where: { id: taskId },
         select: { status: true }
       });
-      
+
       if (!task || !['cancelled', 'completed'].includes(task.status || '')) {
         return false; // Solo se pueden reactivar tareas canceladas o completadas
       }
@@ -950,7 +992,7 @@ export class UserService {
     });
 
     if (!project || !project.category) return false;
-    
+
     return project.category.id_area === auditorArea;
   }
 
@@ -980,7 +1022,7 @@ export class UserService {
     });
 
     if (!task || !task.process || !task.process.project || !task.process.project.category) return false;
-    
+
     return task.process.project.category.id_area === auditorArea;
   }
 
