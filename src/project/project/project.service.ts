@@ -197,65 +197,42 @@ export class ProjectService {
         // Super_admin puede actualizar cualquier proyecto
         return;
 
-      case 'admin':
-        // Admin puede actualizar proyectos de su área
-        const project = await this.prisma.project.findUnique({
-          where: { id: projectId },
-          include: {
-            category: {
-              include: {
-                area: true
-              }
+      case 'area_role':
+        // area_role (admin o area_member) puede actualizar proyectos de su área
+        {
+          const project = await this.prisma.project.findUnique({
+            where: { id: projectId },
+            include: {
+              category: { include: { area: true } }
             }
+          });
+
+          if (!project || !project.category) {
+            throw new BadRequestException('Proyecto o categoría no encontrada');
           }
-        });
 
-        if (!project || !project.category) {
-          throw new BadRequestException('Proyecto o categoría no encontrada');
-        }
+          // Si es admin de un área, debe coincidir el área
+          const adminArea = await this.prisma.admin.findFirst({
+            where: { iduser: userId },
+            select: { idarea: true }
+          });
 
-        const adminArea = await this.prisma.admin.findFirst({
-          where: { iduser: userId },
-          select: { idarea: true }
-        });
-
-        if (!adminArea) {
-          throw new ForbiddenException('Admin no asociado a ningún área');
-        }
-
-        if (project.category.id_area !== adminArea.idarea) {
-          throw new ForbiddenException('Solo puedes actualizar proyectos de tu área');
-        }
-        return;
-
-      case 'area_member':
-        // Area_member puede actualizar proyectos de las áreas donde es miembro
-        const projectForAreaMember = await this.prisma.project.findUnique({
-          where: { id: projectId },
-          include: {
-            category: {
-              include: {
-                area: true
-              }
+          if (adminArea) {
+            if (project.category.id_area !== adminArea.idarea) {
+              throw new ForbiddenException('Solo puedes actualizar proyectos de tu área');
             }
+            return;
           }
-        });
 
-        if (!projectForAreaMember || !projectForAreaMember.category) {
-          throw new BadRequestException('Proyecto o categoría no encontrada');
-        }
-
-        const isAreaMember = await this.prisma.area_member.findFirst({
-          where: {
-            iduser: userId,
-            idarea: projectForAreaMember.category.id_area
+          // Si no es admin, verificar membresía de área
+          const isAreaMember = await this.prisma.area_member.findFirst({
+            where: { iduser: userId, idarea: project.category.id_area }
+          });
+          if (!isAreaMember) {
+            throw new ForbiddenException('Solo puedes actualizar proyectos de áreas donde eres miembro');
           }
-        });
-
-        if (!isAreaMember) {
-          throw new ForbiddenException('Solo puedes actualizar proyectos de áreas donde eres miembro');
+          return;
         }
-        return;
 
       case 'project_member':
         // Project_member puede actualizar proyectos donde es miembro
@@ -294,65 +271,40 @@ export class ProjectService {
         // Super_admin puede eliminar cualquier proyecto
         return;
 
-      case 'admin':
-        // Admin puede eliminar proyectos de su área
-        const project = await this.prisma.project.findUnique({
-          where: { id: projectId },
-          include: {
-            category: {
-              include: {
-                area: true
-              }
+      case 'area_role':
+        // area_role (admin o area_member) puede eliminar proyectos de su área
+        {
+          const project = await this.prisma.project.findUnique({
+            where: { id: projectId },
+            include: {
+              category: { include: { area: true } }
             }
+          });
+
+          if (!project || !project.category) {
+            throw new BadRequestException('Proyecto o categoría no encontrada');
           }
-        });
 
-        if (!project || !project.category) {
-          throw new BadRequestException('Proyecto o categoría no encontrada');
-        }
+          const adminArea = await this.prisma.admin.findFirst({
+            where: { iduser: userId },
+            select: { idarea: true }
+          });
 
-        const adminArea = await this.prisma.admin.findFirst({
-          where: { iduser: userId },
-          select: { idarea: true }
-        });
-
-        if (!adminArea) {
-          throw new ForbiddenException('Admin no asociado a ningún área');
-        }
-
-        if (project.category.id_area !== adminArea.idarea) {
-          throw new ForbiddenException('Solo puedes eliminar proyectos de tu área');
-        }
-        return;
-
-      case 'area_member':
-        // Area_member puede eliminar proyectos de las áreas donde es miembro
-        const projectForAreaMember = await this.prisma.project.findUnique({
-          where: { id: projectId },
-          include: {
-            category: {
-              include: {
-                area: true
-              }
+          if (adminArea) {
+            if (project.category.id_area !== adminArea.idarea) {
+              throw new ForbiddenException('Solo puedes eliminar proyectos de tu área');
             }
+            return;
           }
-        });
 
-        if (!projectForAreaMember || !projectForAreaMember.category) {
-          throw new BadRequestException('Proyecto o categoría no encontrada');
-        }
-
-        const isAreaMember = await this.prisma.area_member.findFirst({
-          where: {
-            iduser: userId,
-            idarea: projectForAreaMember.category.id_area
+          const isAreaMember = await this.prisma.area_member.findFirst({
+            where: { iduser: userId, idarea: project.category.id_area }
+          });
+          if (!isAreaMember) {
+            throw new ForbiddenException('Solo puedes eliminar proyectos de áreas donde eres miembro');
           }
-        });
-
-        if (!isAreaMember) {
-          throw new ForbiddenException('Solo puedes eliminar proyectos de áreas donde eres miembro');
+          return;
         }
-        return;
 
       case 'project_member':
         // Project_member NO puede eliminar proyectos
