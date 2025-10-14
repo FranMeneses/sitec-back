@@ -421,7 +421,7 @@ type Query {
   myUnitMemberships: [UnitMember!]!
   myUnitsAsAdmin: [Unit!]!
   process(id: String!, includeArchived: Boolean! = false): Process
-  processes(includeArchived: Boolean! = false): [Process!]!
+  processes(includeArchived: Boolean): [Process!]!
   processesByProject(includeArchived: Boolean! = false, projectId: String!): [Process!]!
   project(id: String!, includeArchived: Boolean! = false): Project
   projectMember(id: String!): ProjectMember!

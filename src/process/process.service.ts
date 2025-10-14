@@ -317,7 +317,6 @@ export class ProcessService {
     startDate?: string,
     dueDate?: string
   ): Promise<void> {
-    // Obtener las fechas del proceso
     const process = await this.prisma.process.findUnique({
       where: { id: processId },
       select: { startdate: true, duedate: true }
@@ -327,45 +326,57 @@ export class ProcessService {
       throw new BadRequestException('El proceso especificado no existe');
     }
 
-    // Validar fechas de la tarea entre sí
+    // Validar fechas entre sí
     this.validateTaskDates(startDate, dueDate);
 
-    // Si el proceso tiene fechas definidas, validar que la tarea esté dentro del rango
-    if (process.startdate && startDate) {
-      const processStart = new Date(process.startdate);
-      const taskStart = new Date(startDate);
+    // Función para normalizar (eliminar horas y zonas)
+    const normalize = (date: string | Date): Date => {
+      const d = new Date(date);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    };
 
-      if (taskStart < processStart) {
-        throw new BadRequestException('La fecha de inicio de la tarea no puede ser anterior a la fecha de inicio del proceso');
+    const processStart = process.startdate ? normalize(process.startdate) : null;
+    const processDue = process.duedate ? normalize(process.duedate) : null;
+    const taskStart = startDate ? normalize(startDate) : null;
+    const taskDue = dueDate ? normalize(dueDate) : null;
+
+    function normalizeToUTCStart(date: Date): Date {
+      const d = new Date(date);
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    }
+
+    // Validar inicio
+    if (processStart && taskStart) {
+      const ps = normalizeToUTCStart(processStart);
+      const ts = normalizeToUTCStart(taskStart);
+
+      if (ts < ps) {
+        throw new BadRequestException(
+          'La fecha de inicio de la tarea no puede ser anterior a la fecha de inicio del proceso'
+        );
       }
     }
 
-    if (process.duedate && dueDate) {
-      const processDue = new Date(process.duedate);
-      const taskDue = new Date(dueDate);
-
-      if (taskDue > processDue) {
-        throw new BadRequestException('La fecha de vencimiento de la tarea no puede ser posterior a la fecha de vencimiento del proceso');
-      }
+    // Validar fin
+    if (processDue && taskDue && taskDue > processDue) {
+      throw new BadRequestException(
+        'La fecha de vencimiento de la tarea no puede ser posterior a la fecha de vencimiento del proceso'
+      );
     }
 
-    // Validar que si la tarea tiene fechas, estén dentro del rango del proceso
-    if (process.startdate && process.duedate) {
-      const processStart = new Date(process.startdate);
-      const processDue = new Date(process.duedate);
-
-      if (startDate) {
-        const taskStart = new Date(startDate);
-        if (taskStart < processStart || taskStart > processDue) {
-          throw new BadRequestException('La fecha de inicio de la tarea debe estar dentro del rango de fechas del proceso');
-        }
+    // Validar rango completo
+    if (processStart && processDue) {
+      if (taskStart && (taskStart < processStart || taskStart > processDue)) {
+        throw new BadRequestException(
+          'La fecha de inicio de la tarea debe estar dentro del rango de fechas del proceso'
+        );
       }
 
-      if (dueDate) {
-        const taskDue = new Date(dueDate);
-        if (taskDue < processStart || taskDue > processDue) {
-          throw new BadRequestException('La fecha de vencimiento de la tarea debe estar dentro del rango de fechas del proceso');
-        }
+      if (taskDue && (taskDue < processStart || taskDue > processDue)) {
+        throw new BadRequestException(
+          'La fecha de vencimiento de la tarea debe estar dentro del rango de fechas del proceso'
+        );
       }
     }
   }
@@ -770,7 +781,172 @@ export class ProcessService {
 
     return this.mapProcess(unarchivedProcess);
   }
+  // ==================== PROCESS METHODS - ROLE BASED ====================
 
+  /**
+   * Retorna todos los procesos que el usuario puede ver según su rol y permisos
+   * - super_admin: todos los procesos
+   * - area_role: procesos de proyectos en sus áreas o donde es miembro
+   * - unit_role: procesos de proyectos en sus unidades o donde es miembro
+   * - user: procesos de proyectos donde es miembro
+   */
+  async findAllProcessesArchived(userId?: string, includeArchived = false): Promise<Process[]> {
+    if (!userId) {
+      throw new ForbiddenException('Debe estar autenticado para ver procesos');
+    }
+
+    // Obtener el rol del usuario
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true },
+    });
+
+    const currentRole = userSystemRole?.role?.name;
+    let processes: any[] = [];
+
+    const DEFAULT_INCLUDE = {
+      project: {
+        include: {
+          category: { include: { area: true } },
+          unit: { include: { type: true } },
+          user: true,
+        },
+      },
+      user: true, // creador del proceso
+      processTasks: {
+        include: {
+          user: true, // si las tareas tienen responsable
+          // evidence: true, // descomenta si quieres incluir evidencias
+          // status: true,   // idem para estado u otras relaciones
+        },
+      },
+    };
+    switch (currentRole) {
+      case 'super_admin':
+        // 🔹 Superadmin ve todos los procesos (excepto eliminados)
+        processes = await this.prisma.process.findMany({
+          where: {
+
+            ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+          },
+          include: DEFAULT_INCLUDE,
+          orderBy: { name: 'asc' },
+        });
+        break;
+
+      case 'area_role': {
+        // 🔹 Obtener áreas del usuario
+        const userAreas = await this.prisma.area_member.findMany({
+          where: { iduser: userId },
+          select: { idarea: true },
+        });
+
+        const adminArea = await this.prisma.admin.findFirst({
+          where: { iduser: userId },
+          select: { idarea: true },
+        });
+        if (adminArea) userAreas.push({ idarea: adminArea.idarea! });
+
+        const areaIds = [...new Set(userAreas.map((a) => a.idarea))];
+
+        // 🔹 Obtener proyectos donde el usuario es miembro
+        const projectMemberships = await this.prisma.project_member.findMany({
+          where: { iduser: userId },
+          select: { idproject: true },
+        });
+        const projectIds = projectMemberships.map((pm) => pm.idproject);
+
+        // 🔹 Filtros combinados: proyectos del área o donde participa
+        const areaWhereConditions: any[] = [];
+        if (areaIds.length > 0) {
+          areaWhereConditions.push({
+            project: { category: { id_area: { in: areaIds } } },
+          });
+        }
+        if (projectIds.length > 0) {
+          areaWhereConditions.push({ projectId: { in: projectIds } });
+        }
+
+        processes = await this.prisma.process.findMany({
+          where: {
+            OR: areaWhereConditions,
+
+            ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+          },
+          include: DEFAULT_INCLUDE,
+          orderBy: { name: 'asc' },
+        });
+        break;
+      }
+
+      case 'unit_role': {
+        // 🔹 Obtener unidades del usuario
+        const userUnits = await this.prisma.unit_member.findMany({
+          where: { iduser: userId },
+          select: { idunit: true },
+        });
+        const unitIds = userUnits.map((u) => u.idunit);
+
+        // 🔹 Obtener proyectos donde es miembro
+        const projectMemberships = await this.prisma.project_member.findMany({
+          where: { iduser: userId },
+          select: { idproject: true },
+        });
+        const projectIds = projectMemberships.map((pm) => pm.idproject);
+
+        // 🔹 Filtros combinados: proyectos de la unidad o donde participa
+        const unitWhereConditions: any[] = [];
+        if (unitIds.length > 0) {
+          unitWhereConditions.push({
+            project: { idunit: { in: unitIds } },
+          });
+        }
+        if (projectIds.length > 0) {
+          unitWhereConditions.push({ projectId: { in: projectIds } });
+        }
+
+        processes = await this.prisma.process.findMany({
+          where: {
+            OR: unitWhereConditions,
+
+            ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+          },
+          include: DEFAULT_INCLUDE,
+          orderBy: { name: 'asc' },
+        });
+        break;
+      }
+      case 'user':
+      default: {
+        // 🔹 User ve procesos de los proyectos donde es miembro
+        const userProjects = await this.prisma.project_member.findMany({
+          where: { iduser: userId },
+          select: { idproject: true },
+        });
+        const projectIds = userProjects
+          .map((p) => p.idproject)
+          .filter((id): id is string => id !== null); // Filter out null values
+
+        if (projectIds.length === 0) {
+          processes = [];
+        } else {
+          processes = await this.prisma.process.findMany({
+            where: {
+              project: {
+                id: { in: projectIds }, // Use the `project` relationship to filter by `id`
+              },
+              ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+            },
+            include: DEFAULT_INCLUDE,
+            orderBy: { name: 'asc' },
+          });
+        }
+        break;
+      }
+    }
+
+    return processes.map((process) => this.mapProcess(process));
+  }
   // ==================== TASK METHODS ====================
 
   async findAllTasks(userId?: string, includeArchived = false): Promise<Task[]> {
@@ -856,7 +1032,7 @@ export class ProcessService {
         }
       }
     }
-    
+
     return this.mapTask(task);
   }
 
@@ -1198,12 +1374,12 @@ export class ProcessService {
     // Verificar permisos del usuario basado en rol y membresías
     const userWithRoles = await this.userService.findByIdWithRoles(memberId);
     const userSystemRole = userWithRoles?.systemRole?.role?.name;
-    
+
     // Si es usuario "user", verificar que tenga membresías apropiadas
     if (userSystemRole === 'user') {
       const hasProjectMembership = userWithRoles?.projectMemberships?.length > 0;
       const hasTaskMembership = userWithRoles?.taskMemberships?.length > 0;
-      
+
       if (!hasProjectMembership && !hasTaskMembership) {
         throw new ForbiddenException('Los usuarios sin membresías de proyecto o tarea no pueden editar tareas.');
       }
@@ -1228,11 +1404,11 @@ export class ProcessService {
     // Validación adicional para usuarios "user": verificar membresías específicas
     if (userSystemRole === 'user') {
       const isProjectMember = await this.userService.isProjectMember(memberId, existingTask.process.idproject!);
-      
+
       // Si es project_member del proyecto, puede editar cualquier tarea del proyecto
       // Si NO es project_member pero SÍ es task_member, puede editar solo esta tarea
       // (ya validamos que es task_member arriba)
-      
+
       if (!isProjectMember) {
         // Solo puede editar como task_member (permisos limitados)
         // Podemos agregar restricciones adicionales aquí si es necesario
@@ -1322,11 +1498,11 @@ export class ProcessService {
     // Verificar permisos del usuario basado en rol y membresías
     const userWithRoles = await this.userService.findByIdWithRoles(projectMemberId);
     const userSystemRole = userWithRoles?.systemRole?.role?.name;
-    
+
     // Si es usuario "user", debe ser project_member para gestionar task_members
     if (userSystemRole === 'user') {
       const hasProjectMembership = userWithRoles?.projectMemberships?.length > 0;
-      
+
       if (!hasProjectMembership) {
         throw new ForbiddenException('Los usuarios "user" solo pueden gestionar task_members si son project_member del proyecto.');
       }
@@ -1398,11 +1574,11 @@ export class ProcessService {
     // Verificar permisos del usuario basado en rol y membresías
     const userWithRoles = await this.userService.findByIdWithRoles(projectMemberId);
     const userSystemRole = userWithRoles?.systemRole?.role?.name;
-    
+
     // Si es usuario "user", debe ser project_member para gestionar task_members
     if (userSystemRole === 'user') {
       const hasProjectMembership = userWithRoles?.projectMemberships?.length > 0;
-      
+
       if (!hasProjectMembership) {
         throw new ForbiddenException('Los usuarios "user" solo pueden gestionar task_members si son project_member del proyecto.');
       }
@@ -1639,9 +1815,9 @@ export class ProcessService {
       throw new NotFoundException('Tarea no encontrada');
     }
 
-    if (!existingTask.archived_at) {
-      throw new BadRequestException('La tarea no está archivada');
-    }
+    // if (!existingTask.archived_at) {
+    //   throw new BadRequestException('La tarea no está archivada');
+    // }
 
     // Validar permisos
     if (!existingTask.process.idproject) {
@@ -1682,9 +1858,9 @@ export class ProcessService {
       throw new NotFoundException('Tarea no encontrada');
     }
 
-    if (!existingTask.archived_at) {
-      throw new BadRequestException('La tarea no está archivada');
-    }
+    // if (!existingTask.archived_at) {
+    //   throw new BadRequestException('La tarea no está archivada');
+    // }
 
     // Validar permisos
     if (!existingTask.process.idproject) {
