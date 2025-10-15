@@ -19,7 +19,7 @@ export class EvidenceResolver {
   constructor(
     private activityService: ActivityService,
     private userService: UserService,
-  ) {}
+  ) { }
 
   // ==================== EVIDENCE QUERIES ====================
 
@@ -120,19 +120,28 @@ export class EvidenceResolver {
     @Args('projectId') projectId: string,
     @CurrentUser() user: User,
   ): Promise<Evidence[]> {
-    // Verificar que el usuario es miembro del proyecto
-    const isProjectMember = await this.userService.isProjectMember(user.id, projectId);
-    if (!isProjectMember) {
-      throw new ForbiddenException('No tienes permisos para ver las evidencias de este proyecto');
+    // Verificar si el usuario es superadmin
+    const isSuperAdmin = await this.userService.isSuperAdmin(user.id);
+    // Si es superadmin, puede ver todas las evidencias sin restricción
+    if (isSuperAdmin) {
+      return this.activityService.findEvidenceByProject(projectId);
     }
-    
+    // Verificar si el usuario tiene permiso a ver la evidencia
+    const canViewTasks = await this.userService.canViewAllTasksInProject(user.id, projectId);
+    if (!canViewTasks) {
+      throw new ForbiddenException(
+        'No tienes permisos para ver las evidencias de este proyecto',
+      );
+    }
+
+    // Retornar las evidencias si cumple las condiciones
     return this.activityService.findEvidenceByProject(projectId);
   }
 }
 
 @Resolver(() => Comment)
 export class CommentResolver {
-  constructor(private activityService: ActivityService) {}
+  constructor(private activityService: ActivityService) { }
 
   // ==================== COMMENT QUERIES ====================
 
@@ -189,14 +198,14 @@ export class LogsResolver {
   constructor(
     private activityService: ActivityService,
     private userService: UserService,
-  ) {}
+  ) { }
 
   // ==================== HELPER METHODS ====================
 
   private async verifyAdminAccess(userId: string): Promise<void> {
     const isSuperAdmin = await this.userService.isSuperAdmin(userId);
     const isAdmin = await this.userService.isAdmin(userId);
-    
+
     if (!isSuperAdmin && !isAdmin) {
       throw new ForbiddenException('Solo los super_admins y admins pueden acceder a los logs del sistema');
     }
