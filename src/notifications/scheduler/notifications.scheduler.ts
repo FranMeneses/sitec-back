@@ -8,13 +8,13 @@ export class NotificationsScheduler {
 
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  // Ejecutar todos los días a las 8:00 AM
-  @Cron('0 8 * * *', {
+  // Ejecutar de lunes a viernes a las 8:00 AM (0=Domingo, 1=Lunes, ... 5=Viernes)
+  @Cron('0 8 * * 1-5', {
     name: 'daily-notifications',
     timeZone: 'America/Santiago', // Zona horaria de Santiago de Chile
   })
   async handleDailyNotifications() {
-    this.logger.log('🕐 Starting daily notification generation...');
+    this.logger.debug('Starting weekday daily notification generation...');
     
     try {
       // Generar resumen diario
@@ -26,12 +26,28 @@ export class NotificationsScheduler {
       // Generar notificaciones de tareas vencidas
       await this.notificationsService.generateOverdueTaskNotifications();
       
-      this.logger.log('✅ Daily notifications completed successfully');
+      this.logger.debug('Daily notifications completed successfully');
     } catch (error) {
       this.logger.error('❌ Error generating daily notifications:', error);
     }
   }
 
+
+  // Cron semanal: domingo a las 04:00 AM para limpiar notificaciones leídas > 7 días
+  @Cron('0 4 * * 0', {
+    name: 'weekly-notifications-cleanup',
+    timeZone: 'America/Santiago',
+  })
+  async handleWeeklyCleanup() {
+    this.logger.debug('Starting weekly notifications cleanup...');
+    try {
+      const removedRead = await this.notificationsService.clearOldNotificationsGlobal({ onlyRead: true, olderThanDays: 7 });
+      const removedAll = await this.notificationsService.clearOldNotificationsGlobal({ onlyRead: false, olderThanDays: 14 });
+      this.logger.debug(`Weekly cleanup done. Removed read>7d: ${removedRead}. Removed all>14d: ${removedAll}`);
+    } catch (error) {
+      this.logger.error('Error in weekly notifications cleanup:', error);
+    }
+  }
 
   // Método manual para testing (opcional)
   async runManualNotificationGeneration(): Promise<void> {

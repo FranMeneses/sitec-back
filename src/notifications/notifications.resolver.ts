@@ -8,6 +8,7 @@ import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/entities/user.entity';
+import { ClearNotificationsInput } from './dto/clear-notifications.input';
 
 @Resolver(() => Notification)
 export class NotificationsResolver {
@@ -56,6 +57,24 @@ export class NotificationsResolver {
   @UseGuards(JwtAuthGuard)
   async markAllAsRead(@CurrentUser() user: User): Promise<boolean> {
     return this.notificationsService.markAllAsRead(user.id);
+  }
+
+  @Mutation(() => Boolean, { name: 'deleteNotification' })
+  @UseGuards(JwtAuthGuard)
+  async deleteNotification(
+    @Args('notificationId') notificationId: string,
+    @CurrentUser() user: User,
+  ): Promise<boolean> {
+    return this.notificationsService.deleteNotification(notificationId, user.id);
+  }
+
+  @Mutation(() => Int, { name: 'clearNotifications' })
+  @UseGuards(JwtAuthGuard)
+  async clearNotifications(
+    @CurrentUser() user: User,
+    @Args('input', { type: () => ClearNotificationsInput, nullable: true }) input?: ClearNotificationsInput,
+  ): Promise<number> {
+    return this.notificationsService.clearNotifications(user.id, input);
   }
 
   // ==================== ADMIN METHODS ====================

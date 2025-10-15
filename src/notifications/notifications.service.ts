@@ -1,13 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Notification } from './entities/notification.entity';
 import { CreateNotificationInput } from './dto/create-notification.input';
 import { NotificationFilterInput } from './dto/notification-filter.input';
 import { MarkNotificationReadInput } from './dto/mark-notification-read.input';
 import { NotificationType } from './dto/create-notification.input';
+import { buildNotificationTexts } from './constants/notification-templates';
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // ==================== CRUD METHODS ====================
@@ -33,6 +36,26 @@ export class NotificationsService {
     });
 
     return this.mapNotification(notification);
+  }
+
+  // Método helper para crear notificación desde plantilla
+  async createFromTemplate(
+    userId: string,
+    type: NotificationType,
+    vars: Record<string, any> = {},
+    related?: { projectId?: string; processId?: string; taskId?: string },
+    overrides?: { title?: string; message?: string }
+  ): Promise<Notification> {
+    const { title, message } = buildNotificationTexts(type, vars, overrides);
+    return this.createNotification({
+      userId,
+      type,
+      title,
+      message,
+      relatedProjectId: related?.projectId,
+      relatedProcessId: related?.processId,
+      relatedTaskId: related?.taskId,
+    });
   }
 
   async getNotifications(filter: NotificationFilterInput): Promise<Notification[]> {
@@ -93,16 +116,53 @@ export class NotificationsService {
     return true;
   }
 
+  async deleteNotification(notificationId: string, userId: string): Promise<boolean> {
+    // Garantizar que el usuario solo borre sus propias notificaciones
+    await this.prisma.notification.delete({
+      where: { id: notificationId },
+    });
+    return true;
+  }
+
+  async clearNotifications(userId: string, options?: { onlyRead?: boolean; olderThanDays?: number }): Promise<number> {
+    const where: any = { user_id: userId };
+    if (options?.onlyRead) where.is_read = true;
+    if (options?.olderThanDays) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - options.olderThanDays);
+      where.created_at = { lt: cutoff };
+    }
+
+    const result = await this.prisma.notification.deleteMany({ where });
+    return result.count;
+  }
+
   async getUnreadCount(userId: string): Promise<number> {
     return await this.prisma.notification.count({
       where: { user_id: userId, is_read: false },
     });
   }
 
+  // Limpieza global: elimina notificaciones según criterios (por defecto, leídas y > 7 días)
+  async clearOldNotificationsGlobal(options?: { onlyRead?: boolean; olderThanDays?: number }): Promise<number> {
+    const onlyRead = options?.onlyRead ?? true;
+    const olderThanDays = options?.olderThanDays ?? 7;
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - olderThanDays);
+    cutoff.setHours(0, 0, 0, 0);
+
+    const where: any = { created_at: { lt: cutoff } };
+    if (onlyRead) where.is_read = true;
+
+    const result = await this.prisma.notification.deleteMany({ where });
+    return result.count;
+  }
+
   // ==================== NOTIFICATION GENERATION METHODS ====================
 
   async generateDailySummaryNotifications(): Promise<void> {
-    console.log('🔔 Starting daily summary notifications generation...');
+    this.logger.debug('Starting daily summary notifications generation...');
     
     const users = await this.prisma.user.findMany({
       where: { isactive: true },
@@ -120,7 +180,7 @@ export class NotificationsService {
       await this.generateUserDailySummary(user);
     }
 
-    console.log('✅ Daily summary notifications completed');
+    this.logger.debug('Daily summary notifications completed');
   }
 
   private async generateUserDailySummary(user: any): Promise<void> {
@@ -157,16 +217,22 @@ export class NotificationsService {
     const changesByType = this.groupChangesByType(recentChanges);
     const summaryMessage = this.buildSummaryMessage(changesByType);
 
+    const { title, message } = buildNotificationTexts(
+      NotificationType.DAILY_SUMMARY,
+      {},
+      { message: summaryMessage }
+    );
+
     await this.createNotification({
       userId: user.id,
       type: NotificationType.DAILY_SUMMARY,
-      title: '📊 Resumen de actividad diaria',
-      message: summaryMessage,
+      title,
+      message,
     });
   }
 
   async generateTaskDueSoonNotifications(): Promise<void> {
-    console.log('⏰ Starting task due soon notifications...');
+    this.logger.debug('Starting task due soon notifications...');
     
     const fiveDaysFromNow = new Date();
     fiveDaysFromNow.setDate(fiveDaysFromNow.getDate() + 5);
@@ -199,23 +265,24 @@ export class NotificationsService {
       for (const taskMember of task.task_member) {
         const daysUntilDue = Math.ceil((task.duedateat.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
         
-        await this.createNotification({
-          userId: taskMember.user.id,
-          type: NotificationType.TASK_DUE_SOON,
-          title: `⏰ Tarea próxima a vencer: ${task.name}`,
-          message: `La tarea "${task.name}" vence en ${daysUntilDue} día(s). Proyecto: ${task.process.project.name}`,
-          relatedTaskId: task.id,
-          relatedProcessId: task.process.id,
-          relatedProjectId: task.process.project.id
-        });
+        await this.createFromTemplate(
+          taskMember.user.id,
+          NotificationType.TASK_DUE_SOON,
+          {
+            taskName: task.name,
+            days: daysUntilDue,
+            projectName: task.process.project.name,
+          },
+          { projectId: task.process.project.id, processId: task.process.id, taskId: task.id }
+        );
       }
     }
 
-    console.log('✅ Task due soon notifications completed');
+    this.logger.debug('Task due soon notifications completed');
   }
 
   async generateOverdueTaskNotifications(): Promise<void> {
-    console.log('🚨 Starting overdue task notifications...');
+    this.logger.debug('Starting overdue task notifications...');
     
     const now = new Date();
     
@@ -243,19 +310,20 @@ export class NotificationsService {
       for (const taskMember of task.task_member) {
         const daysOverdue = Math.ceil((now.getTime() - task.duedateat.getTime()) / (1000 * 60 * 60 * 24));
         
-        await this.createNotification({
-          userId: taskMember.user.id,
-          type: NotificationType.TASK_OVERDUE,
-          title: `🚨 Tarea vencida: ${task.name}`,
-          message: `La tarea "${task.name}" está vencida hace ${daysOverdue} día(s). Proyecto: ${task.process.project.name}`,
-          relatedTaskId: task.id,
-          relatedProcessId: task.process.id,
-          relatedProjectId: task.process.project.id
-        });
+        await this.createFromTemplate(
+          taskMember.user.id,
+          NotificationType.TASK_OVERDUE,
+          {
+            taskName: task.name,
+            days: daysOverdue,
+            projectName: task.process.project.name,
+          },
+          { projectId: task.process.project.id, processId: task.process.id, taskId: task.id }
+        );
       }
     }
 
-    console.log('✅ Overdue task notifications completed');
+    this.logger.debug('Overdue task notifications completed');
   }
 
   // ==================== HELPER METHODS ====================

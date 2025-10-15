@@ -67,6 +67,11 @@ type Category {
   updatedAt: DateTime!
 }
 
+input ClearNotificationsInput {
+  olderThanDays: Int
+  onlyRead: Boolean
+}
+
 type Comment {
   createdAt: DateTime!
   id: ID!
@@ -260,6 +265,7 @@ type Mutation {
   assignTaskMember(createTaskMemberInput: CreateTaskMemberInput!): Boolean!
   assignUserToAreaAsAdmin(areaId: Int, userId: String!): SuccessResponse!
   assignUserToAreaAsMember(areaId: Int, userId: String!): SuccessResponse!
+  clearNotifications(input: ClearNotificationsInput): Int!
   completeProject(projectId: String!, review: String!): Boolean!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
   createArea(createAreaInput: CreateAreaInput!): Area!
@@ -285,6 +291,7 @@ type Mutation {
   deleteCategoryAsAreaMember(categoryId: String!): Boolean!
   deleteComment(id: String!): Boolean!
   deleteEvidence(id: String!): Boolean!
+  deleteNotification(notificationId: String!): Boolean!
   deleteProcess(id: String!): Boolean!
   deleteProject(id: String!): Boolean!
   deleteRole(id: Int!): Boolean!
