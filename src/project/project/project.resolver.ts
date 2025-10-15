@@ -244,6 +244,11 @@ export class ProjectResolver {
     return this.projectService.getProjectMembers(project.id);
   }
 
+  @ResolveField(() => Number)
+  async percent(@Parent() project: Project): Promise<number> {
+    return this.projectService.calculateProjectPercentage(project.id);
+  }
+
   @Mutation(() => Boolean)
   @UseGuards(JwtAuthGuard)
   async completeProject(
@@ -253,4 +258,5 @@ export class ProjectResolver {
   ): Promise<boolean> {
     return this.projectService.completeProject(projectId, user.id, review);
   }
+
 }

@@ -37,6 +37,9 @@ export class Process {
   @Field(() => User, { nullable: true })
   archivedByUser?: User;
 
+  @Field({ nullable: true })
+  percent?: number;
+
   @Field()
   projectId: string;
 

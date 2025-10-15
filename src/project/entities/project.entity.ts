@@ -46,6 +46,9 @@ export class Project {
   @Field(() => User, { nullable: true })
   archivedByUser?: User;
 
+  @Field({ nullable: true })
+  percent?: number;
+
   @Field()
   createdAt?: Date;
 

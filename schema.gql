@@ -162,6 +162,7 @@ input CreateTaskInput {
   expense: Float
   memberAssignments: [TaskMemberAssignmentInput!]
   name: String!
+  percent: Float
   processId: String!
   review: String
   startDate: String
@@ -335,6 +336,7 @@ type Mutation {
   updateRole(updateRoleInput: UpdateRoleInput!): Role!
   updateTask(updateTaskInput: UpdateTaskInput!): Task!
   updateTaskAsMember(updateTaskAsMemberInput: UpdateTaskAsMemberInput!): Task!
+  updateTaskPercentage(percent: Float!, taskId: String!): Boolean!
   updateUnit(updateUnitInput: UpdateUnitInput!): Unit!
   updateUnitMember(updateUnitMemberInput: UpdateUnitMemberInput!): UnitMember!
   updateUser(updateUserInput: UpdateUserInput!): User!
@@ -378,6 +380,7 @@ type Process {
   editor: User
   id: ID!
   name: String!
+  percent: Float
   processTasks: [Task!]!
   project: Project
   projectId: String!
@@ -399,6 +402,7 @@ type Project {
   editor: User
   id: ID!
   name: String!
+  percent: Float
   projectMembers: [ProjectMember!]!
   review: String
   startDate: DateTime
@@ -555,6 +559,7 @@ type Task {
   expense: Float
   id: ID!
   name: String!
+  percent: Float
   process: Process
   processId: String!
   report: String
@@ -666,6 +671,7 @@ input UpdateTaskInput {
   expense: Float
   id: String!
   name: String
+  percent: Float
   report: String
   review: String
   startDate: String

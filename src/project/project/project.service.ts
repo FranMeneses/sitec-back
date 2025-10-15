@@ -2140,4 +2140,63 @@ export class ProjectService {
 
     return true;
   }
+
+  // ==================== PERCENTAGE CALCULATION METHODS ====================
+
+  /**
+   * Calcula el porcentaje promedio de un proyecto basado en sus procesos
+   */
+  async calculateProjectPercentage(projectId: string): Promise<number> {
+    const processes = await this.prisma.process.findMany({
+      where: {
+        idproject: projectId,
+        archived_at: null, // Solo procesos activos
+      },
+      select: {
+        percent: true,
+      },
+    });
+
+    if (processes.length === 0) {
+      return 0;
+    }
+
+    // Filtrar procesos que tienen porcentaje definido
+    const processesWithPercent = processes.filter(process => process.percent !== null && process.percent !== undefined);
+    
+    if (processesWithPercent.length === 0) {
+      return 0;
+    }
+
+    // Calcular promedio
+    const totalPercent = processesWithPercent.reduce((sum, process) => sum + (process.percent || 0), 0);
+    const averagePercent = Math.round(totalPercent / processesWithPercent.length);
+    
+    return Math.min(100, Math.max(0, averagePercent)); // Asegurar que esté entre 0 y 100
+  }
+
+  /**
+   * Actualiza el porcentaje de un proyecto
+   */
+  async updateProjectPercentage(projectId: string): Promise<void> {
+    const newPercentage = await this.calculateProjectPercentage(projectId);
+    
+    // Actualizar el porcentaje del proyecto
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: { percent: newPercentage },
+    });
+  }
+
+  /**
+   * Obtiene el porcentaje actual de un proyecto
+   */
+  async getProjectPercentage(projectId: string): Promise<number> {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { percent: true },
+    });
+
+    return project?.percent || 0;
+  }
 }

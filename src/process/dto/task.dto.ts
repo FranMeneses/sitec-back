@@ -65,6 +65,11 @@ export class CreateTaskInput {
   @Type(() => TaskMemberAssignmentInput)
   memberAssignments?: TaskMemberAssignmentInput[];
 
+  @Field({ nullable: true })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  percent?: number;
 }
 
 
@@ -121,5 +126,11 @@ export class UpdateTaskInput {
   @IsString()
   @IsOptional()
   review?: string;
+
+  @Field({ nullable: true })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  percent?: number;
 }
 

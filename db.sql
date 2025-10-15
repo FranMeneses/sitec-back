@@ -195,3 +195,7 @@ CREATE TABLE notification (
     related_process_id UUID REFERENCES process(id),
     related_task_id UUID REFERENCES task(id)
 );
+
+ALTER TABLE task ADD COLUMN percent INT;
+ALTER TABLE process ADD COLUMN percent INT;
+ALTER TABLE project ADD COLUMN percent INT;

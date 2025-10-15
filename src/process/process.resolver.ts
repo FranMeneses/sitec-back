@@ -130,6 +130,11 @@ export class ProcessResolver {
     const includeArchived = !!process.archivedAt;
     return this.processService.findTasksByProcess(process.id, includeArchived);
   }
+
+  @ResolveField(() => Number)
+  async percent(@Parent() process: Process): Promise<number> {
+    return this.processService.calculateProcessPercentage(process.id);
+  }
 }
 
 @Resolver(() => Task)
@@ -285,5 +290,18 @@ export class TaskResolver {
     @CurrentUser() user: User,
   ): Promise<Task> {
     return this.processService.reactivateTask(taskId, user.id);
+  }
+
+  // ==================== PERCENTAGE MUTATIONS ====================
+
+  @Mutation(() => Boolean)
+  @UseGuards(JwtAuthGuard)
+  async updateTaskPercentage(
+    @Args('taskId') taskId: string,
+    @Args('percent') percent: number,
+    @CurrentUser() user: User,
+  ): Promise<boolean> {
+    await this.processService.updateTaskPercentage(taskId, percent);
+    return true;
   }
 }

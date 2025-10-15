@@ -50,6 +50,9 @@ export class Task {
   @Field(() => User, { nullable: true })
   archivedByUser?: User;
 
+  @Field({ nullable: true })
+  percent?: number;
+
   @Field()
   processId: string;
 

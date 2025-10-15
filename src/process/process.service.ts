@@ -19,6 +19,26 @@ export class ProcessService {
 
   // ==================== HELPER METHODS ====================
 
+  /**
+   * Calcula el porcentaje automático basado en el status de la tarea
+   */
+  private getAutomaticPercentage(status: string, lastPercent?: number): number {
+    switch (status) {
+      case 'pending':
+        return 0;
+      case 'in_progress':
+        return 50;
+      case 'review':
+        return 80;
+      case 'completed':
+        return 100;
+      case 'cancelled':
+        return lastPercent || 0; // Mantener el último valor o 0 si no hay
+      default:
+        return 0;
+    }
+  }
+
   private async canAccessProject(projectId: string, userId: string): Promise<boolean> {
     // Super admin puede hacer cualquier cosa
     const isSuperAdmin = await this.userService.isSuperAdmin(userId);
@@ -1188,6 +1208,11 @@ export class ProcessService {
         }
       }
     }
+    // Calcular porcentaje inicial basado en el status
+    const initialPercent = createTaskInput.percent !== undefined 
+      ? createTaskInput.percent 
+      : this.getAutomaticPercentage(createTaskInput.status);
+
     // Crear la tarea
     const task = await this.prisma.task.create({
       data: {
@@ -1201,6 +1226,7 @@ export class ProcessService {
         budget: createTaskInput.budget,
         expense: createTaskInput.expense,
         review: createTaskInput.review,
+        percent: initialPercent,
         editedat: new Date(),
       },
       include: {
@@ -1268,6 +1294,9 @@ export class ProcessService {
       },
     });
 
+    // Siempre recalcular el porcentaje del proceso cuando se crea una tarea
+    await this.updateProcessPercentage(createTaskInput.processId);
+
     return this.mapTask(taskWithMembers!);
   }
 
@@ -1298,6 +1327,17 @@ export class ProcessService {
       throw new ForbiddenException('No tienes permisos para editar esta tarea');
     }
 
+    // Calcular el nuevo porcentaje
+    let newPercent = existingTask.percent;
+    
+    if (updateTaskInput.percent !== undefined) {
+      // Si se proporciona porcentaje manual, usarlo
+      newPercent = updateTaskInput.percent;
+    } else if (updateTaskInput.status && updateTaskInput.status !== existingTask.status) {
+      // Si solo cambió el status, calcular porcentaje automático
+      newPercent = this.getAutomaticPercentage(updateTaskInput.status, existingTask.percent || undefined);
+    }
+
     // Detectar si el estado cambió a COMPLETED o CANCELLED
     const statusChanged = updateTaskInput.status && updateTaskInput.status !== existingTask.status;
     const shouldArchive = statusChanged &&
@@ -1320,6 +1360,7 @@ export class ProcessService {
           budget: updateTaskInput.budget,
           expense: updateTaskInput.expense,
           review: updateTaskInput.review,
+          percent: newPercent,
           editedat: new Date(),
         },
       });
@@ -1342,6 +1383,7 @@ export class ProcessService {
         budget: updateTaskInput.budget,
         expense: updateTaskInput.expense,
         review: updateTaskInput.review,
+        percent: newPercent,
         editedat: new Date(),
       },
       include: {
@@ -1366,6 +1408,9 @@ export class ProcessService {
         createdat: new Date(),
       },
     });
+
+    // Siempre recalcular el porcentaje del proceso cuando se actualiza una tarea
+    await this.updateProcessPercentage(existingTask.idprocess);
 
     return this.mapTask(task);
   }
@@ -2190,5 +2235,128 @@ export class ProcessService {
         archived_by: null,
       },
     });
+  }
+
+  // ==================== PERCENTAGE CALCULATION METHODS ====================
+
+  /**
+   * Calcula el porcentaje promedio de un proceso basado en sus tareas
+   */
+  async calculateProcessPercentage(processId: string): Promise<number> {
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        idprocess: processId,
+        archived_at: null, // Solo tareas activas
+      },
+      select: {
+        percent: true,
+      },
+    });
+
+    if (tasks.length === 0) {
+      return 0;
+    }
+
+    // Filtrar tareas que tienen porcentaje definido
+    const tasksWithPercent = tasks.filter(task => task.percent !== null && task.percent !== undefined);
+    
+    if (tasksWithPercent.length === 0) {
+      return 0;
+    }
+
+    // Calcular promedio
+    const totalPercent = tasksWithPercent.reduce((sum, task) => sum + (task.percent || 0), 0);
+    const averagePercent = Math.round(totalPercent / tasksWithPercent.length);
+    
+    return Math.min(100, Math.max(0, averagePercent)); // Asegurar que esté entre 0 y 100
+  }
+
+  /**
+   * Actualiza el porcentaje de un proceso y recalcula el porcentaje del proyecto padre
+   */
+  async updateProcessPercentage(processId: string): Promise<void> {
+    const newPercentage = await this.calculateProcessPercentage(processId);
+    
+    // Actualizar el porcentaje del proceso
+    await this.prisma.process.update({
+      where: { id: processId },
+      data: { percent: newPercentage },
+    });
+
+    // Obtener el proyecto padre para recalcular su porcentaje
+    const process = await this.prisma.process.findUnique({
+      where: { id: processId },
+      select: { idproject: true },
+    });
+
+    if (process?.idproject) {
+      // Recalcular el porcentaje del proyecto directamente
+      await this.updateProjectPercentage(process.idproject);
+    }
+  }
+
+  /**
+   * Actualiza el porcentaje de un proyecto basado en sus procesos
+   */
+  async updateProjectPercentage(projectId: string): Promise<void> {
+    const processes = await this.prisma.process.findMany({
+      where: {
+        idproject: projectId,
+        archived_at: null, // Solo procesos activos
+      },
+      select: {
+        percent: true,
+      },
+    });
+
+    if (processes.length === 0) {
+      await this.prisma.project.update({
+        where: { id: projectId },
+        data: { percent: 0 },
+      });
+      return;
+    }
+
+    // Filtrar procesos que tienen porcentaje definido
+    const processesWithPercent = processes.filter(process => process.percent !== null && process.percent !== undefined);
+    
+    let averagePercent = 0;
+    if (processesWithPercent.length > 0) {
+      // Calcular promedio
+      const totalPercent = processesWithPercent.reduce((sum, process) => sum + (process.percent || 0), 0);
+      averagePercent = Math.round(totalPercent / processesWithPercent.length);
+    }
+    
+    const finalPercent = Math.min(100, Math.max(0, averagePercent)); // Asegurar que esté entre 0 y 100
+
+    // Actualizar el porcentaje del proyecto
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: { percent: finalPercent },
+    });
+  }
+
+  /**
+   * Actualiza el porcentaje de una tarea y recalcula el porcentaje del proceso padre
+   */
+  async updateTaskPercentage(taskId: string, newPercent: number): Promise<void> {
+    // Validar que el porcentaje esté entre 0 y 100
+    const validPercent = Math.min(100, Math.max(0, newPercent));
+    
+    // Actualizar el porcentaje de la tarea
+    await this.prisma.task.update({
+      where: { id: taskId },
+      data: { percent: validPercent },
+    });
+
+    // Obtener el proceso padre para recalcular su porcentaje
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { idprocess: true },
+    });
+
+    if (task?.idprocess) {
+      await this.updateProcessPercentage(task.idprocess);
+    }
   }
 }
