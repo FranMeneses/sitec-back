@@ -40,8 +40,10 @@ export class UploadsController {
         cb(null, uploadPath);
       },
       filename: (req, file, cb) => {
-        // El nombre del archivo se manejará en el servicio
-        cb(null, file.originalname);
+        // Preservar el nombre original del archivo con caracteres especiales
+        // Asegurar que se mantenga la codificación UTF-8
+        const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+        cb(null, originalName);
       }
     }),
     fileFilter: (req, file, cb) => {

@@ -32,6 +32,9 @@ async function bootstrap() {
     res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
     res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    
+    // Configurar charset UTF-8 para manejar caracteres especiales
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     next();
   });
   

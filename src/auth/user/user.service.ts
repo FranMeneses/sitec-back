@@ -493,6 +493,10 @@ export class UserService {
   }
 
   async canViewAllTasksInProject(userId: string, projectId: string): Promise<boolean> {
+    return await this.canAccessProject(userId, projectId);
+  }
+
+  async canAccessProject(userId: string, projectId: string): Promise<boolean> {
     // Buscar el proyecto con sus relaciones mínimas necesarias
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
@@ -519,7 +523,16 @@ export class UserService {
     });
     if (!category?.id_area) return false;
 
-    // Verificar si el usuario pertenece al área
+    // Verificar si el usuario es admin de esa área
+    const isAdmin = await this.isAdmin(userId);
+    if (isAdmin) {
+      const adminArea = await this.getAdminArea(userId);
+      if (adminArea === category.id_area) {
+        return true;
+      }
+    }
+
+    // Verificar si el usuario pertenece al área como area_member
     const isAreaMember = await this.prisma.area_member.findFirst({
       where: {
         iduser: userId,

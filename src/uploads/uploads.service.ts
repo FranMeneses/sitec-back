@@ -10,6 +10,7 @@ export class UploadsService {
   private readonly uploadsPath: string;
   private readonly historicPath: string;
 
+
   constructor(
     private prisma: PrismaService,
     private userService: UserService,
@@ -122,7 +123,7 @@ export class UploadsService {
       },
     });
 
-    // Usar el nombre original del archivo (sin UUID)
+    // Usar el nombre original del archivo preservando caracteres especiales
     const filename = file.originalname;
     const fileUrl = `/uploads/current/${filename}`;
 

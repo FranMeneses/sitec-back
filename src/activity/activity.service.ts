@@ -132,14 +132,12 @@ export class ActivityService {
       throw new NotFoundException('Evidencia no encontrada');
     }
 
-    // Validar que el usuario es miembro del proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: existingEvidence.task.process.idproject,
-        iduser: userId,
-      },
-    });
-    if (!projectMember) {
+    // Validar permisos usando la lógica jerárquica
+    if (!existingEvidence.task.process.idproject) {
+      throw new ForbiddenException('El proyecto no está disponible');
+    }
+    const canAccess = await this.userService.canAccessProject(userId, existingEvidence.task.process.idproject);
+    if (!canAccess) {
       throw new ForbiddenException('No tienes permisos para editar esta evidencia');
     }
 
@@ -168,14 +166,12 @@ export class ActivityService {
       throw new NotFoundException('Evidencia no encontrada');
     }
 
-    // Validar que el usuario es miembro del proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: existingEvidence.task.process.idproject,
-        iduser: userId,
-      },
-    });
-    if (!projectMember) {
+    // Validar permisos usando la lógica jerárquica
+    if (!existingEvidence.task.process.idproject) {
+      throw new ForbiddenException('El proyecto no está disponible');
+    }
+    const canAccess = await this.userService.canAccessProject(userId, existingEvidence.task.process.idproject);
+    if (!canAccess) {
       throw new ForbiddenException('No tienes permisos para eliminar esta evidencia');
     }
 
@@ -201,15 +197,12 @@ export class ActivityService {
       throw new BadRequestException('La evidencia ya está archivada');
     }
 
-    // Validar que el usuario es miembro del proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: existingEvidence.task.process.idproject,
-        iduser: userId,
-      },
-    });
-
-    if (!projectMember) {
+    // Validar permisos usando la lógica jerárquica
+    if (!existingEvidence.task.process.idproject) {
+      throw new ForbiddenException('El proyecto no está disponible');
+    }
+    const canAccess = await this.userService.canAccessProject(userId, existingEvidence.task.process.idproject);
+    if (!canAccess) {
       throw new ForbiddenException('No tienes permisos para archivar esta evidencia');
     }
 
@@ -245,15 +238,12 @@ export class ActivityService {
       throw new BadRequestException('La evidencia no está archivada');
     }
 
-    // Validar que el usuario es miembro del proyecto
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: existingEvidence.task.process.idproject,
-        iduser: userId,
-      },
-    });
-
-    if (!projectMember) {
+    // Validar permisos usando la lógica jerárquica
+    if (!existingEvidence.task.process.idproject) {
+      throw new ForbiddenException('El proyecto no está disponible');
+    }
+    const canAccess = await this.userService.canAccessProject(userId, existingEvidence.task.process.idproject);
+    if (!canAccess) {
       throw new ForbiddenException('No tienes permisos para desarchivar esta evidencia');
     }
 
@@ -285,17 +275,12 @@ export class ActivityService {
       throw new NotFoundException('Evidencia no encontrada');
     }
 
-    // Validar permisos: puede ser project_member o task_member
-    const projectMember = await this.prisma.project_member.findFirst({
-      where: {
-        idproject: existingEvidence.task.process.idproject,
-        iduser: userId,
-      },
-    });
-
-    const isTaskMember = await this.userService.isTaskMember(userId, existingEvidence.idtask);
-
-    if (!projectMember && !isTaskMember) {
+    // Validar permisos usando la lógica jerárquica
+    if (!existingEvidence.task.process.idproject) {
+      throw new ForbiddenException('El proyecto no está disponible');
+    }
+    const canAccess = await this.userService.canAccessProject(userId, existingEvidence.task.process.idproject);
+    if (!canAccess) {
       throw new ForbiddenException('No tienes permisos para reemplazar esta evidencia');
     }
 
