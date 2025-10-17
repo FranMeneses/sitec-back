@@ -6,8 +6,10 @@ import { LogsResolver } from './activity.resolver';
 import { UserService } from '../auth/user/user.service';
 import { SystemRoleService } from '../auth/system-role/system-role.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { ProcessModule } from '../process/process.module';
 
 @Module({
+  imports: [ProcessModule],
   providers: [
     ActivityService, 
     EvidenceResolver, 

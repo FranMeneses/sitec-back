@@ -439,7 +439,9 @@ type Query {
   commentsByTask(taskId: String!): [Comment!]!
   evidence(includeArchived: Boolean! = false): [Evidence!]!
   evidenceById(id: String!, includeArchived: Boolean! = false): Evidence
+  evidenceByProcess(includeArchived: Boolean! = false, processId: String!): [Evidence!]!
   evidenceByTask(includeArchived: Boolean! = false, taskId: String!): [Evidence!]!
+  evidenceByUser(includeArchived: Boolean! = false, userId: String!): [Evidence!]!
   findAreaProjects(idArea: Float!): [Project!]!
   findByProcessId(idProcess: String!, includeArchived: Boolean! = false): [Task!]!
   findByTaskId(idTask: String!, includeArchived: Boolean! = false): [Task!]!
@@ -456,7 +458,7 @@ type Query {
   getAreaProjects: [Process!]!
   getCategoriesAsAreaMember: [Category!]!
   getCategoryById(id: String!): Category
-  getEvidenceByProject(projectId: String!): [Evidence!]!
+  getEvidenceByProject(includeArchived: Boolean! = false, projectId: String!): [Evidence!]!
   getInactiveProjects(areaId: Float!): [Project!]!
   getProjectProcessesAsMember(projectId: String!): [Process!]!
   getProjectsByCategory(categoryId: String!): [Project!]!

@@ -13,12 +13,14 @@ import { User } from '../auth/entities/user.entity';
 import { UserService } from '../auth/user/user.service';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RequirePermission } from '../common/decorators/permissions.decorator';
+import { ProcessService } from '../process/process.service';
 
 @Resolver(() => Evidence)
 export class EvidenceResolver {
   constructor(
     private activityService: ActivityService,
     private userService: UserService,
+    private processService: ProcessService,
   ) { }
 
   // ==================== EVIDENCE QUERIES ====================
@@ -118,13 +120,14 @@ export class EvidenceResolver {
   @UseGuards(JwtAuthGuard)
   async getEvidenceByProject(
     @Args('projectId') projectId: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
     @CurrentUser() user: User,
   ): Promise<Evidence[]> {
     // Verificar si el usuario es superadmin
     const isSuperAdmin = await this.userService.isSuperAdmin(user.id);
     // Si es superadmin, puede ver todas las evidencias sin restricción
     if (isSuperAdmin) {
-      return this.activityService.findEvidenceByProject(projectId);
+      return this.activityService.findEvidenceByProject(projectId, includeArchived);
     }
     // Verificar si el usuario tiene permiso a ver la evidencia
     const canViewTasks = await this.userService.canViewAllTasksInProject(user.id, projectId);
@@ -135,7 +138,54 @@ export class EvidenceResolver {
     }
 
     // Retornar las evidencias si cumple las condiciones
-    return this.activityService.findEvidenceByProject(projectId);
+    return this.activityService.findEvidenceByProject(projectId, includeArchived);
+  }
+
+  @Query(() => [Evidence])
+  @UseGuards(JwtAuthGuard)
+  async evidenceByUser(
+    @Args('userId') userId: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+    @CurrentUser() user: User,
+  ): Promise<Evidence[]> {
+    // Verificar permisos según la jerarquía de roles
+    const isSuperAdmin = await this.userService.isSuperAdmin(user.id);
+    const isOwnProfile = user.id === userId;
+    
+    // Solo super_admin puede consultar evidencias de otros usuarios
+    // Los demás usuarios solo pueden consultar sus propias evidencias
+    if (!isSuperAdmin && !isOwnProfile) {
+      throw new ForbiddenException(
+        'Solo los super administradores pueden consultar evidencias de otros usuarios',
+      );
+    }
+
+    return this.activityService.findEvidenceByUser(userId, includeArchived);
+  }
+
+  @Query(() => [Evidence])
+  @UseGuards(JwtAuthGuard)
+  async evidenceByProcess(
+    @Args('processId') processId: string,
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+    @CurrentUser() user: User,
+  ): Promise<Evidence[]> {
+    // Verificar si el usuario tiene acceso al proceso
+    // Primero obtenemos el proceso para verificar el proyecto asociado
+    const process = await this.processService.findProcessById(processId);
+    if (!process) {
+      throw new ForbiddenException('El proceso especificado no existe');
+    }
+
+    // Verificar acceso al proyecto del proceso
+    const canAccessProject = await this.userService.canAccessProject(user.id, process.projectId);
+    if (!canAccessProject) {
+      throw new ForbiddenException(
+        'No tienes permisos para ver las evidencias de este proceso',
+      );
+    }
+
+    return this.activityService.findEvidenceByProcess(processId, includeArchived);
   }
 }
 

@@ -618,7 +618,7 @@ export class ActivityService {
 
   // ==================== EVIDENCE BY PROJECT ====================
 
-  async findEvidenceByProject(projectId: string): Promise<Evidence[]> {
+  async findEvidenceByProject(projectId: string, includeArchived = false): Promise<Evidence[]> {
     // Obtener todas las evidencias que pertenecen a tareas del proyecto
     const evidence = await this.prisma.evidence.findMany({
       where: {
@@ -626,19 +626,264 @@ export class ActivityService {
           process: {
             idproject: projectId
           }
-        }
+        },
+        ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
       },
       include: {
         task: {
           include: {
             process: {
               include: {
-                project: true
+                project: {
+                  include: {
+                    category: {
+                      include: {
+                        area: true
+                      }
+                    },
+                    unit: true
+                  }
+                }
               }
             }
           }
         },
         user: true, // uploader
+        user_evidence_archived_byTouser: true, // archived by user
+      },
+      orderBy: {
+        uploadedat: 'desc'
+      }
+    });
+
+    return evidence.map(ev => this.mapEvidence(ev));
+  }
+
+  // ==================== EVIDENCE BY USER ====================
+
+  async findEvidenceByUser(userId: string, includeArchived = false): Promise<Evidence[]> {
+    // Obtener todas las evidencias asociadas a un usuario específico
+    // Considerando la jerarquía de roles del sistema:
+    // - super_admin: ve todas las evidencias
+    // - area_role: ve evidencias de su área + proyectos donde es miembro
+    // - unit_role: ve evidencias de su unidad + proyectos donde es miembro  
+    // - user: ve evidencias de proyectos/tareas donde es miembro + las que subió
+    
+    // Primero obtener el system_role del usuario para optimizar la query
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
+    });
+
+    const userRole = userSystemRole?.role?.name;
+
+    let whereClause: any = {
+      ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+    };
+
+    // Construir condiciones según el rol del usuario
+    if (userRole === 'super_admin') {
+      // Super admin ve todas las evidencias
+      whereClause = {
+        ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+      };
+    } else if (userRole === 'area_role') {
+      // Area role ve evidencias de su área + proyectos donde es miembro
+      const userAreas = await this.prisma.area_member.findMany({
+        where: { iduser: userId },
+        select: { idarea: true }
+      });
+      
+      const userAdminAreas = await this.prisma.admin.findMany({
+        where: { iduser: userId },
+        select: { idarea: true }
+      });
+
+      const allAreaIds = [
+        ...userAreas.map(a => a.idarea),
+        ...userAdminAreas.map(a => a.idarea)
+      ];
+
+      whereClause = {
+        ...whereClause,
+        OR: [
+          // Evidencias subidas por el usuario
+          { iduploader: userId },
+          // Evidencias de proyectos donde es project_member
+          {
+            task: {
+              process: {
+                project: {
+                  project_member: {
+                    some: { iduser: userId }
+                  }
+                }
+              }
+            }
+          },
+          // Evidencias de tareas donde es task_member
+          {
+            task: {
+              task_member: {
+                some: { iduser: userId }
+              }
+            }
+          },
+          // Evidencias de proyectos de sus áreas
+          {
+            task: {
+              process: {
+                project: {
+                  category: {
+                    id_area: { in: allAreaIds }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      };
+    } else if (userRole === 'unit_role') {
+      // Unit role ve evidencias de su unidad + proyectos donde es miembro
+      const userUnits = await this.prisma.unit_member.findMany({
+        where: { iduser: userId },
+        select: { idunit: true }
+      });
+
+      const unitIds = userUnits.map(u => u.idunit);
+
+      whereClause = {
+        ...whereClause,
+        OR: [
+          // Evidencias subidas por el usuario
+          { iduploader: userId },
+          // Evidencias de proyectos donde es project_member
+          {
+            task: {
+              process: {
+                project: {
+                  project_member: {
+                    some: { iduser: userId }
+                  }
+                }
+              }
+            }
+          },
+          // Evidencias de tareas donde es task_member
+          {
+            task: {
+              task_member: {
+                some: { iduser: userId }
+              }
+            }
+          },
+          // Evidencias de proyectos de sus unidades
+          {
+            task: {
+              process: {
+                project: {
+                  idunit: { in: unitIds }
+                }
+              }
+            }
+          }
+        ]
+      };
+    } else {
+      // User normal: solo evidencias de proyectos/tareas donde es miembro + las que subió
+      whereClause = {
+        ...whereClause,
+        OR: [
+          // Evidencias subidas por el usuario
+          { iduploader: userId },
+          // Evidencias de proyectos donde es project_member
+          {
+            task: {
+              process: {
+                project: {
+                  project_member: {
+                    some: { iduser: userId }
+                  }
+                }
+              }
+            }
+          },
+          // Evidencias de tareas donde es task_member
+          {
+            task: {
+              task_member: {
+                some: { iduser: userId }
+              }
+            }
+          }
+        ]
+      };
+    }
+
+    const evidence = await this.prisma.evidence.findMany({
+      where: whereClause,
+      include: {
+        task: {
+          include: {
+            process: {
+              include: {
+                project: {
+                  include: {
+                    category: {
+                      include: {
+                        area: true
+                      }
+                    },
+                    unit: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        user: true, // uploader
+        user_evidence_archived_byTouser: true, // archived by user
+      },
+      orderBy: {
+        uploadedat: 'desc'
+      }
+    });
+
+    return evidence.map(ev => this.mapEvidence(ev));
+  }
+
+  // ==================== EVIDENCE BY PROCESS ====================
+
+  async findEvidenceByProcess(processId: string, includeArchived = false): Promise<Evidence[]> {
+    // Obtener todas las evidencias que pertenecen a tareas del proceso
+    const evidence = await this.prisma.evidence.findMany({
+      where: {
+        task: {
+          idprocess: processId
+        },
+        ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+      },
+      include: {
+        task: {
+          include: {
+            process: {
+              include: {
+                project: {
+                  include: {
+                    category: {
+                      include: {
+                        area: true
+                      }
+                    },
+                    unit: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        user: true, // uploader
+        user_evidence_archived_byTouser: true, // archived by user
       },
       orderBy: {
         uploadedat: 'desc'
