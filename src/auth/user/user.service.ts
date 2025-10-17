@@ -269,6 +269,19 @@ export class UserService {
     return !!systemRole;
   }
 
+  async isAreaRole(userId: string): Promise<boolean> {
+    // Verificar si el usuario es area_role (admin o area_member)
+    const systemRole = await this.prisma.system_role.findFirst({
+      where: {
+        user_id: userId,
+        role: { name: 'area_role' }
+      },
+      include: { role: true }
+    });
+
+    return !!systemRole;
+  }
+
   async getAdminArea(userId: string): Promise<number | null> {
     // Obtener el área del admin (mantener para compatibilidad)
     const adminRecord = await this.prisma.admin.findFirst({

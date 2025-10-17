@@ -62,6 +62,7 @@ model evidence {
   archived_by                     String?   @db.Uuid
   version                         Int?      @default(1)
   reuploaded_at                   DateTime? @db.Timestamp(6)
+  is_approved                     Boolean?
   user_evidence_archived_byTouser user?     @relation("evidence_archived_byTouser", fields: [archived_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   task                            task      @relation(fields: [idtask], references: [id], onDelete: NoAction, onUpdate: NoAction)
   user                            user      @relation(fields: [iduploader], references: [id], onDelete: NoAction, onUpdate: NoAction)

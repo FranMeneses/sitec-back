@@ -43,6 +43,9 @@ export class Evidence {
   @Field(() => User, { nullable: true })
   archivedByUser?: User;
 
+  @Field({ nullable: true })
+  isApproved?: boolean;
+
   @Field()
   createdAt?: Date;
 

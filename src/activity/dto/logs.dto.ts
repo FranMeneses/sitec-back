@@ -22,6 +22,8 @@ export enum LogType {
   TASK_UNARCHIVED = 'task_unarchived',
   EVIDENCE_UPLOADED = 'evidence_uploaded',
   EVIDENCE_REPLACED = 'evidence_replaced',
+  EVIDENCE_APPROVED = 'evidence_approved',
+  EVIDENCE_REJECTED = 'evidence_rejected',
   COMMENT_ADDED = 'comment_added',
   COMMENT_DELETED = 'comment_deleted',
   MEMBER_ADDED = 'member_added',

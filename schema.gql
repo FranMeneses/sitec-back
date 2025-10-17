@@ -208,6 +208,7 @@ type Evidence {
   archivedByUser: User
   createdAt: DateTime!
   id: ID!
+  isApproved: Boolean
   link: String!
   reuploadedAt: DateTime
   review: String
@@ -257,6 +258,7 @@ input MarkNotificationReadInput {
 type Mutation {
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
+  approveEvidence(evidenceId: String!): Evidence!
   archiveEvidence(id: String!): Evidence!
   archiveProcess(id: String!): Process!
   archiveProject(id: String!): Project!
@@ -306,6 +308,7 @@ type Mutation {
   markNotificationAsRead(markNotificationReadInput: MarkNotificationReadInput!): Boolean!
   reactivateTask(taskId: String!): Task!
   register(registerInput: RegisterInput!): AuthResponse!
+  rejectEvidence(evidenceId: String!): Evidence!
   removeAdmin(id: String!): String!
   removeArea(id: Int!): Area!
   removeProcessTask(id: String!): String!
@@ -425,6 +428,7 @@ type Query {
   admin(id: String!): Admin!
   admins: [Admin!]!
   allCategoriesForAdmin: [Category!]!
+  approvedEvidence(includeArchived: Boolean! = false): [Evidence!]!
   archivedEvidenceByTask(taskId: String!): [Evidence!]!
   area(id: Int!): Area!
   areaMembers: [AreaMember!]!
@@ -481,6 +485,7 @@ type Query {
   myUnitMemberships: [UnitMember!]!
   myUnitsAsAdmin: [Unit!]!
   notifications(filter: NotificationFilterInput): [Notification!]!
+  pendingEvidence(includeArchived: Boolean! = false): [Evidence!]!
   process(id: String!, includeArchived: Boolean! = false): Process
   processes(includeArchived: Boolean): [Process!]!
   processesByProject(includeArchived: Boolean! = false, projectId: String!): [Process!]!
@@ -490,6 +495,7 @@ type Query {
   projectProcessesByProcessId(idProcess: String!): [Process!]!
   projectProcessesByProjectId(idProject: String!): [Process!]!
   projects(includeArchived: Boolean = false): [Project!]!
+  rejectedEvidence(includeArchived: Boolean! = false): [Evidence!]!
   role(id: Int!): Role
   roles: [Role!]!
   task(id: String!, includeArchived: Boolean! = false): Task

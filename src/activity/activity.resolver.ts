@@ -116,6 +116,24 @@ export class EvidenceResolver {
     return this.activityService.replaceEvidence(evidenceId, newLink, user.id, review);
   }
 
+  @Mutation(() => Evidence)
+  @UseGuards(JwtAuthGuard)
+  async approveEvidence(
+    @Args('evidenceId') evidenceId: string,
+    @CurrentUser() user: User,
+  ): Promise<Evidence> {
+    return this.activityService.approveEvidence(evidenceId, user.id);
+  }
+
+  @Mutation(() => Evidence)
+  @UseGuards(JwtAuthGuard)
+  async rejectEvidence(
+    @Args('evidenceId') evidenceId: string,
+    @CurrentUser() user: User,
+  ): Promise<Evidence> {
+    return this.activityService.rejectEvidence(evidenceId, user.id);
+  }
+
   @Query(() => [Evidence])
   @UseGuards(JwtAuthGuard)
   async getEvidenceByProject(
@@ -186,6 +204,43 @@ export class EvidenceResolver {
     }
 
     return this.activityService.findEvidenceByProcess(processId, includeArchived);
+  }
+
+  @Query(() => [Evidence])
+  @UseGuards(JwtAuthGuard)
+  async pendingEvidence(
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+    @CurrentUser() user: User,
+  ): Promise<Evidence[]> {
+    // Verificar que el usuario es area_role (puede ver evidencias pendientes)
+    const isSuperAdmin = await this.userService.isSuperAdmin(user.id);
+    const isAreaRole = await this.userService.isAreaRole(user.id);
+    
+    if (!isSuperAdmin && !isAreaRole) {
+      throw new ForbiddenException(
+        'Solo los area_role pueden ver evidencias pendientes',
+      );
+    }
+
+    return this.activityService.findPendingEvidence(user.id, includeArchived);
+  }
+
+  @Query(() => [Evidence])
+  @UseGuards(JwtAuthGuard)
+  async approvedEvidence(
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+    @CurrentUser() user: User,
+  ): Promise<Evidence[]> {
+    return this.activityService.findApprovedEvidence(user.id, includeArchived);
+  }
+
+  @Query(() => [Evidence])
+  @UseGuards(JwtAuthGuard)
+  async rejectedEvidence(
+    @Args('includeArchived', { defaultValue: false }) includeArchived: boolean,
+    @CurrentUser() user: User,
+  ): Promise<Evidence[]> {
+    return this.activityService.findRejectedEvidence(user.id, includeArchived);
   }
 }
 

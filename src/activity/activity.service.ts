@@ -323,6 +323,148 @@ export class ActivityService {
     return this.mapEvidence(updatedEvidence);
   }
 
+  async approveEvidence(evidenceId: string, approverId: string): Promise<Evidence> {
+    // Validar que la evidencia existe
+    const existingEvidence = await this.prisma.evidence.findUnique({
+      where: { id: evidenceId },
+      include: { task: { include: { process: { include: { project: true } } } } },
+    });
+
+    if (!existingEvidence) {
+      throw new NotFoundException('Evidencia no encontrada');
+    }
+
+    // Verificar que el usuario es area_role (puede aprobar evidencias)
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: approverId },
+      include: { role: true }
+    });
+
+    const userRole = userSystemRole?.role?.name;
+    if (userRole !== 'area_role' && userRole !== 'super_admin') {
+      throw new ForbiddenException('Solo los area_role pueden aprobar evidencias');
+    }
+
+    // Verificar que el usuario tiene acceso al proyecto
+    if (existingEvidence.task.process.idproject) {
+      const canAccess = await this.userService.canAccessProject(approverId, existingEvidence.task.process.idproject);
+      if (!canAccess) {
+        throw new ForbiddenException('No tienes permisos para aprobar evidencias de este proyecto');
+      }
+    }
+
+    // Aprobar la evidencia
+    const evidence = await this.prisma.evidence.update({
+      where: { id: evidenceId },
+      data: {
+        is_approved: true,
+      },
+      include: {
+        task: {
+          include: {
+            process: {
+              include: {
+                project: {
+                  include: {
+                    category: {
+                      include: {
+                        area: true
+                      }
+                    },
+                    unit: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        user: true,
+        user_evidence_archived_byTouser: true,
+      },
+    });
+
+    // Crear log de actividad
+    await this.createLog({
+      type: LogType.EVIDENCE_APPROVED,
+      taskId: existingEvidence.idtask,
+      processId: existingEvidence.task.idprocess,
+      projectId: existingEvidence.task.process.idproject || undefined,
+    }, approverId);
+
+    return this.mapEvidence(evidence);
+  }
+
+  async rejectEvidence(evidenceId: string, rejectorId: string): Promise<Evidence> {
+    // Validar que la evidencia existe
+    const existingEvidence = await this.prisma.evidence.findUnique({
+      where: { id: evidenceId },
+      include: { task: { include: { process: { include: { project: true } } } } },
+    });
+
+    if (!existingEvidence) {
+      throw new NotFoundException('Evidencia no encontrada');
+    }
+
+    // Verificar que el usuario es area_role (puede rechazar evidencias)
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: rejectorId },
+      include: { role: true }
+    });
+
+    const userRole = userSystemRole?.role?.name;
+    if (userRole !== 'area_role' && userRole !== 'super_admin') {
+      throw new ForbiddenException('Solo los area_role pueden rechazar evidencias');
+    }
+
+    // Verificar que el usuario tiene acceso al proyecto
+    if (existingEvidence.task.process.idproject) {
+      const canAccess = await this.userService.canAccessProject(rejectorId, existingEvidence.task.process.idproject);
+      if (!canAccess) {
+        throw new ForbiddenException('No tienes permisos para rechazar evidencias de este proyecto');
+      }
+    }
+
+    // Rechazar la evidencia
+    const evidence = await this.prisma.evidence.update({
+      where: { id: evidenceId },
+      data: {
+        is_approved: false,
+      },
+      include: {
+        task: {
+          include: {
+            process: {
+              include: {
+                project: {
+                  include: {
+                    category: {
+                      include: {
+                        area: true
+                      }
+                    },
+                    unit: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        user: true,
+        user_evidence_archived_byTouser: true,
+      },
+    });
+
+    // Crear log de actividad
+    await this.createLog({
+      type: LogType.EVIDENCE_REJECTED,
+      taskId: existingEvidence.idtask,
+      processId: existingEvidence.task.idprocess,
+      projectId: existingEvidence.task.process.idproject || undefined,
+    }, rejectorId);
+
+    return this.mapEvidence(evidence);
+  }
+
   // ==================== COMMENT METHODS ====================
 
   async findAllComments(userId?: string): Promise<Comment[]> {
@@ -581,6 +723,7 @@ export class ActivityService {
       archivedAt: evidence.archived_at,
       archivedBy: evidence.archived_by,
       archivedByUser: evidence.user_evidence_archived_byTouser,
+      isApproved: evidence.is_approved,
       createdAt: evidence.createdat,
       updatedAt: evidence.updatedat,
     };
@@ -884,6 +1027,216 @@ export class ActivityService {
         },
         user: true, // uploader
         user_evidence_archived_byTouser: true, // archived by user
+      },
+      orderBy: {
+        uploadedat: 'desc'
+      }
+    });
+
+    return evidence.map(ev => this.mapEvidence(ev));
+  }
+
+  // ==================== EVIDENCE APPROVAL QUERIES ====================
+
+  async findPendingEvidence(userId: string, includeArchived = false): Promise<Evidence[]> {
+    // Obtener evidencias pendientes (is_approved = null) que el usuario puede ver
+    const userSystemRole = await this.prisma.system_role.findUnique({
+      where: { user_id: userId },
+      include: { role: true }
+    });
+
+    const userRole = userSystemRole?.role?.name;
+    let whereClause: any = {
+      is_approved: null, // Pendientes
+      ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+    };
+
+    // Construir condiciones según el rol del usuario
+    if (userRole === 'super_admin') {
+      // Super admin ve todas las evidencias pendientes
+      whereClause = {
+        is_approved: null,
+        ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+      };
+    } else if (userRole === 'area_role') {
+      // Area role ve evidencias pendientes de su área
+      const userAreas = await this.prisma.area_member.findMany({
+        where: { iduser: userId },
+        select: { idarea: true }
+      });
+      
+      const userAdminAreas = await this.prisma.admin.findMany({
+        where: { iduser: userId },
+        select: { idarea: true }
+      });
+
+      const allAreaIds = [
+        ...userAreas.map(a => a.idarea),
+        ...userAdminAreas.map(a => a.idarea)
+      ];
+
+      whereClause = {
+        ...whereClause,
+        task: {
+          process: {
+            project: {
+              category: {
+                id_area: { in: allAreaIds }
+              }
+            }
+          }
+        }
+      };
+    } else {
+      // Otros roles no pueden ver evidencias pendientes
+      return [];
+    }
+
+    const evidence = await this.prisma.evidence.findMany({
+      where: whereClause,
+      include: {
+        task: {
+          include: {
+            process: {
+              include: {
+                project: {
+                  include: {
+                    category: {
+                      include: {
+                        area: true
+                      }
+                    },
+                    unit: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        user: true,
+        user_evidence_archived_byTouser: true,
+      },
+      orderBy: {
+        uploadedat: 'desc'
+      }
+    });
+
+    return evidence.map(ev => this.mapEvidence(ev));
+  }
+
+  async findApprovedEvidence(userId: string, includeArchived = false): Promise<Evidence[]> {
+    // Obtener evidencias aprobadas (is_approved = true) que el usuario puede ver
+    const evidence = await this.prisma.evidence.findMany({
+      where: {
+        is_approved: true,
+        ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+        OR: [
+          // Evidencias subidas por el usuario
+          { iduploader: userId },
+          // Evidencias de proyectos donde es project_member
+          {
+            task: {
+              process: {
+                project: {
+                  project_member: {
+                    some: { iduser: userId }
+                  }
+                }
+              }
+            }
+          },
+          // Evidencias de tareas donde es task_member
+          {
+            task: {
+              task_member: {
+                some: { iduser: userId }
+              }
+            }
+          }
+        ]
+      },
+      include: {
+        task: {
+          include: {
+            process: {
+              include: {
+                project: {
+                  include: {
+                    category: {
+                      include: {
+                        area: true
+                      }
+                    },
+                    unit: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        user: true,
+        user_evidence_archived_byTouser: true,
+      },
+      orderBy: {
+        uploadedat: 'desc'
+      }
+    });
+
+    return evidence.map(ev => this.mapEvidence(ev));
+  }
+
+  async findRejectedEvidence(userId: string, includeArchived = false): Promise<Evidence[]> {
+    // Obtener evidencias rechazadas (is_approved = false) que el usuario puede ver
+    const evidence = await this.prisma.evidence.findMany({
+      where: {
+        is_approved: false,
+        ...(includeArchived ? {} : this.EXCLUDE_ARCHIVED),
+        OR: [
+          // Evidencias subidas por el usuario
+          { iduploader: userId },
+          // Evidencias de proyectos donde es project_member
+          {
+            task: {
+              process: {
+                project: {
+                  project_member: {
+                    some: { iduser: userId }
+                  }
+                }
+              }
+            }
+          },
+          // Evidencias de tareas donde es task_member
+          {
+            task: {
+              task_member: {
+                some: { iduser: userId }
+              }
+            }
+          }
+        ]
+      },
+      include: {
+        task: {
+          include: {
+            process: {
+              include: {
+                project: {
+                  include: {
+                    category: {
+                      include: {
+                        area: true
+                      }
+                    },
+                    unit: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        user: true,
+        user_evidence_archived_byTouser: true,
       },
       orderBy: {
         uploadedat: 'desc'
