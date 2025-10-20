@@ -199,3 +199,5 @@ CREATE TABLE notification (
 ALTER TABLE task ADD COLUMN percent INT;
 ALTER TABLE process ADD COLUMN percent INT;
 ALTER TABLE project ADD COLUMN percent INT;
+
+ALTER TABLE evidence ADD COLUMN is_approved BOOLEAN DEFAULT NULL;

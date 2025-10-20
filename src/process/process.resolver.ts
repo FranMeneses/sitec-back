@@ -295,13 +295,14 @@ export class TaskResolver {
   // ==================== PERCENTAGE MUTATIONS ====================
 
   @Mutation(() => Boolean)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
   async updateTaskPercentage(
     @Args('taskId') taskId: string,
     @Args('percent') percent: number,
     @CurrentUser() user: User,
   ): Promise<boolean> {
-    await this.processService.updateTaskPercentage(taskId, percent);
+    await this.processService.updateTaskPercentage(taskId, percent, user.id);
     return true;
   }
 }

@@ -1346,23 +1346,27 @@ export class ProcessService {
 
     // Si debe archivarse, primero actualizar y luego archivar
     if (shouldArchive) {
+      // Preparar datos de actualización solo con campos proporcionados
+      const updateData: any = {
+        ideditor: editorId,
+        percent: newPercent,
+        editedat: new Date(),
+      };
+
+      if (updateTaskInput.name !== undefined) updateData.name = updateTaskInput.name;
+      if (updateTaskInput.description !== undefined) updateData.description = updateTaskInput.description;
+      if (updateTaskInput.startDate !== undefined) updateData.startdate = updateTaskInput.startDate ? new Date(updateTaskInput.startDate) : null;
+      if (updateTaskInput.dueDate !== undefined) updateData.duedateat = updateTaskInput.dueDate ? new Date(updateTaskInput.dueDate) : null;
+      if (updateTaskInput.status !== undefined) updateData.status = updateTaskInput.status;
+      if (updateTaskInput.report !== undefined) updateData.report = updateTaskInput.report;
+      if (updateTaskInput.budget !== undefined) updateData.budget = updateTaskInput.budget;
+      if (updateTaskInput.expense !== undefined) updateData.expense = updateTaskInput.expense;
+      if (updateTaskInput.review !== undefined) updateData.review = updateTaskInput.review;
+
       // Actualizar la tarea primero
       await this.prisma.task.update({
         where: { id: updateTaskInput.id },
-        data: {
-          name: updateTaskInput.name,
-          description: updateTaskInput.description,
-          startdate: updateTaskInput.startDate ? new Date(updateTaskInput.startDate) : null,
-          duedateat: updateTaskInput.dueDate ? new Date(updateTaskInput.dueDate) : null,
-          status: updateTaskInput.status,
-          ideditor: editorId,
-          report: updateTaskInput.report,
-          budget: updateTaskInput.budget,
-          expense: updateTaskInput.expense,
-          review: updateTaskInput.review,
-          percent: newPercent,
-          editedat: new Date(),
-        },
+        data: updateData,
       });
 
       // Archivar en cascada (incluye evidencias)
@@ -1370,22 +1374,26 @@ export class ProcessService {
     }
 
     // Actualización normal (sin archivar)
+    // Preparar datos de actualización solo con campos proporcionados
+    const updateData: any = {
+      ideditor: editorId,
+      percent: newPercent,
+      editedat: new Date(),
+    };
+
+    if (updateTaskInput.name !== undefined) updateData.name = updateTaskInput.name;
+    if (updateTaskInput.description !== undefined) updateData.description = updateTaskInput.description;
+    if (updateTaskInput.startDate !== undefined) updateData.startdate = updateTaskInput.startDate ? new Date(updateTaskInput.startDate) : null;
+    if (updateTaskInput.dueDate !== undefined) updateData.duedateat = updateTaskInput.dueDate ? new Date(updateTaskInput.dueDate) : null;
+    if (updateTaskInput.status !== undefined) updateData.status = updateTaskInput.status;
+    if (updateTaskInput.report !== undefined) updateData.report = updateTaskInput.report;
+    if (updateTaskInput.budget !== undefined) updateData.budget = updateTaskInput.budget;
+    if (updateTaskInput.expense !== undefined) updateData.expense = updateTaskInput.expense;
+    if (updateTaskInput.review !== undefined) updateData.review = updateTaskInput.review;
+
     const task = await this.prisma.task.update({
       where: { id: updateTaskInput.id },
-      data: {
-        name: updateTaskInput.name,
-        description: updateTaskInput.description,
-        startdate: updateTaskInput.startDate ? new Date(updateTaskInput.startDate) : null,
-        duedateat: updateTaskInput.dueDate ? new Date(updateTaskInput.dueDate) : null,
-        status: updateTaskInput.status,
-        ideditor: editorId,
-        report: updateTaskInput.report,
-        budget: updateTaskInput.budget,
-        expense: updateTaskInput.expense,
-        review: updateTaskInput.review,
-        percent: newPercent,
-        editedat: new Date(),
-      },
+      data: updateData,
       include: {
         user: true,
         process: true,
@@ -2339,7 +2347,27 @@ export class ProcessService {
   /**
    * Actualiza el porcentaje de una tarea y recalcula el porcentaje del proceso padre
    */
-  async updateTaskPercentage(taskId: string, newPercent: number): Promise<void> {
+  async updateTaskPercentage(taskId: string, newPercent: number, userId: string): Promise<void> {
+    // Validar que la tarea existe
+    const existingTask = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { process: { include: { project: true } } },
+    });
+    
+    if (!existingTask) {
+      throw new NotFoundException('Tarea no encontrada');
+    }
+
+    // Validar permisos para editar tareas
+    if (!existingTask.process.idproject) {
+      throw new BadRequestException('El proceso no está asociado a un proyecto');
+    }
+
+    const canEditTask = await this.canCreateTask(existingTask.process.idproject, userId);
+    if (!canEditTask) {
+      throw new ForbiddenException('No tienes permisos para actualizar el porcentaje de esta tarea');
+    }
+
     // Validar que el porcentaje esté entre 0 y 100
     const validPercent = Math.min(100, Math.max(0, newPercent));
     
