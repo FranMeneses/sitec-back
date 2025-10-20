@@ -297,6 +297,11 @@ export class PermissionsGuard implements CanActivate {
       return true; // La validación específica se hará en el servicio
     }
 
+    // area_member - Consultar logs del sistema
+    if (['read', 'export'].includes(action) && resource === 'system_logs') {
+      return true; // Acceso a logs del sistema
+    }
+
     // area_member - Heredar todas las capacidades de project_member
     return await this.checkUserAsProjectMember(user, action, resource);
   }
@@ -341,6 +346,11 @@ export class PermissionsGuard implements CanActivate {
     // admin - Restaurar proyectos archivados o finalizados
     if (action === 'reactivate' && ['project', 'task'].includes(resource)) {
       return true; // La validación específica se hará en el servicio
+    }
+
+    // admin - Consultar logs del sistema
+    if (['read', 'export'].includes(action) && resource === 'system_logs') {
+      return true; // Acceso a logs del sistema
     }
 
     // admin - Heredar todas las capacidades de area_member

@@ -36,5 +36,5 @@ export const RequireAreaMember = () => SetMetadata(ROLES_KEY, [SYSTEM_ROLES.AREA
 // Decorador específico para verificar membresía de admin (requiere verificación adicional en el guard)
 export const RequireAdminMembership = () => SetMetadata('REQUIRE_ADMIN_MEMBERSHIP', true);
 
-// Decorador para crear unidades: super_admin O admin con membresía
+// Decorador para crear unidades: super_admin O admin/area_member con membresía
 export const RequireUnitCreation = () => SetMetadata('REQUIRE_UNIT_CREATION', true);

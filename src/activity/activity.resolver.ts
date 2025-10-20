@@ -310,9 +310,10 @@ export class LogsResolver {
   private async verifyAdminAccess(userId: string): Promise<void> {
     const isSuperAdmin = await this.userService.isSuperAdmin(userId);
     const isAdmin = await this.userService.isAdmin(userId);
+    const isAreaMember = await this.userService.isAreaMemberOfAny(userId);
 
-    if (!isSuperAdmin && !isAdmin) {
-      throw new ForbiddenException('Solo los super_admins y admins pueden acceder a los logs del sistema');
+    if (!isSuperAdmin && !isAdmin && !isAreaMember) {
+      throw new ForbiddenException('Solo los super_admins, admins y miembros de área pueden acceder a los logs del sistema');
     }
   }
 

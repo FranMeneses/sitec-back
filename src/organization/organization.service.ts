@@ -177,8 +177,8 @@ export class OrganizationService {
 
   // ===== UNIT METHODS =====
   async createUnit(createUnitInput: CreateUnitInput, currentUser: User) {
-    // La verificación de permisos se hace en el guard (RequireSuperAdmin + RequireAdminMembership)
-    // Esto permite tanto super_admin como admin (con membresía) crear unidades
+    // La verificación de permisos se hace en el guard (RequireUnitCreation)
+    // Esto permite tanto super_admin como admin/area_member (con membresía) crear unidades
 
     // Verificar que el tipo de unidad existe
     if (createUnitInput.idtype) {

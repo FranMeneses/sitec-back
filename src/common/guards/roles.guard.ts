@@ -67,18 +67,22 @@ export class RolesGuard implements CanActivate {
       }
     }
 
-    // Si se requiere creación de unidades: super_admin O admin con membresía
+    // Si se requiere creación de unidades: super_admin O admin/area_member con membresía
     if (requireUnitCreation) {
       const isSuperAdmin = user.roles && user.roles.some(role => role.name === 'super_admin');
       
       if (!isSuperAdmin) {
-        // Si no es super_admin, verificar si tiene membresía de admin
+        // Si no es super_admin, verificar si tiene membresía de admin o area_member
         const isAdmin = await this.prisma.admin.findFirst({
           where: { iduser: user.id }
         });
 
-        if (!isAdmin) {
-          throw new ForbiddenException('Acceso denegado. Se requiere ser super administrador o tener membresía de administrador');
+        const isAreaMember = await this.prisma.area_member.findFirst({
+          where: { iduser: user.id }
+        });
+
+        if (!isAdmin && !isAreaMember) {
+          throw new ForbiddenException('Acceso denegado. Se requiere ser super administrador, administrador o miembro de área');
         }
       }
     }
