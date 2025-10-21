@@ -13,6 +13,7 @@ import { ActivityModule } from './activity/activity.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { CommonModule } from './common/common.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     ActivityModule,
     UploadsModule,
     NotificationsModule,
+    ExportModule,
   ],
   controllers: [AppController],
   providers: [AppService],
