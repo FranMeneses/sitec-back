@@ -1333,26 +1333,13 @@ export class ProcessService {
     // Calcular el nuevo porcentaje
     let newPercent = existingTask.percent;
     
-    // Debug logging
-    console.log('=== DEBUG updateTask ===');
-    console.log('updateTaskInput:', JSON.stringify(updateTaskInput, null, 2));
-    console.log('updateTaskInput.percent:', updateTaskInput.percent, typeof updateTaskInput.percent);
-    console.log('updateTaskInput.status:', updateTaskInput.status);
-    console.log('existingTask.percent:', existingTask.percent);
-    console.log('existingTask.status:', existingTask.status);
-    
     if (updateTaskInput.percent !== undefined) {
       // Si se proporciona porcentaje manual, usarlo
       newPercent = updateTaskInput.percent;
-      console.log('Usando porcentaje manual:', newPercent);
     } else if (updateTaskInput.status && updateTaskInput.status.toLowerCase() !== existingTask.status?.toLowerCase()) {
       // Si solo cambió el status, calcular porcentaje automático
       newPercent = this.getAutomaticPercentage(updateTaskInput.status, existingTask.percent || undefined);
-      console.log('Usando porcentaje automático:', newPercent);
     }
-    
-    console.log('newPercent final:', newPercent);
-    console.log('=== END DEBUG ===');
 
     // Detectar si el estado cambió a COMPLETED o CANCELLED
     const statusChanged = updateTaskInput.status && updateTaskInput.status.toLowerCase() !== existingTask.status?.toLowerCase();
@@ -1408,8 +1395,6 @@ export class ProcessService {
     if (updateTaskInput.expense !== undefined) updateData.expense = updateTaskInput.expense;
     if (updateTaskInput.review !== undefined) updateData.review = updateTaskInput.review;
 
-    console.log('Datos que se van a actualizar:', JSON.stringify(updateData, null, 2));
-    
     const task = await this.prisma.task.update({
       where: { id: updateTaskInput.id },
       data: updateData,
@@ -1422,13 +1407,6 @@ export class ProcessService {
           },
         },
       },
-    });
-
-    console.log('Tarea actualizada:', {
-      id: task.id,
-      percent: task.percent,
-      status: task.status,
-      editedat: task.editedat
     });
 
     // Crear log de actividad
@@ -2059,6 +2037,8 @@ export class ProcessService {
       report: task.report,
       budget: task.budget,
       expense: task.expense,
+      review: task.review,
+      percent: task.percent,
       archivedAt: task.archived_at,
       archivedBy: task.archived_by,
       archivedByUser: task.user_task_archived_byTouser,
