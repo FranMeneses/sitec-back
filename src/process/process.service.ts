@@ -23,7 +23,10 @@ export class ProcessService {
    * Calcula el porcentaje automático basado en el status de la tarea
    */
   private getAutomaticPercentage(status: string, lastPercent?: number): number {
-    switch (status) {
+    // Normalizar el status a minúsculas para comparación
+    const normalizedStatus = status.toLowerCase();
+    
+    switch (normalizedStatus) {
       case 'pending':
         return 0;
       case 'in_progress':
@@ -1333,16 +1336,17 @@ export class ProcessService {
     if (updateTaskInput.percent !== undefined) {
       // Si se proporciona porcentaje manual, usarlo
       newPercent = updateTaskInput.percent;
-    } else if (updateTaskInput.status && updateTaskInput.status !== existingTask.status) {
+    } else if (updateTaskInput.status && updateTaskInput.status.toLowerCase() !== existingTask.status?.toLowerCase()) {
       // Si solo cambió el status, calcular porcentaje automático
       newPercent = this.getAutomaticPercentage(updateTaskInput.status, existingTask.percent || undefined);
     }
 
     // Detectar si el estado cambió a COMPLETED o CANCELLED
-    const statusChanged = updateTaskInput.status && updateTaskInput.status !== existingTask.status;
+    const statusChanged = updateTaskInput.status && updateTaskInput.status.toLowerCase() !== existingTask.status?.toLowerCase();
     const shouldArchive = statusChanged &&
-      (updateTaskInput.status === TaskStatus.COMPLETED ||
-        updateTaskInput.status === TaskStatus.CANCELLED);
+      updateTaskInput.status &&
+      (updateTaskInput.status.toLowerCase() === TaskStatus.COMPLETED.toLowerCase() ||
+        updateTaskInput.status.toLowerCase() === TaskStatus.CANCELLED.toLowerCase());
 
     // Si debe archivarse, primero actualizar y luego archivar
     if (shouldArchive) {
