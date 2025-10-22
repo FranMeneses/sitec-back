@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { OAuth2Client } from 'google-auth-library';
 import { UserService } from '../user/user.service';
 import { User } from '../entities/user.entity';
+import { PrismaService } from '../../common/prisma/prisma.service';
 import { LoginInput, RegisterInput, AuthResponse, GoogleAuthResponse } from '../dto/auth.dto';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class AuthService {
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
+    private prisma: PrismaService,
   ) {
     // Inicializar cliente de Google OAuth2
     this.googleClient = new OAuth2Client();
@@ -181,6 +183,133 @@ export class AuthService {
     } catch (error) {
       console.error('Error en Google Auth:', error);
       throw new BadRequestException('Error en autenticación con Google: ' + error.message);
+    }
+  }
+
+  async googleAuthWithInvitation(googleToken: string, invitationToken?: string): Promise<GoogleAuthResponse> {
+    // Inicializar roles por defecto si no existen
+    await this.userService.initializeDefaultRoles();
+
+    try {
+      // Verificar el token de Google usando la librería oficial
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: googleToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new BadRequestException('Token de Google inválido');
+      }
+
+      const email = payload.email;
+      const name = payload.name;
+      const picture = payload.picture;
+
+      if (!email) {
+        throw new BadRequestException('Token de Google inválido: email no encontrado');
+      }
+
+      // Validar dominio UCN
+      const isValidEmail = await this.userService.isValidUCNEmail(email);
+      if (!isValidEmail) {
+        throw new BadRequestException('Solo se permiten correos de dominios UCN');
+      }
+
+      // Buscar usuario existente
+      let user = await this.userService.findByEmail(email);
+      let isNewUser = false;
+      
+      if (!user) {
+        // Crear nuevo usuario si no existe
+        user = await this.userService.createUser({
+          name: name || email.split('@')[0],
+          email: email,
+          havePassword: false,
+        });
+        isNewUser = true;
+      }
+
+      // Si hay un token de invitación, procesar la invitación
+      if (invitationToken) {
+        await this.processInvitationForUser(user.id, invitationToken);
+      }
+
+      // Obtener usuario con roles
+      const userWithRoles = await this.userService.findByIdWithRoles(user.id);
+
+      // Generar JWT token
+      const accessToken = await this.generateJwtToken(userWithRoles);
+
+      return {
+        accessToken,
+        user: userWithRoles,
+        isNewUser,
+      };
+    } catch (error) {
+      console.error('Error en Google Auth con invitación:', error);
+      throw new BadRequestException('Error en autenticación con Google: ' + error.message);
+    }
+  }
+
+  private async processInvitationForUser(userId: string, invitationToken: string): Promise<void> {
+    try {
+      // Buscar la invitación por token
+      const invitation = await this.prisma.invitation.findUnique({
+        where: { token: invitationToken },
+        include: { project: true },
+      });
+
+      if (!invitation) {
+        throw new BadRequestException('Invitación no encontrada');
+      }
+
+      // Verificar que la invitación no haya expirado
+      if (new Date() > invitation.expires_at) {
+        await this.prisma.invitation.update({
+          where: { id: invitation.id },
+          data: { status: 'expired' },
+        });
+        throw new BadRequestException('La invitación ha expirado');
+      }
+
+      // Verificar que la invitación esté pendiente
+      if (invitation.status !== 'pending') {
+        throw new BadRequestException('La invitación ya fue procesada');
+      }
+
+      // Asignar al usuario al proyecto según el tipo de rol
+      if (invitation.role_type === 'project_member') {
+        await this.prisma.project_member.create({
+          data: {
+            idproject: invitation.project_id,
+            iduser: userId,
+          },
+        });
+      } else if (invitation.role_type === 'task_member') {
+        // Para task_member, asignamos como project_member también
+        await this.prisma.project_member.create({
+          data: {
+            idproject: invitation.project_id,
+            iduser: userId,
+          },
+        });
+      }
+
+      // Marcar la invitación como aceptada
+      await this.prisma.invitation.update({
+        where: { id: invitation.id },
+        data: {
+          status: 'accepted',
+          accepted_at: new Date(),
+          accepted_by: userId,
+        },
+      });
+
+      console.log(`Usuario ${userId} aceptó invitación al proyecto ${invitation.project_id}`);
+    } catch (error) {
+      console.error('Error procesando invitación:', error);
+      throw error;
     }
   }
 }

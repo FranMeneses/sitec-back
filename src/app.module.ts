@@ -14,6 +14,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { CommonModule } from './common/common.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ExportModule } from './export/export.module';
+import { InvitationModule } from './invitation/invitation.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { ExportModule } from './export/export.module';
     UploadsModule,
     NotificationsModule,
     ExportModule,
+    InvitationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

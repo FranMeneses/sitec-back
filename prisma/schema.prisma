@@ -118,6 +118,7 @@ model project {
   archived_at                    DateTime?        @db.Timestamp(6)
   archived_by                    String?          @db.Uuid
   percent                        Int?
+  invitation                     invitation[]
   logs                           logs[]
   notification                   notification[]
   process                        process[]
@@ -215,29 +216,31 @@ model unit_member {
 }
 
 model user {
-  id                                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                                String?          @db.VarChar
-  email                               String           @unique @db.VarChar
-  password                            String?          @db.VarChar
-  isactive                            Boolean?         @default(true)
-  havepassword                        Boolean?         @default(false)
-  admin                               admin[]
-  area_member                         area_member[]
-  comment                             comment[]
-  evidence_evidence_archived_byTouser evidence[]       @relation("evidence_archived_byTouser")
-  evidence                            evidence[]
-  logs                                logs[]
-  notification                        notification[]
-  process_process_archived_byTouser   process[]        @relation("process_archived_byTouser")
-  process                             process[]
-  project_project_archived_byTouser   project[]        @relation("project_archived_byTouser")
-  project                             project[]
-  project_member                      project_member[]
-  system_role                         system_role?
-  task_task_archived_byTouser         task[]           @relation("task_archived_byTouser")
-  task                                task[]
-  task_member                         task_member[]
-  unit_member                         unit_member[]
+  id                                      String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                                    String?          @db.VarChar
+  email                                   String           @unique @db.VarChar
+  password                                String?          @db.VarChar
+  isactive                                Boolean?         @default(true)
+  havepassword                            Boolean?         @default(false)
+  admin                                   admin[]
+  area_member                             area_member[]
+  comment                                 comment[]
+  evidence_evidence_archived_byTouser     evidence[]       @relation("evidence_archived_byTouser")
+  evidence                                evidence[]
+  invitation_invitation_accepted_byTouser invitation[]     @relation("invitation_accepted_byTouser")
+  invitation_invitation_invited_byTouser  invitation[]     @relation("invitation_invited_byTouser")
+  logs                                    logs[]
+  notification                            notification[]
+  process_process_archived_byTouser       process[]        @relation("process_archived_byTouser")
+  process                                 process[]
+  project_project_archived_byTouser       project[]        @relation("project_archived_byTouser")
+  project                                 project[]
+  project_member                          project_member[]
+  system_role                             system_role?
+  task_task_archived_byTouser             task[]           @relation("task_archived_byTouser")
+  task                                    task[]
+  task_member                             task_member[]
+  unit_member                             unit_member[]
 }
 
 model notification {
@@ -255,4 +258,21 @@ model notification {
   project            project?  @relation(fields: [related_project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   task               task?     @relation(fields: [related_task_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   user               user      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model invitation {
+  id                                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                             String    @db.VarChar
+  token                             String    @unique @db.VarChar
+  project_id                        String    @db.Uuid
+  invited_by                        String    @db.Uuid
+  role_type                         String    @db.VarChar
+  status                            String?   @default("pending") @db.VarChar
+  expires_at                        DateTime  @db.Timestamp(6)
+  created_at                        DateTime? @default(now()) @db.Timestamp(6)
+  accepted_at                       DateTime? @db.Timestamp(6)
+  accepted_by                       String?   @db.Uuid
+  user_invitation_accepted_byTouser user?     @relation("invitation_accepted_byTouser", fields: [accepted_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invitation_accepter")
+  user_invitation_invited_byTouser  user      @relation("invitation_invited_byTouser", fields: [invited_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invitation_inviter")
+  project                           project   @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_invitation_project")
 }

@@ -118,3 +118,14 @@ export class GoogleAuthResponse {
   @Field()
   isNewUser: boolean;
 }
+
+@InputType()
+export class GoogleAuthWithInvitationDto {
+  @Field()
+  @IsString()
+  googleToken: string;
+
+  @Field({ nullable: true })
+  @IsString()
+  invitationToken?: string;
+}

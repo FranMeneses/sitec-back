@@ -201,3 +201,20 @@ ALTER TABLE process ADD COLUMN percent INT;
 ALTER TABLE project ADD COLUMN percent INT;
 
 ALTER TABLE evidence ADD COLUMN is_approved BOOLEAN DEFAULT NULL;
+
+CREATE TABLE invitation (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR NOT NULL,
+    token VARCHAR UNIQUE NOT NULL,
+    project_id UUID NOT NULL,
+    invited_by UUID NOT NULL,
+    role_type VARCHAR NOT NULL,
+    status VARCHAR DEFAULT 'pending',
+    expires_at TIMESTAMP(6) NOT NULL,
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    accepted_at TIMESTAMP(6),
+    accepted_by UUID,
+    CONSTRAINT fk_invitation_project FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE ON UPDATE NO ACTION,
+    CONSTRAINT fk_invitation_inviter FOREIGN KEY (invited_by) REFERENCES "user"(id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT fk_invitation_accepter FOREIGN KEY (accepted_by) REFERENCES "user"(id) ON DELETE NO ACTION ON UPDATE NO ACTION
+);

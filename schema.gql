@@ -2,6 +2,10 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input AcceptInvitationInput {
+  token: String!
+}
+
 input AddProjectMemberInput {
   projectId: String!
   roleId: Int!
@@ -117,6 +121,12 @@ input CreateEvidenceInput {
   link: String
   review: String
   taskId: String!
+}
+
+input CreateInvitationInput {
+  email: String!
+  projectId: String!
+  roleType: String!
 }
 
 input CreateLogInput {
@@ -236,6 +246,38 @@ type GoogleAuthResponse {
   user: User!
 }
 
+input GoogleAuthWithInvitationDto {
+  googleToken: String!
+  invitationToken: String
+}
+
+type Invitation {
+  acceptedAt: DateTime
+  acceptedBy: String
+  accepter: User
+  createdAt: DateTime
+  email: String!
+  expiresAt: DateTime!
+  id: ID!
+  invitedBy: String!
+  inviter: User
+  projectId: String!
+  roleType: String!
+  status: String!
+  token: String!
+}
+
+type InvitationListResponse {
+  invitations: [Invitation!]!
+  total: Float!
+}
+
+type InvitationResponse {
+  invitation: Invitation
+  message: String
+  success: Boolean!
+}
+
 input LoginInput {
   email: String!
   password: String!
@@ -261,6 +303,7 @@ input MarkNotificationReadInput {
 }
 
 type Mutation {
+  acceptInvitation(acceptInvitationInput: AcceptInvitationInput!): InvitationResponse!
   addProjectMember(addProjectMemberInput: AddProjectMemberInput!): ProjectMember!
   addUnitMember(createUnitMemberInput: CreateUnitMemberInput!): UnitMember!
   approveEvidence(evidenceId: String!): Evidence!
@@ -273,6 +316,7 @@ type Mutation {
   assignTaskMember(createTaskMemberInput: CreateTaskMemberInput!): Boolean!
   assignUserToAreaAsAdmin(areaId: Int, userId: String!): SuccessResponse!
   assignUserToAreaAsMember(areaId: Int, userId: String!): SuccessResponse!
+  cancelInvitation(invitationId: String!): InvitationResponse!
   clearNotifications(input: ClearNotificationsInput): Int!
   completeProject(projectId: String!, review: String!): Boolean!
   createAdmin(createAdminInput: CreateAdminInput!): Admin!
@@ -282,6 +326,7 @@ type Mutation {
   createComment(createCommentInput: CreateCommentInput!): Comment!
   createEvidence(createEvidenceInput: CreateEvidenceInput!): Evidence!
   createFirstSuperAdmin(email: String!, name: String!, password: String!): AuthResponse!
+  createInvitation(createInvitationInput: CreateInvitationInput!): InvitationResponse!
   createLog(createLogInput: CreateLogInput!): Logs!
   createNotification(createNotificationInput: CreateNotificationInput!): Notification!
   createProcess(createProcessInput: CreateProcessInput!): Process!
@@ -308,6 +353,7 @@ type Mutation {
   generateOverdueTaskNotifications: Boolean!
   generateTaskDueSoonNotifications: Boolean!
   googleAuth(googleAuthDto: GoogleAuthDto!): GoogleAuthResponse!
+  googleAuthWithInvitation(googleAuthWithInvitationDto: GoogleAuthWithInvitationDto!): GoogleAuthResponse!
   login(loginInput: LoginInput!): AuthResponse!
   markAllNotificationsAsRead: Boolean!
   markNotificationAsRead(markNotificationReadInput: MarkNotificationReadInput!): Boolean!
@@ -471,6 +517,7 @@ type Query {
   getCategoryById(id: String!): Category
   getEvidenceByProject(includeArchived: Boolean! = false, projectId: String!): [Evidence!]!
   getInactiveProjects(areaId: Float!): [Project!]!
+  getProjectInvitations(projectId: String!): InvitationListResponse!
   getProjectProcessesAsMember(projectId: String!): [Process!]!
   getProjectsByCategory(categoryId: String!): [Project!]!
   getProjectsByUnit(unitId: Float!): [Project!]!
@@ -517,6 +564,7 @@ type Query {
   unreadNotificationCount: Int!
   user(id: String!): User!
   users: [User!]!
+  validateInvitation(acceptInvitationInput: AcceptInvitationInput!): InvitationResponse!
 }
 
 input RegisterInput {
