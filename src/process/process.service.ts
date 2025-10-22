@@ -25,7 +25,7 @@ export class ProcessService {
   private getAutomaticPercentage(status: string, lastPercent?: number): number {
     // Normalizar el status a minúsculas para comparación
     const normalizedStatus = status.toLowerCase();
-    
+
     switch (normalizedStatus) {
       case 'pending':
         return 0;
@@ -197,6 +197,8 @@ export class ProcessService {
     if (!project || !project.category) {
       return false;
     }
+
+    console.log('🔍 Checking area membership for user:', userId, 'and area:', project.category.id_area);
 
     const isAreaMember = await this.prisma.area_member.findFirst({
       where: {
@@ -1212,8 +1214,8 @@ export class ProcessService {
       }
     }
     // Calcular porcentaje inicial basado en el status
-    const initialPercent = createTaskInput.percent !== undefined 
-      ? createTaskInput.percent 
+    const initialPercent = createTaskInput.percent !== undefined
+      ? createTaskInput.percent
       : this.getAutomaticPercentage(createTaskInput.status);
 
     // Crear la tarea
@@ -1332,7 +1334,7 @@ export class ProcessService {
 
     // Calcular el nuevo porcentaje
     let newPercent = existingTask.percent;
-    
+
     if (updateTaskInput.percent !== undefined) {
       // Si se proporciona porcentaje manual, usarlo
       newPercent = updateTaskInput.percent;
@@ -1642,6 +1644,8 @@ export class ProcessService {
     if (!task) {
       throw new BadRequestException('La tarea especificada no existe');
     }
+    // Validar que el usuario es area_member del proyecto
+    const canCreateTask = await this.canCreateTask(task.process.idproject!, projectMemberId);
 
     // Validar permisos para remover task_members
     const canRemoveTaskMembers = await this.canAssignTaskMembers(projectMemberId, task.process.idproject!);
@@ -2355,7 +2359,7 @@ export class ProcessService {
 
     // Filtrar tareas que tienen porcentaje definido
     const tasksWithPercent = tasks.filter(task => task.percent !== null && task.percent !== undefined);
-    
+
     if (tasksWithPercent.length === 0) {
       return 0;
     }
@@ -2363,7 +2367,7 @@ export class ProcessService {
     // Calcular promedio
     const totalPercent = tasksWithPercent.reduce((sum, task) => sum + (task.percent || 0), 0);
     const averagePercent = Math.round(totalPercent / tasksWithPercent.length);
-    
+
     return Math.min(100, Math.max(0, averagePercent)); // Asegurar que esté entre 0 y 100
   }
 
@@ -2372,7 +2376,7 @@ export class ProcessService {
    */
   async updateProcessPercentage(processId: string): Promise<void> {
     const newPercentage = await this.calculateProcessPercentage(processId);
-    
+
     // Actualizar el porcentaje del proceso
     await this.prisma.process.update({
       where: { id: processId },
@@ -2415,14 +2419,14 @@ export class ProcessService {
 
     // Filtrar procesos que tienen porcentaje definido
     const processesWithPercent = processes.filter(process => process.percent !== null && process.percent !== undefined);
-    
+
     let averagePercent = 0;
     if (processesWithPercent.length > 0) {
       // Calcular promedio
       const totalPercent = processesWithPercent.reduce((sum, process) => sum + (process.percent || 0), 0);
       averagePercent = Math.round(totalPercent / processesWithPercent.length);
     }
-    
+
     const finalPercent = Math.min(100, Math.max(0, averagePercent)); // Asegurar que esté entre 0 y 100
 
     // Actualizar el porcentaje del proyecto
@@ -2441,7 +2445,7 @@ export class ProcessService {
       where: { id: taskId },
       include: { process: { include: { project: true } } },
     });
-    
+
     if (!existingTask) {
       throw new NotFoundException('Tarea no encontrada');
     }
@@ -2458,7 +2462,7 @@ export class ProcessService {
 
     // Validar que el porcentaje esté entre 0 y 100
     const validPercent = Math.min(100, Math.max(0, newPercent));
-    
+
     // Actualizar el porcentaje de la tarea
     await this.prisma.task.update({
       where: { id: taskId },

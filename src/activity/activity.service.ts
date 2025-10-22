@@ -15,7 +15,7 @@ export class ActivityService {
   constructor(
     private prisma: PrismaService,
     private userService: UserService,
-  ) {}
+  ) { }
 
   // ==================== EVIDENCE METHODS ====================
 
@@ -44,10 +44,10 @@ export class ActivityService {
     });
 
     if (!evidence) return null;
-    
+
     // Si no incluimos archivadas y está archivada, retornar null
     if (!includeArchived && evidence.archived_at) return null;
-    
+
     return this.mapEvidence(evidence);
   }
 
@@ -288,7 +288,7 @@ export class ActivityService {
     const fs = require('fs').promises;
     const path = require('path');
     const oldFilePath = path.join(process.cwd(), existingEvidence.link);
-    
+
     try {
       await fs.unlink(oldFilePath);
     } catch (error) {
@@ -525,7 +525,27 @@ export class ActivityService {
 
     const isTaskMember = await this.userService.isTaskMember(userId, createCommentInput.taskId);
 
-    if (!projectMember && !isTaskMember) {
+    // Validar que el usuario es area_member del proyecto
+    const process = await this.prisma.process.findUnique({
+      where: { id: task.idprocess },
+      include: {
+        project: {
+          include: {
+            category: {
+              include: { area: true }
+            }
+          }
+        }
+      }
+    })
+
+    const areaId = process?.project?.category?.area?.id;
+    if (!areaId) {
+      throw new BadRequestException('El area del proyecto no está disponible');
+    }
+    const isAreaMember = await this.userService.isAreaMember(userId, areaId);
+
+    if (!projectMember && !isTaskMember && !isAreaMember) {
       throw new ForbiddenException('No tienes permisos para comentar en esta tarea');
     }
 
@@ -811,7 +831,7 @@ export class ActivityService {
     // - area_role: ve evidencias de su área + proyectos donde es miembro
     // - unit_role: ve evidencias de su unidad + proyectos donde es miembro  
     // - user: ve evidencias de proyectos/tareas donde es miembro + las que subió
-    
+
     // Primero obtener el system_role del usuario para optimizar la query
     const userSystemRole = await this.prisma.system_role.findUnique({
       where: { user_id: userId },
@@ -836,7 +856,7 @@ export class ActivityService {
         where: { iduser: userId },
         select: { idarea: true }
       });
-      
+
       const userAdminAreas = await this.prisma.admin.findMany({
         where: { iduser: userId },
         select: { idarea: true }
@@ -1064,7 +1084,7 @@ export class ActivityService {
         where: { iduser: userId },
         select: { idarea: true }
       });
-      
+
       const userAdminAreas = await this.prisma.admin.findMany({
         where: { iduser: userId },
         select: { idarea: true }
