@@ -1688,37 +1688,32 @@ export class OrganizationService {
         throw new BadRequestException('El área especificada no existe');
       }
     } else if (userSystemRole === 'area_role') {
-      // area_role puede crear categorías solo en sus áreas asignadas
-      // Verificar si es admin (tiene membresía admin)
+      // area_role puede crear categorías solo en sus áreas asignadas (admin o miembro)
       const adminAreas = await this.prisma.admin.findMany({
         where: { iduser: userId },
-        select: { idarea: true }
+        select: { idarea: true },
       });
 
-      // Si no es admin, verificar si es area_member
-      if (adminAreas.length === 0) {
-        const areaMemberships = await this.prisma.area_member.findMany({
-          where: { iduser: userId },
-          select: { idarea: true },
-        });
+      const memberAreas = await this.prisma.area_member.findMany({
+        where: { iduser: userId },
+        select: { idarea: true },
+      });
 
-        if (areaMemberships.length === 0) {
-          throw new ForbiddenException('Usuario no asignado a ningún área como miembro');
-        }
+      // Combinar todas las áreas en las que participa
+      const allAreas = new Set([
+        ...adminAreas.map(a => a.idarea),
+        ...memberAreas.map(m => m.idarea),
+      ]);
 
-        const areaIds = areaMemberships.map(m => m.idarea);
+      if (allAreas.size === 0) {
+        throw new ForbiddenException('Usuario no asignado a ninguna área');
+      }
 
-        // Verificar que el área de la nueva categoría está entre las áreas del usuario
-        if (!areaIds.includes(createCategoryInput.areaId)) {
-          throw new ForbiddenException('Solo puedes crear categorías en tus áreas asignadas');
-        }
-      } else {
-        // Es admin, verificar que está creando en su área
-        const areaIds = adminAreas.map(admin => admin.idarea);
-
-        if (!areaIds.includes(createCategoryInput.areaId)) {
-          throw new ForbiddenException('Solo puedes crear categorías en las áreas donde eres admin');
-        }
+      // Verificar que el área donde intenta crear la categoría esté dentro de sus áreas
+      if (!allAreas.has(createCategoryInput.areaId)) {
+        throw new ForbiddenException(
+          'Solo puedes crear categorías en las áreas donde eres admin o miembro'
+        );
       }
     } else {
       // Otros roles no pueden crear categorías
