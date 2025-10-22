@@ -17,13 +17,13 @@ export class OrganizationService {
     private prisma: PrismaService,
     private systemRoleService: SystemRoleService,
     private userService: UserService,
-  ) {}
+  ) { }
 
   // ===== AREA METHODS =====
   async createArea(createAreaInput: CreateAreaInput, currentUser: User) {
     // Verificar si el usuario es super_admin (solo super_admin puede crear áreas)
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
-    
+
     if (!isSuperAdmin) {
       throw new ForbiddenException('Solo los super administradores pueden crear áreas');
     }
@@ -85,24 +85,24 @@ export class OrganizationService {
     // Verificar si el usuario es admin
     const isAdmin = await this.isUserAdmin(currentUser.id);
     const isAreaMember = await this.userService.isAreaMemberOfAny(currentUser.id);
-    
+
     if (isAdmin || isAreaMember) {
       // Obtener todas las áreas donde el usuario tiene permisos
       const adminAreas = isAdmin ? await this.getAdminAreas(currentUser.id) : [];
       const memberAreas = isAreaMember ? await this.getAreaMemberAreas(currentUser.id) : [];
-      
+
       // Combinar áreas y eliminar duplicados
       const allUserAreas = [...new Set([...adminAreas, ...memberAreas])];
-      
+
       if (allUserAreas.length === 0) {
         throw new ForbiddenException('Usuario no asociado a ningún área');
       }
 
       return this.prisma.area.findMany({
-        where: { 
-          id: { 
-            in: allUserAreas 
-          } 
+        where: {
+          id: {
+            in: allUserAreas
+          }
         },
         include: {
           admin: {
@@ -268,7 +268,7 @@ export class OrganizationService {
     }
 
     const userSystemRole = userWithRoles.systemRole?.role?.name;
-    
+
     if (userSystemRole === 'unit_role' || userSystemRole === 'area_role') {
       // unit_role y area_role pueden ver todas las unidades
       // area_role (admin/area_member) necesita ver unidades para asignar proyectos
@@ -359,7 +359,7 @@ export class OrganizationService {
   async addUnitMember(createUnitMemberInput: CreateUnitMemberInput, currentUser: User) {
     // Verificar si el usuario es super_admin (solo super_admin puede agregar miembros a unidades)
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
-    
+
     if (!isSuperAdmin) {
       throw new ForbiddenException('Solo los super administradores pueden agregar miembros a unidades');
     }
@@ -421,7 +421,7 @@ export class OrganizationService {
   async updateUnitMember(updateUnitMemberInput: UpdateUnitMemberInput, currentUser: User) {
     // Verificar si el usuario es super_admin (solo super_admin puede actualizar miembros de unidades)
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
-    
+
     if (!isSuperAdmin) {
       throw new ForbiddenException('Solo los super administradores pueden actualizar miembros de unidades');
     }
@@ -486,7 +486,7 @@ export class OrganizationService {
   async removeUnitMember(id: string, currentUser: User) {
     // Verificar si el usuario es super_admin (solo super_admin puede eliminar miembros de unidades)
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
-    
+
     if (!isSuperAdmin) {
       throw new ForbiddenException('Solo los super administradores pueden eliminar miembros de unidades');
     }
@@ -593,7 +593,7 @@ export class OrganizationService {
       throw new NotFoundException(`Unidad con ID ${unitId} no encontrada`);
     }
 
-    const unitInAdminArea = unit.project.some(project => 
+    const unitInAdminArea = unit.project.some(project =>
       project.category && project.category.id_area === adminArea
     );
 
@@ -613,13 +613,13 @@ export class OrganizationService {
   async getAvailableUsersForArea(areaId: number, currentUser: User): Promise<any> {
     // Obtener información del usuario con roles
     const userWithRoles = await this.userService.findByIdWithRoles(currentUser.id);
-    
+
     if (!userWithRoles) {
       throw new ForbiddenException('Usuario no encontrado');
     }
 
     const userSystemRole = userWithRoles.systemRole?.role?.name;
-    
+
     // Solo super_admin y area_role pueden ver usuarios disponibles
     if (userSystemRole !== 'super_admin' && userSystemRole !== 'area_role') {
       throw new ForbiddenException('Solo los administradores y miembros de área pueden ver usuarios disponibles');
@@ -641,7 +641,7 @@ export class OrganizationService {
       // area_role puede ver solo las áreas que gestiona
       // Verificar si es admin (tiene membresía admin)
       const adminRecord = await this.prisma.admin.findFirst({
-        where: { 
+        where: {
           iduser: currentUser.id,
           idarea: areaId
         }
@@ -652,7 +652,7 @@ export class OrganizationService {
       } else {
         // No es admin, verificar si es area_member
         const areaMemberRecord = await this.prisma.area_member.findFirst({
-          where: { 
+          where: {
             iduser: currentUser.id,
             idarea: areaId
           }
@@ -685,7 +685,7 @@ export class OrganizationService {
     allUsers.forEach(user => {
       const isAdminInThisArea = user.admin.some(admin => admin.idarea === areaId);
       const isMemberInThisArea = user.area_member.some(member => member.idarea === areaId);
-      
+
       const userData = {
         id: user.id,
         name: user.name || '',
@@ -776,7 +776,7 @@ export class OrganizationService {
 
   private async isUserSuperAdmin(userId: string): Promise<boolean> {
     const systemRole = await this.prisma.system_role.findFirst({
-      where: { 
+      where: {
         user_id: userId,
         role: { name: 'super_admin' }
       },
@@ -793,7 +793,7 @@ export class OrganizationService {
     // En el nuevo esquema, no hay roles específicos en unit_member
     // Un usuario puede gestionar una unidad si es admin del área correspondiente
     // o si tiene rol de sistema area_role o superior
-    
+
     // Verificar rol de sistema
     const systemRole = await this.prisma.system_role.findUnique({
       where: { user_id: userId },
@@ -801,7 +801,7 @@ export class OrganizationService {
     });
 
     const roleName = systemRole?.role?.name;
-    
+
     // super_admin y area_role pueden gestionar unidades
     return roleName === 'super_admin' || roleName === 'area_role';
   }
@@ -846,10 +846,10 @@ export class OrganizationService {
 
     // Obtener todos los tipos para que el admin pueda crear nuevas unidades con tipos existentes
     const allTypes = await this.prisma.type.findMany();
-    
+
     // Combinar y eliminar duplicados
     const combinedTypes = [...typesInUse, ...allTypes];
-    const uniqueTypes = combinedTypes.filter((type, index, self) => 
+    const uniqueTypes = combinedTypes.filter((type, index, self) =>
       index === self.findIndex(t => t.id === type.id)
     );
 
@@ -986,7 +986,7 @@ export class OrganizationService {
     // Verificar si el usuario actual es super_admin o admin
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
     const isAdmin = await this.isUserAdmin(currentUser.id);
-    
+
     if (!isSuperAdmin && !isAdmin) {
       throw new ForbiddenException('Solo los administradores pueden crear otros administradores');
     }
@@ -1066,7 +1066,7 @@ export class OrganizationService {
     // Verificar si el usuario actual es super_admin o admin
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
     const isAdmin = await this.isUserAdmin(currentUser.id);
-    
+
     if (!isSuperAdmin && !isAdmin) {
       throw new ForbiddenException('Solo los administradores pueden eliminar otros administradores');
     }
@@ -1211,7 +1211,7 @@ export class OrganizationService {
   private async isAdminOfArea(userId: string, areaId: number): Promise<boolean> {
     // Verificar si el usuario es admin de un área específica
     const adminRecord = await this.prisma.admin.findFirst({
-      where: { 
+      where: {
         iduser: userId,
         idarea: areaId
       }
@@ -1255,7 +1255,7 @@ export class OrganizationService {
     // Verificar si el usuario es admin o super_admin
     const isAdmin = await this.isUserAdmin(currentUser.id);
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
-    
+
     if (!isAdmin && !isSuperAdmin) {
       throw new ForbiddenException('Solo los administradores pueden ver todas las categorías');
     }
@@ -1289,7 +1289,7 @@ export class OrganizationService {
     // Verificar si el usuario es admin o super_admin
     const isAdmin = await this.isUserAdmin(currentUser.id);
     const isSuperAdmin = await this.isUserSuperAdmin(currentUser.id);
-    
+
     if (!isAdmin && !isSuperAdmin) {
       throw new ForbiddenException('Solo los administradores pueden ver usuarios disponibles');
     }
@@ -1381,7 +1381,7 @@ export class OrganizationService {
     }
 
     const userSystemRole = userWithRoles.systemRole?.role?.name;
-    
+
     if (userSystemRole === 'super_admin') {
       // Super admin puede agregar miembros a cualquier área
     } else if (userSystemRole === 'area_role') {
@@ -1389,19 +1389,19 @@ export class OrganizationService {
       const isAdmin = await this.prisma.admin.findFirst({
         where: { iduser: currentUser.id }
       });
-      
+
       if (!isAdmin) {
         throw new ForbiddenException('Solo los admins pueden agregar usuarios al área');
       }
-      
+
       // Verificar que el admin puede agregar miembros a esta área específica
       const adminArea = await this.prisma.admin.findFirst({
-        where: { 
+        where: {
           iduser: currentUser.id,
           idarea: createAreaMemberInput.areaId
         }
       });
-      
+
       if (!adminArea) {
         throw new ForbiddenException('Solo puedes agregar usuarios a las áreas que administras');
       }
@@ -1500,7 +1500,7 @@ export class OrganizationService {
     }
 
     const userSystemRole = userWithRoles.systemRole?.role?.name;
-    
+
     if (userSystemRole === 'super_admin') {
       // Super admin puede eliminar miembros de cualquier área
     } else if (userSystemRole === 'area_role') {
@@ -1508,28 +1508,28 @@ export class OrganizationService {
       const isAdmin = await this.prisma.admin.findFirst({
         where: { iduser: currentUser.id }
       });
-      
+
       if (!isAdmin) {
         throw new ForbiddenException('Solo los admins pueden eliminar usuarios del área');
       }
-      
+
       // Verificar que el admin puede eliminar miembros de esta área específica
       const areaMember = await this.prisma.area_member.findUnique({
         where: { id },
         include: { area: true }
       });
-      
+
       if (!areaMember) {
         throw new NotFoundException('Miembro del área no encontrado');
       }
-      
+
       const adminArea = await this.prisma.admin.findFirst({
-        where: { 
+        where: {
           iduser: currentUser.id,
           idarea: areaMember.idarea
         }
       });
-      
+
       if (!adminArea) {
         throw new ForbiddenException('Solo puedes eliminar usuarios de las áreas que administras');
       }
@@ -1592,7 +1592,7 @@ export class OrganizationService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId }
     });
-    
+
     if (!user) {
       throw new ForbiddenException('Usuario no encontrado');
     }
@@ -1600,7 +1600,7 @@ export class OrganizationService {
     // Verificar si es super_admin (solo para este caso especial)
     const userWithRoles = await this.userService.findByIdWithRoles(userId);
     const userSystemRole = userWithRoles?.systemRole?.role?.name;
-    
+
     // Super admin puede ver todas las categorías del sistema
     if (userSystemRole === 'super_admin') {
       const categories = await this.prisma.category.findMany({
@@ -1609,7 +1609,7 @@ export class OrganizationService {
           project: true,
         },
       });
-      
+
       return categories.map(category => ({
         id: category.id,
         name: category.name,
@@ -1670,13 +1670,13 @@ export class OrganizationService {
   async createCategoryAsAreaMember(createCategoryInput: CreateCategoryInput, userId: string): Promise<any> {
     // Obtener información del usuario con roles
     const userWithRoles = await this.userService.findByIdWithRoles(userId);
-    
+
     if (!userWithRoles) {
       throw new ForbiddenException('Usuario no encontrado');
     }
 
     const userSystemRole = userWithRoles.systemRole?.role?.name;
-    
+
     // Super admin puede crear categorías en cualquier área
     if (userSystemRole === 'super_admin') {
       // Verificar que el área existe
@@ -1694,25 +1694,28 @@ export class OrganizationService {
         where: { iduser: userId },
         select: { idarea: true }
       });
-      
+
       // Si no es admin, verificar si es area_member
       if (adminAreas.length === 0) {
-        const areaMember = await this.prisma.area_member.findFirst({
+        const areaMemberships = await this.prisma.area_member.findMany({
           where: { iduser: userId },
+          select: { idarea: true },
         });
 
-        if (!areaMember) {
+        if (areaMemberships.length === 0) {
           throw new ForbiddenException('Usuario no asignado a ningún área como miembro');
         }
 
-        // Verificar que está creando la categoría en su área
-        if (createCategoryInput.areaId !== areaMember.idarea) {
-          throw new ForbiddenException('Solo puedes crear categorías en tu área asignada');
+        const areaIds = areaMemberships.map(m => m.idarea);
+
+        // Verificar que el área de la nueva categoría está entre las áreas del usuario
+        if (!areaIds.includes(createCategoryInput.areaId)) {
+          throw new ForbiddenException('Solo puedes crear categorías en tus áreas asignadas');
         }
       } else {
         // Es admin, verificar que está creando en su área
         const areaIds = adminAreas.map(admin => admin.idarea);
-        
+
         if (!areaIds.includes(createCategoryInput.areaId)) {
           throw new ForbiddenException('Solo puedes crear categorías en las áreas donde eres admin');
         }
@@ -1761,7 +1764,7 @@ export class OrganizationService {
   async updateCategoryAsAreaMember(updateCategoryInput: UpdateCategoryInput, userId: string): Promise<any> {
     // Obtener información del usuario con roles
     const userWithRoles = await this.userService.findByIdWithRoles(userId);
-    
+
     if (!userWithRoles) {
       throw new ForbiddenException('Usuario no encontrado');
     }
@@ -1786,17 +1789,17 @@ export class OrganizationService {
         where: { iduser: userId },
         select: { idarea: true }
       });
-      
+
       if (adminAreas.length === 0) {
         throw new ForbiddenException('Admin no asignado a ningún área');
       }
 
       const areaIds = adminAreas.map(admin => admin.idarea);
-      
+
       if (!areaIds.includes(existingCategory.id_area)) {
         throw new ForbiddenException('Solo puedes actualizar categorías en las áreas donde eres admin');
       }
-      
+
       // Si admin intenta mover categoría a otra área, verificar que tenga permisos en esa área también
       if (updateCategoryInput.areaId && updateCategoryInput.areaId !== existingCategory.id_area) {
         if (!areaIds.includes(updateCategoryInput.areaId)) {
@@ -1852,7 +1855,7 @@ export class OrganizationService {
   async deleteCategoryAsAreaMember(categoryId: string, userId: string): Promise<boolean> {
     // Obtener información del usuario con roles
     const userWithRoles = await this.userService.findByIdWithRoles(userId);
-    
+
     if (!userWithRoles) {
       throw new ForbiddenException('Usuario no encontrado');
     }
@@ -1880,13 +1883,13 @@ export class OrganizationService {
         where: { iduser: userId },
         select: { idarea: true }
       });
-      
+
       if (adminAreas.length === 0) {
         throw new ForbiddenException('Admin no asignado a ningún área');
       }
 
       const areaIds = adminAreas.map(admin => admin.idarea);
-      
+
       if (!areaIds.includes(existingCategory.id_area)) {
         throw new ForbiddenException('Solo puedes eliminar categorías en las áreas donde eres admin');
       }
