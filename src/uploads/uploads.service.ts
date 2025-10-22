@@ -198,28 +198,36 @@ export class UploadsService {
         iduser: userId,
       },
     });
-
     const isTaskMember = await this.userService.isTaskMember(userId, evidence.task.id);
 
-    // Comprobar si es miembro del area del proyecto
+    // Comprobar si es miembro del área del proyecto
     const project = evidence.task.process.project;
 
     if (!project?.idcategory) {
       console.log('❌ Proyecto no encontrado para la evidencia:', evidenceId);
       throw new BadRequestException('El proyecto asociado a la evidencia no existe');
     }
+
     const category = await this.prisma.category.findUnique({
       where: { id: project.idcategory },
+      select: { id_area: true },
     });
 
-    const isAreaMember = await this.prisma.area_member.findFirst({
+    const isAreaMember = await this.prisma.area_member.count({
       where: {
         iduser: userId,
         idarea: category?.id_area,
       },
-    });
+    }) > 0;
 
-    if (!projectMember && !isTaskMember && !isAreaMember) {
+    const isAdminArea = await this.prisma.admin.count({
+      where: {
+        iduser: userId,
+        idarea: category?.id_area,
+      },
+    }) > 0;
+
+    if (!projectMember && !isTaskMember && !isAreaMember && !isAdminArea) {
       throw new ForbiddenException('No tienes permisos para descargar esta evidencia');
     }
 
