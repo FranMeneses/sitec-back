@@ -2268,32 +2268,84 @@ export class ProcessService {
 
     const existingTaskMemberIds = existingTaskMembers.map(member => member.iduser);
 
-    // Obtener todos los project_members del proyecto (son elegibles para ser task_members)
-    const projectMembers = task.process.project.project_member || [];
+    // Obtener todos los usuarios (Unit_role)
 
-    // Filtrar usuarios: solo project_members que NO sean ya task_members de esta tarea
-    const availableUsers = projectMembers.filter(member => {
-      return member.user && !existingTaskMemberIds.includes(member.user.id);
+    // Usuarios activos que no son ya task_members de esta tarea
+    const usersNotInTask = await this.prisma.user.findMany({
+      where: {
+        isactive: true,
+        id: {
+          notIn: existingTaskMemberIds.length > 0 ? existingTaskMemberIds : undefined
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        system_role: {
+          select: {
+            role: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
     });
 
-    // Mapear a formato esperado (con null safety)
-    return availableUsers
-      .filter(member => member.user) // Asegurar que user no es null
-      .map(member => ({
-        id: member.user!.id,
-        name: member.user!.name || '',
-        email: member.user!.email,
-        isActive: member.user!.isactive ?? true,
-        havePassword: member.user!.havepassword ?? false,
+    return usersNotInTask.map(user => ({
+      id: user.id,
+      name: user.name || '',
+      email: user.email,
+      isActive: true, // Ya filtramos por isactive: true
+      havePassword: false, // No es relevante para esta consulta
+      createdAt: new Date(), // Valores por defecto
+      updatedAt: new Date(),
+      systemRole: user.system_role ? {
+        id: '',
+        userId: user.id,
+        roleId: 0,
+        createdAt: new Date(),
         role: {
-          id: 0, // En el nuevo esquema no hay roles específicos en project_member
-          name: 'project_member', // Todos los project_member tienen el mismo propósito
-        },
-        projectMembership: {
-          id: member.id,
-          projectId: task.process!.project!.id,
+          id: 0,
+          name: user.system_role.role.name || '',
+          description: '',
+          createdAt: new Date(),
+          updatedAt: new Date()
         }
-      }));
+      } : undefined
+    }));
+
+    // Obtener todos los project_members del proyecto (son elegibles para ser task_members)
+    // const projectMembers = task.process.project.project_member || [];
+
+    // Filtrar usuarios: solo project_members que NO sean ya task_members de esta tarea
+    // const availableUsers = projectMembers.filter(member => {
+    //   return member.user && !existingTaskMemberIds.includes(member.user.id);
+    // });
+
+    // Mapear a formato esperado (con null safety)
+    // return availableUsers
+    //   .filter(member => member.user) // Asegurar que user no es null
+    //   .map(member => ({
+    //     id: member.user!.id,
+    //     name: member.user!.name || '',
+    //     email: member.user!.email,
+    //     isActive: member.user!.isactive ?? true,
+    //     havePassword: member.user!.havepassword ?? false,
+    //     role: {
+    //       id: 0, // En el nuevo esquema no hay roles específicos en project_member
+    //       name: 'project_member', // Todos los project_member tienen el mismo propósito
+    //     },
+    //     projectMembership: {
+    //       id: member.id,
+    //       projectId: task.process!.project!.id,
+    //     }
+    //   }));
   }
 
 
