@@ -43,42 +43,11 @@ export class ProcessService {
   }
 
   private async canAccessProject(projectId: string, userId: string): Promise<boolean> {
-    // Super admin puede hacer cualquier cosa
+    // 1️⃣ Super admin puede hacer cualquier cosa
     const isSuperAdmin = await this.userService.isSuperAdmin(userId);
     if (isSuperAdmin) return true;
 
-    // Admin del sistema puede hacer operaciones en su área
-    const isAdmin = await this.userService.isAdmin(userId);
-    if (isAdmin) {
-      // Verificar que el proyecto pertenece a su área
-      const project = await this.prisma.project.findUnique({
-        where: { id: projectId },
-        include: {
-          category: {
-            include: {
-              area: true
-            }
-          }
-        }
-      });
-
-      if (!project || !project.category) {
-        return false;
-      }
-
-      const adminArea = await this.prisma.admin.findFirst({
-        where: { iduser: userId },
-        select: { idarea: true }
-      });
-
-      if (!adminArea) {
-        return false;
-      }
-
-      return project.category.id_area === adminArea.idarea;
-    }
-
-    // Verificar si es area_member del área del proyecto
+    // 2️⃣ Obtener proyecto con su categoría y área
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       include: {
@@ -90,99 +59,71 @@ export class ProcessService {
       }
     });
 
-    if (!project || !project.category) {
-      return false;
-    }
+    if (!project || !project.category) return false;
 
-    const isAreaMember = await this.prisma.area_member.findFirst({
-      where: {
-        iduser: userId,
-        idarea: project.category.id_area
-      }
-    });
+    const areaId = project.category.id_area;
 
-    if (isAreaMember) {
-      return true;
-    }
+    // 3️⃣ Obtener todas las áreas donde el usuario participa (admin o miembro)
+    const [adminAreas, memberAreas] = await Promise.all([
+      this.prisma.admin.findMany({
+        where: { iduser: userId },
+        select: { idarea: true },
+      }),
+      this.prisma.area_member.findMany({
+        where: { iduser: userId },
+        select: { idarea: true },
+      }),
+    ]);
 
-    // Verificar si es project_member
+    const userAreas = new Set([
+      ...adminAreas.map(a => a.idarea),
+      ...memberAreas.map(m => m.idarea),
+    ]);
+
+    // Si pertenece al área, acceso permitido
+    if (userAreas.has(areaId)) return true;
+
+    // 4️⃣ Verificar si es project_member
     const projectMember = await this.prisma.project_member.findFirst({
       where: {
         idproject: projectId,
         iduser: userId,
       },
     });
+    if (projectMember) return true;
 
-    if (projectMember) {
-      return true;
-    }
-
-    // Verificar si es unit_member de la unidad del proyecto
+    // 5️⃣ Verificar si es unit_member de la unidad del proyecto
     if (project.idunit) {
       const unitMember = await this.prisma.unit_member.findFirst({
         where: {
           iduser: userId,
-          idunit: project.idunit
-        }
+          idunit: project.idunit,
+        },
       });
-
-      if (unitMember) {
-        return true;
-      }
+      if (unitMember) return true;
     }
 
-    // Verificar si es task_member de alguna tarea del proyecto
+    // 6️⃣ Verificar si es task_member de alguna tarea del proyecto
     const taskMember = await this.prisma.task_member.findFirst({
       where: {
         iduser: userId,
         task: {
           process: {
-            idproject: projectId
-          }
-        }
-      }
+            idproject: projectId,
+          },
+        },
+      },
     });
 
     return !!taskMember;
   }
 
   private async canCreateTask(projectId: string, userId: string): Promise<boolean> {
-    // Super admin puede crear tareas en cualquier proyecto
+    // 1️⃣ Super admin puede crear tareas en cualquier proyecto
     const isSuperAdmin = await this.userService.isSuperAdmin(userId);
     if (isSuperAdmin) return true;
 
-    // Admin del sistema puede crear tareas en proyectos de su área
-    const isAdmin = await this.userService.isAdmin(userId);
-    if (isAdmin) {
-      // Verificar que el proyecto pertenece a su área
-      const project = await this.prisma.project.findUnique({
-        where: { id: projectId },
-        include: {
-          category: {
-            include: {
-              area: true
-            }
-          }
-        }
-      });
-
-      if (!project || !project.category) {
-        return false;
-      }
-
-      const adminArea = await this.prisma.admin.findFirst({
-        where: { iduser: userId },
-        select: { idarea: true }
-      });
-
-      if (!adminArea) {
-        return false;
-      }
-
-      return project.category.id_area === adminArea.idarea;
-    }
-
-    // Verificar si es area_member del área del proyecto
+    // 2️⃣ Obtener el proyecto con su categoría y área
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       include: {
@@ -194,50 +135,53 @@ export class ProcessService {
       }
     });
 
-    if (!project || !project.category) {
-      return false;
-    }
+    if (!project || !project.category) return false;
 
-    console.log('🔍 Checking area membership for user:', userId, 'and area:', project.category.id_area);
+    const areaId = project.category.id_area;
 
-    const isAreaMember = await this.prisma.area_member.findFirst({
-      where: {
-        iduser: userId,
-        idarea: project.category.id_area
-      }
-    });
+    // 3️⃣ Obtener todas las áreas donde el usuario participa (admin o miembro)
+    const [adminAreas, memberAreas] = await Promise.all([
+      this.prisma.admin.findMany({
+        where: { iduser: userId },
+        select: { idarea: true },
+      }),
+      this.prisma.area_member.findMany({
+        where: { iduser: userId },
+        select: { idarea: true },
+      }),
+    ]);
 
-    if (isAreaMember) {
-      return true;
-    }
+    const userAreas = new Set([
+      ...adminAreas.map(a => a.idarea),
+      ...memberAreas.map(m => m.idarea),
+    ]);
 
-    // Verificar si es project_member
+    // 4️⃣ Si pertenece al área, puede crear tareas
+    if (userAreas.has(areaId)) return true;
+
+    // 5️⃣ Verificar si es project_member
     const projectMember = await this.prisma.project_member.findFirst({
       where: {
         idproject: projectId,
         iduser: userId,
       },
     });
+    if (projectMember) return true;
 
-    if (projectMember) {
-      return true;
-    }
-
-    // Verificar si es task_member de alguna tarea del proyecto
+    // 6️⃣ Verificar si es task_member de alguna tarea del proyecto
     const taskMember = await this.prisma.task_member.findFirst({
       where: {
         iduser: userId,
         task: {
           process: {
-            idproject: projectId
-          }
-        }
-      }
+            idproject: projectId,
+          },
+        },
+      },
     });
 
     return !!taskMember;
   }
-
   private validateProcessDates(startDate?: string, dueDate?: string): void {
     if (startDate && dueDate) {
       const start = new Date(startDate);
@@ -2050,89 +1994,62 @@ export class ProcessService {
    * Permite tanto a project_member como a unit_member asignar task_members
    */
   private async canAssignTaskMembers(userId: string, projectId: string): Promise<boolean> {
-    // Super admin puede asignar task_members en cualquier proyecto
+    // 1️⃣ Super admin puede asignar miembros en cualquier proyecto
     const isSuperAdmin = await this.userService.isSuperAdmin(userId);
     if (isSuperAdmin) return true;
 
-    // Admin del sistema puede asignar task_members en proyectos de su área
-    const isAdmin = await this.userService.isAdmin(userId);
-    if (isAdmin) {
-      // Verificar que el proyecto pertenece a su área
-      const project = await this.prisma.project.findUnique({
-        where: { id: projectId },
-        include: {
-          category: {
-            include: {
-              area: true
-            }
-          }
-        }
-      });
-
-      if (!project || !project.category) {
-        return false;
-      }
-
-      const adminArea = await this.prisma.admin.findFirst({
-        where: { iduser: userId },
-        select: { idarea: true }
-      });
-
-      if (!adminArea) {
-        return false;
-      }
-
-      return project.category.id_area === adminArea.idarea;
-    }
-
-    // Verificar si es area_member del área del proyecto
+    // 2️⃣ Obtener el proyecto con su categoría y área
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       include: {
         category: {
           include: {
-            area: true
-          }
-        }
-      }
+            area: true,
+          },
+        },
+      },
     });
 
-    if (!project || !project.category) {
-      return false;
-    }
+    if (!project || !project.category) return false;
 
-    const isAreaMember = await this.prisma.area_member.findFirst({
-      where: {
-        iduser: userId,
-        idarea: project.category.id_area
-      }
-    });
+    const areaId = project.category.id_area;
 
-    if (isAreaMember) {
-      return true;
-    }
+    // 3️⃣ Obtener todas las áreas donde el usuario participa (admin o miembro)
+    const [adminAreas, memberAreas] = await Promise.all([
+      this.prisma.admin.findMany({
+        where: { iduser: userId },
+        select: { idarea: true },
+      }),
+      this.prisma.area_member.findMany({
+        where: { iduser: userId },
+        select: { idarea: true },
+      }),
+    ]);
 
-    // Verificar si es project_member del proyecto
+    const userAreas = new Set([
+      ...adminAreas.map(a => a.idarea),
+      ...memberAreas.map(m => m.idarea),
+    ]);
+
+    // Si pertenece al área del proyecto, puede asignar task_members
+    if (userAreas.has(areaId)) return true;
+
+    // 4️⃣ Verificar si es project_member
     const isProjectMember = await this.userService.isProjectMember(userId, projectId);
-    if (isProjectMember) {
-      return true;
+    if (isProjectMember) return true;
+
+    // 5️⃣ Verificar si es unit_member de la unidad asociada al proyecto
+    if (project.idunit) {
+      const isUnitMember = await this.prisma.unit_member.findFirst({
+        where: {
+          iduser: userId,
+          idunit: project.idunit,
+        },
+      });
+      if (isUnitMember) return true;
     }
 
-    // Verificar si es unit_member de alguna unidad del proyecto
-    const isUnitMember = await this.prisma.unit_member.findFirst({
-      where: {
-        iduser: userId,
-        unit: {
-          project: {
-            some: {
-              id: projectId
-            }
-          }
-        }
-      }
-    });
-
-    return !!isUnitMember;
+    return false;
   }
 
   // ==================== TASK REACTIVATION METHODS ====================

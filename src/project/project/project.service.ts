@@ -37,38 +37,52 @@ export class ProjectService {
       case 'super_admin':
         // Super_admin puede agregar miembros a cualquier proyecto
         return;
-
       case 'area_role':
-        // area_role puede agregar miembros solo a proyectos de su área
+        // area_role puede agregar miembros solo a proyectos de sus áreas (admin o miembro)
         const project = await this.prisma.project.findUnique({
           where: { id: projectId },
           include: {
             category: {
               include: {
-                area: true
-              }
-            }
-          }
+                area: true,
+              },
+            },
+          },
         });
 
         if (!project || !project.category) {
           throw new BadRequestException('Proyecto o categoría no encontrada');
         }
 
-        const adminArea = await this.prisma.admin.findFirst({
-          where: { iduser: userId },
-          select: { idarea: true }
-        });
+        // Obtener todas las áreas donde el usuario participa
+        const [adminAreas, memberAreas] = await Promise.all([
+          this.prisma.admin.findMany({
+            where: { iduser: userId },
+            select: { idarea: true },
+          }),
+          this.prisma.area_member.findMany({
+            where: { iduser: userId },
+            select: { idarea: true },
+          }),
+        ]);
 
-        if (!adminArea) {
-          throw new ForbiddenException('Admin no asociado a ningún área');
+        const userAreas = new Set([
+          ...adminAreas.map(a => a.idarea),
+          ...memberAreas.map(m => m.idarea),
+        ]);
+
+        if (userAreas.size === 0) {
+          throw new ForbiddenException('Usuario no asociado a ninguna área');
         }
 
-        if (project.category.id_area !== adminArea.idarea) {
-          throw new ForbiddenException('Solo puedes agregar miembros a proyectos de tu área');
+        // Verificar que el área del proyecto esté entre las áreas del usuario
+        if (!userAreas.has(project.category.id_area)) {
+          throw new ForbiddenException(
+            'Solo puedes agregar miembros a proyectos de las áreas donde eres admin o miembro',
+          );
         }
+
         return;
-
       case 'area_member':
         // Area_member puede agregar miembros a proyectos de las áreas donde es miembro
         const projectForAreaMember = await this.prisma.project.findUnique({
@@ -122,7 +136,7 @@ export class ProjectService {
         });
 
         const unitIds = userUnits.map(uu => uu.idunit).filter(id => id !== null);
-        
+
         if (!projectForUnitMember.idunit || !unitIds.includes(projectForUnitMember.idunit)) {
           throw new ForbiddenException('Solo puedes agregar miembros a proyectos de tu unidad');
         }
@@ -160,9 +174,9 @@ export class ProjectService {
     const currentRole = userSystemRole?.role?.name;
 
     // Si el usuario ya tiene un rol superior, mantenerlo
-    if (currentRole === 'super_admin' || 
-        currentRole === 'area_role' || 
-        currentRole === 'unit_role') {
+    if (currentRole === 'super_admin' ||
+      currentRole === 'area_role' ||
+      currentRole === 'unit_role') {
       // Mantener el system_role actual, solo agregar a project_member
       return;
     }
@@ -334,46 +348,50 @@ export class ProjectService {
         return;
 
       case 'area_role':
-        // area_role puede crear proyectos en sus áreas asignadas
+        // area_role puede crear proyectos en sus áreas asignadas (como admin o miembro)
         if (!categoryId) {
           throw new ForbiddenException('Debe especificar una categoría para crear el proyecto');
         }
 
         const category = await this.prisma.category.findUnique({
           where: { id: categoryId },
-          select: { id_area: true }
+          select: { id_area: true },
         });
 
         if (!category) {
           throw new BadRequestException('La categoría especificada no existe');
         }
 
-        // Verificar si es admin (tiene membresía admin)
-        const adminArea = await this.prisma.admin.findFirst({
+        // Obtener todas las áreas donde el usuario es admin
+        const adminAreas = await this.prisma.admin.findMany({
           where: { iduser: userId },
-          select: { idarea: true }
+          select: { idarea: true },
         });
 
-        if (adminArea) {
-          // Es admin, verificar que está creando en su área
-          if (category.id_area !== adminArea.idarea) {
-            throw new ForbiddenException('Solo puedes crear proyectos en categorías de tu área');
-          }
-        } else {
-          // No es admin, verificar si es area_member
-          const isAreaMember = await this.prisma.area_member.findFirst({
-            where: {
-              iduser: userId,
-              idarea: category.id_area
-            }
-          });
+        // Obtener todas las áreas donde el usuario es miembro
+        const memberAreas = await this.prisma.area_member.findMany({
+          where: { iduser: userId },
+          select: { idarea: true },
+        });
 
-          if (!isAreaMember) {
-            throw new ForbiddenException('Solo puedes crear proyectos en categorías de áreas donde eres miembro');
-          }
+        // Combinar ambas listas (sin duplicados)
+        const allAreas = new Set([
+          ...adminAreas.map(a => a.idarea),
+          ...memberAreas.map(m => m.idarea),
+        ]);
+
+        if (allAreas.size === 0) {
+          throw new ForbiddenException('Usuario no asignado a ninguna área');
         }
-        return;
 
+        // Verificar que el área de la categoría esté dentro de sus áreas
+        if (!allAreas.has(category.id_area)) {
+          throw new ForbiddenException(
+            'Solo puedes crear proyectos en categorías de las áreas donde eres admin o miembro'
+          );
+        }
+
+        return;
       case 'unit_role':
         // unit_role puede crear proyectos en sus unidades asignadas
         if (!categoryId) {
@@ -510,7 +528,7 @@ export class ProjectService {
 
         // Combinar filtros: proyectos de área OR proyectos como member
         const areaWhereConditions: any[] = [];
-        
+
         if (areaIds.length > 0) {
           areaWhereConditions.push({
             category: {
@@ -571,7 +589,7 @@ export class ProjectService {
 
         // Combinar filtros: proyectos de unidad OR proyectos como member
         const unitWhereConditions: any[] = [];
-        
+
         if (unitIds.length > 0) {
           unitWhereConditions.push({
             idunit: { in: unitIds }
@@ -676,7 +694,7 @@ export class ProjectService {
 
     // Si no incluimos archivados y está archivado, retornar null
     if (!includeArchived && project.archived_at) return null;
-    
+
     // Si se proporciona userId, validar permisos
     if (userId) {
       const hasPermission = await this.validateProjectViewPermissions(userId, project);
@@ -684,7 +702,7 @@ export class ProjectService {
         throw new ForbiddenException('No tienes permisos para ver este proyecto');
       }
     }
-    
+
     return this.mapProject(project);
   }
 
@@ -719,7 +737,7 @@ export class ProjectService {
         }
 
         const areaIds = [...new Set(userAreas.map(ua => ua.idarea))];
-        
+
         // Verificar si el proyecto pertenece a alguna de sus áreas
         if (project.category && areaIds.includes(project.category.id_area)) {
           return true;
@@ -739,7 +757,7 @@ export class ProjectService {
         });
 
         const unitIds = userUnits.map(uu => uu.idunit).filter(id => id !== null);
-        
+
         // Verificar si el proyecto pertenece a alguna de sus unidades
         if (project.idunit && unitIds.includes(project.idunit)) {
           return true;
@@ -2163,7 +2181,7 @@ export class ProjectService {
 
     // Filtrar procesos que tienen porcentaje definido
     const processesWithPercent = processes.filter(process => process.percent !== null && process.percent !== undefined);
-    
+
     if (processesWithPercent.length === 0) {
       return 0;
     }
@@ -2171,7 +2189,7 @@ export class ProjectService {
     // Calcular promedio
     const totalPercent = processesWithPercent.reduce((sum, process) => sum + (process.percent || 0), 0);
     const averagePercent = Math.round(totalPercent / processesWithPercent.length);
-    
+
     return Math.min(100, Math.max(0, averagePercent)); // Asegurar que esté entre 0 y 100
   }
 
@@ -2180,7 +2198,7 @@ export class ProjectService {
    */
   async updateProjectPercentage(projectId: string): Promise<void> {
     const newPercentage = await this.calculateProjectPercentage(projectId);
-    
+
     // Actualizar el porcentaje del proyecto
     await this.prisma.project.update({
       where: { id: projectId },
