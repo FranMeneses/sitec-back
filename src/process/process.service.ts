@@ -1577,25 +1577,14 @@ export class ProcessService {
       throw new BadRequestException('La tarea especificada no existe');
     }
 
-    // Validar que el usuario es area_member del proyecto
-    const canCreateTask = await this.canCreateTask(task.process.idproject!, projectMemberId);
-
-    // Validar que el usuario es project_member del proyecto
-    const isProjectMember = await this.userService.isProjectMember(projectMemberId, task.process.idproject!);
-    if (!isProjectMember && !canCreateTask) {
+    // Validar permisos para asignar task_members
+    const canAssignTaskMembers = await this.canAssignTaskMembers(projectMemberId, task.process.idproject!);
+    if (!canAssignTaskMembers) {
       throw new ForbiddenException('No tienes permisos para asignar miembros a tareas en este proyecto');
     }
 
-    // Validar que el usuario a asignar pertenece al proyecto
-    // const projectMember = await this.prisma.project_member.findFirst({
-    //   where: {
-    //     idproject: task.process.idproject,
-    //     iduser: userId,
-    //   },
-    // });
-    // if (!projectMember) {
-    //   throw new BadRequestException('El usuario no pertenece al proyecto');
-    // }
+    // Ya no es necesario que el usuario a asignar sea project_member
+    // Los unit_member pueden asignar cualquier usuario como task_member
 
     // Verificar que no esté ya asignado
     const existingTaskMember = await this.prisma.task_member.findFirst({
@@ -1658,9 +1647,9 @@ export class ProcessService {
     // Validar que el usuario es area_member del proyecto
     const canCreateTask = await this.canCreateTask(task.process.idproject!, projectMemberId);
 
-    // Validar que el usuario es project_member del proyecto
-    const isProjectMember = await this.userService.isProjectMember(projectMemberId, task.process.idproject!);
-    if (!isProjectMember && !canCreateTask) {
+    // Validar permisos para remover task_members
+    const canRemoveTaskMembers = await this.canAssignTaskMembers(projectMemberId, task.process.idproject!);
+    if (!canRemoveTaskMembers) {
       throw new ForbiddenException('No tienes permisos para remover miembros de tareas en este proyecto');
     }
 
@@ -2054,6 +2043,96 @@ export class ProcessService {
       createdAt: task.createdat,
       updatedAt: task.updatedat,
     };
+  }
+
+  /**
+   * Verifica si un usuario puede asignar task_members
+   * Permite tanto a project_member como a unit_member asignar task_members
+   */
+  private async canAssignTaskMembers(userId: string, projectId: string): Promise<boolean> {
+    // Super admin puede asignar task_members en cualquier proyecto
+    const isSuperAdmin = await this.userService.isSuperAdmin(userId);
+    if (isSuperAdmin) return true;
+
+    // Admin del sistema puede asignar task_members en proyectos de su área
+    const isAdmin = await this.userService.isAdmin(userId);
+    if (isAdmin) {
+      // Verificar que el proyecto pertenece a su área
+      const project = await this.prisma.project.findUnique({
+        where: { id: projectId },
+        include: {
+          category: {
+            include: {
+              area: true
+            }
+          }
+        }
+      });
+
+      if (!project || !project.category) {
+        return false;
+      }
+
+      const adminArea = await this.prisma.admin.findFirst({
+        where: { iduser: userId },
+        select: { idarea: true }
+      });
+
+      if (!adminArea) {
+        return false;
+      }
+
+      return project.category.id_area === adminArea.idarea;
+    }
+
+    // Verificar si es area_member del área del proyecto
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        category: {
+          include: {
+            area: true
+          }
+        }
+      }
+    });
+
+    if (!project || !project.category) {
+      return false;
+    }
+
+    const isAreaMember = await this.prisma.area_member.findFirst({
+      where: {
+        iduser: userId,
+        idarea: project.category.id_area
+      }
+    });
+
+    if (isAreaMember) {
+      return true;
+    }
+
+    // Verificar si es project_member del proyecto
+    const isProjectMember = await this.userService.isProjectMember(userId, projectId);
+    if (isProjectMember) {
+      return true;
+    }
+
+    // Verificar si es unit_member de alguna unidad del proyecto
+    const isUnitMember = await this.prisma.unit_member.findFirst({
+      where: {
+        iduser: userId,
+        unit: {
+          project: {
+            some: {
+              id: projectId
+            }
+          }
+        }
+      }
+    });
+
+    return !!isUnitMember;
   }
 
   // ==================== TASK REACTIVATION METHODS ====================

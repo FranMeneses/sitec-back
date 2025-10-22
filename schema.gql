@@ -20,6 +20,11 @@ type Area {
   name: String
 }
 
+type AreaInfo {
+  id: Int!
+  name: String!
+}
+
 type AreaMember {
   area: Area
   areaId: Float!
@@ -446,6 +451,7 @@ type Query {
   evidenceByProcess(includeArchived: Boolean! = false, processId: String!): [Evidence!]!
   evidenceByTask(includeArchived: Boolean! = false, taskId: String!): [Evidence!]!
   evidenceByUser(includeArchived: Boolean! = false, userId: String!): [Evidence!]!
+  exportData(areaId: Float): String!
   findAreaProjects(idArea: Float!): [Project!]!
   findByProcessId(idProcess: String!, includeArchived: Boolean! = false): [Task!]!
   findByTaskId(idTask: String!, includeArchived: Boolean! = false): [Task!]!
@@ -460,6 +466,7 @@ type Query {
   getAreaAdmins(areaId: Int!): [Admin!]!
   getAreaMembers(areaId: Int!): [AreaMember!]!
   getAreaProjects: [Process!]!
+  getAvailableAreas: [AreaInfo!]!
   getCategoriesAsAreaMember: [Category!]!
   getCategoryById(id: String!): Category
   getEvidenceByProject(includeArchived: Boolean! = false, projectId: String!): [Evidence!]!
