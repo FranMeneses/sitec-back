@@ -25,7 +25,7 @@ export class ProcessService {
   private getAutomaticPercentage(status: string, lastPercent?: number): number {
     // Normalizar el status a minúsculas para comparación
     const normalizedStatus = status.toLowerCase();
-    
+
     switch (normalizedStatus) {
       case 'pending':
         return 0;
@@ -197,6 +197,8 @@ export class ProcessService {
     if (!project || !project.category) {
       return false;
     }
+
+    console.log('🔍 Checking area membership for user:', userId, 'and area:', project.category.id_area);
 
     const isAreaMember = await this.prisma.area_member.findFirst({
       where: {
@@ -1642,6 +1644,8 @@ export class ProcessService {
     if (!task) {
       throw new BadRequestException('La tarea especificada no existe');
     }
+    // Validar que el usuario es area_member del proyecto
+    const canCreateTask = await this.canCreateTask(task.process.idproject!, projectMemberId);
 
     // Validar permisos para remover task_members
     const canRemoveTaskMembers = await this.canAssignTaskMembers(projectMemberId, task.process.idproject!);
@@ -2493,7 +2497,7 @@ export class ProcessService {
       where: { id: taskId },
       include: { process: { include: { project: true } } },
     });
-    
+
     if (!existingTask) {
       throw new NotFoundException('Tarea no encontrada');
     }

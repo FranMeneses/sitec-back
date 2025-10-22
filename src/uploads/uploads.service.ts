@@ -46,7 +46,7 @@ export class UploadsService {
 
   private verifyVMDirectories(): void {
     console.log('🔍 Verificando directorios en VM...');
-    
+
     if (!existsSync(this.uploadsPath)) {
       throw new Error(`❌ Directorio de uploads no encontrado: ${this.uploadsPath}. 
         Las carpetas deben existir en el host y estar mapeadas correctamente.`);
@@ -63,7 +63,7 @@ export class UploadsService {
 
   private ensureDirectoriesExist(): void {
     console.log('📁 Creando directorios si no existen...');
-    
+
     try {
       if (!existsSync(this.uploadsPath)) {
         mkdirSync(this.uploadsPath, { recursive: true });
@@ -162,25 +162,25 @@ export class UploadsService {
       await this.prisma.evidence.delete({
         where: { id: evidence.id },
       });
-      
+
       throw new BadRequestException(`Error al guardar el archivo: ${error.message}`);
     }
   }
 
   async getEvidenceForDownload(evidenceId: string, userId: string): Promise<any> {
     console.log('🔍 getEvidenceForDownload - evidenceId:', evidenceId, 'userId:', userId);
-    
+
     // Verificar que la evidencia existe y el usuario tiene permisos
     const evidence = await this.prisma.evidence.findUnique({
       where: { id: evidenceId },
-      include: { 
-        task: { 
-          include: { 
-            process: { 
-              include: { project: true } 
-            } 
-          } 
-        } 
+      include: {
+        task: {
+          include: {
+            process: {
+              include: { project: true }
+            }
+          }
+        }
       },
     });
 
@@ -188,7 +188,7 @@ export class UploadsService {
       console.log('❌ Evidencia no encontrada:', evidenceId);
       throw new BadRequestException('La evidencia no existe');
     }
-    
+
     console.log('✅ Evidencia encontrada:', evidence.link);
 
     // Validar permisos
@@ -201,13 +201,31 @@ export class UploadsService {
 
     const isTaskMember = await this.userService.isTaskMember(userId, evidence.task.id);
 
-    if (!projectMember && !isTaskMember) {
+    // Comprobar si es miembro del area del proyecto
+    const project = evidence.task.process.project;
+
+    if (!project?.idcategory) {
+      console.log('❌ Proyecto no encontrado para la evidencia:', evidenceId);
+      throw new BadRequestException('El proyecto asociado a la evidencia no existe');
+    }
+    const category = await this.prisma.category.findUnique({
+      where: { id: project.idcategory },
+    });
+
+    const isAreaMember = await this.prisma.area_member.findFirst({
+      where: {
+        iduser: userId,
+        idarea: category?.id_area,
+      },
+    });
+
+    if (!projectMember && !isTaskMember && !isAreaMember) {
       throw new ForbiddenException('No tienes permisos para descargar esta evidencia');
     }
 
     // Extraer nombre del archivo de la ruta
     const filename = evidence.link.split('/').pop() || '';
-    
+
     // Como ya no usamos UUID en el nombre, el filename ES el nombre original
     const originalName = filename;
 
@@ -234,14 +252,14 @@ export class UploadsService {
     // Verificar que la evidencia existe y el usuario tiene permisos
     const evidence = await this.prisma.evidence.findUnique({
       where: { id: evidenceId },
-      include: { 
-        task: { 
-          include: { 
-            process: { 
-              include: { project: true } 
-            } 
-          } 
-        } 
+      include: {
+        task: {
+          include: {
+            process: {
+              include: { project: true }
+            }
+          }
+        }
       },
     });
 
@@ -265,7 +283,7 @@ export class UploadsService {
 
     // Eliminar archivo físico de la carpeta actual
     const filePath = join(this.uploadsPath, evidence.link.split('/').pop() || '');
-    
+
     if (existsSync(filePath)) {
       const fs = require('fs');
       fs.unlinkSync(filePath);
