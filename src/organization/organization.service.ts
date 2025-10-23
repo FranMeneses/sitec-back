@@ -1775,52 +1775,40 @@ export class OrganizationService {
       throw new NotFoundException(`Categoría con ID ${updateCategoryInput.id} no encontrada`);
     }
 
-    // Verificar permisos según jerarquía
-    if (userSystemRole === 'super_admin') {
-      // Super admin puede actualizar cualquier categoría
-    } else if (userSystemRole === 'area_role') {
-      // Admin puede actualizar categorías solo en sus áreas asignadas
-      const adminAreas = await this.prisma.admin.findMany({
-        where: { iduser: userId },
-        select: { idarea: true }
-      });
+    // --- 🔒 Obtener todas las áreas asociadas al usuario ---
+    const adminAreas = await this.prisma.admin.findMany({
+      where: { iduser: userId },
+      select: { idarea: true },
+    });
 
-      if (adminAreas.length === 0) {
-        throw new ForbiddenException('Admin no asignado a ningún área');
+    const memberAreas = await this.prisma.area_member.findMany({
+      where: { iduser: userId },
+      select: { idarea: true },
+    });
+
+    const allowedAreaIds = [
+      ...new Set([...adminAreas.map(a => a.idarea), ...memberAreas.map(m => m.idarea)]),
+    ];
+
+    if (allowedAreaIds.length === 0 && userSystemRole !== 'super_admin') {
+      throw new ForbiddenException('Usuario no asignado a ninguna área');
+    }
+
+    // --- 🔍 Verificación de permisos ---
+    if (userSystemRole !== 'super_admin') {
+      // Verificar que la categoría pertenece a un área donde tiene permisos (admin o miembro)
+      if (!allowedAreaIds.includes(existingCategory.id_area)) {
+        throw new ForbiddenException('Solo puedes actualizar categorías en tus áreas asignadas');
       }
 
-      const areaIds = adminAreas.map(admin => admin.idarea);
-
-      if (!areaIds.includes(existingCategory.id_area)) {
-        throw new ForbiddenException('Solo puedes actualizar categorías en las áreas donde eres admin');
-      }
-
-      // Si admin intenta mover categoría a otra área, verificar que tenga permisos en esa área también
-      if (updateCategoryInput.areaId && updateCategoryInput.areaId !== existingCategory.id_area) {
-        if (!areaIds.includes(updateCategoryInput.areaId)) {
-          throw new ForbiddenException('No puedes mover categorías a áreas donde no eres admin');
-        }
-      }
-    } else {
-      // Area member puede actualizar categorías solo en su área
-      const areaMember = await this.prisma.area_member.findFirst({
-        where: { iduser: userId },
-      });
-
-      if (!areaMember) {
-        throw new ForbiddenException('Usuario no asignado a ningún área como miembro');
-      }
-
-      if (existingCategory.id_area !== areaMember.idarea) {
-        throw new ForbiddenException('Solo puedes actualizar categorías de tu área asignada');
-      }
-
-      if (updateCategoryInput.areaId && updateCategoryInput.areaId !== areaMember.idarea) {
-        throw new ForbiddenException('No puedes mover categorías a otras áreas');
+      // Verificar que no intente mover la categoría a un área fuera de sus áreas
+      if (updateCategoryInput.areaId && !allowedAreaIds.includes(updateCategoryInput.areaId)) {
+        throw new ForbiddenException('No puedes mover categorías a áreas donde no tienes permisos');
       }
     }
 
-    const updateData: any = {};
+    // --- 🛠 Actualización de la categoría ---
+    const updateData: Record<string, any> = {};
     if (updateCategoryInput.name) updateData.name = updateCategoryInput.name;
     if (updateCategoryInput.description !== undefined) updateData.description = updateCategoryInput.description;
     if (updateCategoryInput.areaId) updateData.id_area = updateCategoryInput.areaId;
@@ -1828,25 +1816,22 @@ export class OrganizationService {
     const category = await this.prisma.category.update({
       where: { id: updateCategoryInput.id },
       data: updateData,
-      include: {
-        area: true,
-      },
+      include: { area: true },
     });
 
+    // --- 📤 Respuesta limpia ---
     return {
       id: category.id,
       name: category.name,
       description: category.description || undefined,
       areaId: category.id_area,
-      area: category.area ? {
-        id: category.area.id,
-        name: category.area.name || undefined,
-      } : undefined,
+      area: category.area
+        ? { id: category.area.id, name: category.area.name || undefined }
+        : undefined,
       createdAt: undefined,
       updatedAt: undefined,
     };
   }
-
   async deleteCategoryAsAreaMember(categoryId: string, userId: string): Promise<boolean> {
     // Obtener información del usuario con roles
     const userWithRoles = await this.userService.findByIdWithRoles(userId);
