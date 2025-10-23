@@ -1,6 +1,7 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { User } from '../../auth/entities/user.entity';
 import { Project } from '../../project/entities/project.entity';
+import { Task } from './task.entity';
 
 @ObjectType()
 export class Process {
@@ -53,6 +54,6 @@ export class Process {
   updatedAt?: Date;
 
   // Relaciones que se resolverán después
-  // @Field(() => [Task])
-  // tasks?: Task[];
+  @Field(() => [Task], { nullable: true })
+  tasks?: Task[];
 }

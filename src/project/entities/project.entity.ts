@@ -1,6 +1,8 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { User } from '../../auth/entities/user.entity';
 import { ProjectStatus } from '../dto/project-status.enum';
+import { Process } from '../../process/entities/process.entity';
+import { Task } from '../../process/entities/task.entity';
 
 @ObjectType()
 export class Project {
@@ -64,4 +66,11 @@ export class Project {
   
   // @Field () => [ProjectMember])
   // members?: ProjectMember[];
+
+  // Campos para procesos y tareas
+  @Field(() => [Process], { nullable: true })
+  processes?: Process[];
+
+  @Field(() => [Task], { nullable: true })
+  tasks?: Task[];
 }

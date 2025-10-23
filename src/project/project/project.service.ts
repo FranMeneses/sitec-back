@@ -495,6 +495,21 @@ export class ProjectService {
               include: {
                 user: true,
               }
+            },
+            process: {
+              include: {
+                user: true, // editor del proceso
+                task: {
+                  include: {
+                    user: true, // editor de la tarea
+                    task_member: {
+                      include: {
+                        user: true
+                      }
+                    }
+                  }
+                }
+              }
             }
           },
           orderBy: { name: 'asc' },
@@ -565,6 +580,21 @@ export class ProjectService {
               include: {
                 user: true,
               }
+            },
+            process: {
+              include: {
+                user: true, // editor del proceso
+                task: {
+                  include: {
+                    user: true, // editor de la tarea
+                    task_member: {
+                      include: {
+                        user: true
+                      }
+                    }
+                  }
+                }
+              }
             }
           },
           orderBy: { name: 'asc' },
@@ -624,6 +654,21 @@ export class ProjectService {
               include: {
                 user: true,
               }
+            },
+            process: {
+              include: {
+                user: true, // editor del proceso
+                task: {
+                  include: {
+                    user: true, // editor de la tarea
+                    task_member: {
+                      include: {
+                        user: true
+                      }
+                    }
+                  }
+                }
+              }
             }
           },
           orderBy: { name: 'asc' },
@@ -667,6 +712,21 @@ export class ProjectService {
               project_member: {
                 include: {
                   user: true,
+                }
+              },
+              process: {
+                include: {
+                  user: true, // editor del proceso
+                  task: {
+                    include: {
+                      user: true, // editor de la tarea
+                      task_member: {
+                        include: {
+                          user: true
+                        }
+                      }
+                    }
+                  }
                 }
               }
             },
@@ -1467,6 +1527,8 @@ export class ProjectService {
       archivedAt: project.archived_at,
       archivedBy: project.archived_by,
       archivedByUser: project.user_project_archived_byTouser,
+      processes: project.process ? project.process.map((process: any) => this.mapProcess(process)) : [],
+      tasks: project.process ? this.extractAllTasks(project.process) : [],
     };
   }
 
@@ -1485,6 +1547,59 @@ export class ProjectService {
       } : undefined,
       project: member.project ? this.mapProject(member.project) : undefined,
     };
+  }
+
+
+  private mapTask(task: any): any {
+    return {
+      id: task.id,
+      name: task.name || '',
+      description: task.description,
+      startDate: task.startdate,
+      dueDate: task.duedateat,
+      status: task.status,
+      editedAt: task.editedat,
+      editor: task.user ? {
+        id: task.user.id,
+        name: task.user.name || '',
+        email: task.user.email,
+        password: task.user.password || undefined,
+        isActive: task.user.isactive ?? true,
+        havePassword: task.user.havepassword ?? false,
+      } : undefined,
+      processId: task.idprocess,
+      report: task.report,
+      budget: task.budget,
+      expense: task.expense,
+      review: task.review,
+      archivedAt: task.archived_at,
+      archivedBy: task.archived_by,
+      percent: task.percent,
+      members: task.task_member ? task.task_member.map((member: any) => ({
+        id: member.id,
+        userId: member.iduser,
+        taskId: member.idtask,
+        assignedAt: member.assigned_at,
+        user: member.user ? {
+          id: member.user.id,
+          name: member.user.name || '',
+          email: member.user.email,
+          password: member.user.password || undefined,
+          isActive: member.user.isactive ?? true,
+          havePassword: member.user.havepassword ?? false,
+        } : undefined,
+      })) : [],
+    };
+  }
+
+  private extractAllTasks(processes: any[]): any[] {
+    const allTasks: any[] = [];
+    processes.forEach(process => {
+      if (process.task) {
+        allTasks.push(...process.task.map((task: any) => this.mapTask(task)));
+      }
+    });
+    return allTasks;
   }
 
   // ==================== PROJECT_MEMBER METHODS ====================
@@ -1614,6 +1729,11 @@ export class ProjectService {
         havePassword: process.user.havepassword ?? false,
       } : undefined,
       project: process.project ? this.mapProject(process.project) : undefined,
+      review: process.review,
+      archivedAt: process.archived_at,
+      archivedBy: process.archived_by,
+      percent: process.percent,
+      tasks: process.task ? process.task.map((task: any) => this.mapTask(task)) : [],
     };
   }
 

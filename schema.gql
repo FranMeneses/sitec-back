@@ -440,6 +440,7 @@ type Process {
   projectId: String!
   review: String
   startDate: DateTime
+  tasks: [Task!]
   updatedAt: DateTime!
 }
 
@@ -457,10 +458,12 @@ type Project {
   id: ID!
   name: String!
   percent: Float
+  processes: [Process!]
   projectMembers: [ProjectMember!]!
   review: String
   startDate: DateTime
   status: String
+  tasks: [Task!]
   unit: Unit
   unitId: Float
   updatedAt: DateTime!
