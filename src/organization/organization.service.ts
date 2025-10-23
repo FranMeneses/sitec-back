@@ -1832,6 +1832,7 @@ export class OrganizationService {
       updatedAt: undefined,
     };
   }
+
   async deleteCategoryAsAreaMember(categoryId: string, userId: string): Promise<boolean> {
     // Obtener información del usuario con roles
     const userWithRoles = await this.userService.findByIdWithRoles(userId);
@@ -1854,45 +1855,38 @@ export class OrganizationService {
       throw new NotFoundException(`Categoría con ID ${categoryId} no encontrada`);
     }
 
-    // Verificar permisos según jerarquía
-    if (userSystemRole === 'super_admin') {
-      // Super admin puede eliminar cualquier categoría
-    } else if (userSystemRole === 'area_role') {
-      // Admin puede eliminar categorías solo en sus áreas asignadas
-      const adminAreas = await this.prisma.admin.findMany({
-        where: { iduser: userId },
-        select: { idarea: true }
-      });
+    // --- 🔒 Obtener todas las áreas del usuario (admin + miembro) ---
+    const adminAreas = await this.prisma.admin.findMany({
+      where: { iduser: userId },
+      select: { idarea: true },
+    });
 
-      if (adminAreas.length === 0) {
-        throw new ForbiddenException('Admin no asignado a ningún área');
-      }
+    const memberAreas = await this.prisma.area_member.findMany({
+      where: { iduser: userId },
+      select: { idarea: true },
+    });
 
-      const areaIds = adminAreas.map(admin => admin.idarea);
+    const allowedAreaIds = [
+      ...new Set([...adminAreas.map(a => a.idarea), ...memberAreas.map(m => m.idarea)]),
+    ];
 
-      if (!areaIds.includes(existingCategory.id_area)) {
-        throw new ForbiddenException('Solo puedes eliminar categorías en las áreas donde eres admin');
-      }
-    } else {
-      // Area member puede eliminar categorías solo en su área
-      const areaMember = await this.prisma.area_member.findFirst({
-        where: { iduser: userId },
-      });
+    if (allowedAreaIds.length === 0 && userSystemRole !== 'super_admin') {
+      throw new ForbiddenException('Usuario no asignado a ninguna área');
+    }
 
-      if (!areaMember) {
-        throw new ForbiddenException('Usuario no asignado a ningún área como miembro');
-      }
-
-      if (existingCategory.id_area !== areaMember.idarea) {
-        throw new ForbiddenException('Solo puedes eliminar categorías de tu área asignada');
+    // --- 🔍 Verificación de permisos ---
+    if (userSystemRole !== 'super_admin') {
+      if (!allowedAreaIds.includes(existingCategory.id_area)) {
+        throw new ForbiddenException('Solo puedes eliminar categorías en tus áreas asignadas');
       }
     }
 
-    // Verificar que no tenga proyectos asociados
+    // --- 🚫 Verificar que no tenga proyectos asociados ---
     if (existingCategory.project.length > 0) {
       throw new BadRequestException('No se puede eliminar la categoría porque tiene proyectos asociados');
     }
 
+    // --- 🗑 Eliminar categoría ---
     await this.prisma.category.delete({
       where: { id: categoryId },
     });
