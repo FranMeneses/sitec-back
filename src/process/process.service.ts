@@ -1286,17 +1286,18 @@ export class ProcessService {
       // Si solo cambió el status, calcular porcentaje automático
       newPercent = this.getAutomaticPercentage(updateTaskInput.status, existingTask.percent || undefined);
     }
-
-    // Detectar si el estado cambió a COMPLETED o CANCELLED
-    const statusChanged = updateTaskInput.status && updateTaskInput.status.toLowerCase() !== existingTask.status?.toLowerCase();
-    const shouldArchive = statusChanged &&
+    // Detectar si el estado cambió
+    const statusChanged =
       updateTaskInput.status &&
-      (updateTaskInput.status.toLowerCase() === TaskStatus.COMPLETED.toLowerCase() ||
-        updateTaskInput.status.toLowerCase() === TaskStatus.CANCELLED.toLowerCase());
+      updateTaskInput.status.toLowerCase() !== existingTask.status?.toLowerCase();
 
-    // Si debe archivarse, primero actualizar y luego archivar
+    // Solo archivar si se cancela explícitamente
+    const shouldArchive =
+      statusChanged &&
+      updateTaskInput.status &&
+      updateTaskInput.status.toLowerCase() === TaskStatus.CANCELLED.toLowerCase();
+    // 🔹 Si debe archivarse (solo si archive = true o se cancela)
     if (shouldArchive) {
-      // Preparar datos de actualización solo con campos proporcionados
       const updateData: any = {
         ideditor: editorId,
         percent: newPercent,
@@ -1305,24 +1306,26 @@ export class ProcessService {
 
       if (updateTaskInput.name !== undefined) updateData.name = updateTaskInput.name;
       if (updateTaskInput.description !== undefined) updateData.description = updateTaskInput.description;
-      if (updateTaskInput.startDate !== undefined) updateData.startdate = updateTaskInput.startDate ? new Date(updateTaskInput.startDate) : null;
-      if (updateTaskInput.dueDate !== undefined) updateData.duedateat = updateTaskInput.dueDate ? new Date(updateTaskInput.dueDate) : null;
+      if (updateTaskInput.startDate !== undefined)
+        updateData.startdate = updateTaskInput.startDate ? new Date(updateTaskInput.startDate) : null;
+      if (updateTaskInput.dueDate !== undefined)
+        updateData.duedateat = updateTaskInput.dueDate ? new Date(updateTaskInput.dueDate) : null;
       if (updateTaskInput.status !== undefined) updateData.status = updateTaskInput.status;
       if (updateTaskInput.report !== undefined) updateData.report = updateTaskInput.report;
       if (updateTaskInput.budget !== undefined) updateData.budget = updateTaskInput.budget;
       if (updateTaskInput.expense !== undefined) updateData.expense = updateTaskInput.expense;
       if (updateTaskInput.review !== undefined) updateData.review = updateTaskInput.review;
 
-      // Actualizar la tarea primero
       await this.prisma.task.update({
         where: { id: updateTaskInput.id },
         data: updateData,
       });
 
-      // Archivar en cascada (incluye evidencias)
+      await this.updateProcessPercentage(existingTask.idprocess);
+
+
       return await this.archiveTaskWithEvidences(updateTaskInput.id, editorId);
     }
-
     // Actualización normal (sin archivar)
     // Preparar datos de actualización solo con campos proporcionados
     const updateData: any = {
@@ -1423,11 +1426,14 @@ export class ProcessService {
     }
 
     // Detectar si el estado cambió a COMPLETED o CANCELLED
-    const statusChanged = updateTaskInput.status && updateTaskInput.status !== existingTask.status;
-    const shouldArchive = statusChanged &&
-      (updateTaskInput.status === 'completed' ||
-        updateTaskInput.status === 'cancelled');
+    const statusChanged =
+      updateTaskInput.status &&
+      updateTaskInput.status !== existingTask.status;
 
+    // Solo archivar si se cancela explícitamente
+    const shouldArchive =
+      statusChanged &&
+      updateTaskInput.status === 'cancelled';
     // Si debe archivarse, primero actualizar y luego archivar
     if (shouldArchive) {
       // Preparar datos de actualización
