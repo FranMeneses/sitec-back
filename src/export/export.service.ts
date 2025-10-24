@@ -95,7 +95,6 @@ export class ExportService {
                 description: true,
                 status: true,
                 percent: true,
-                budget: true,
                 expense: true,
                 startdate: true,
                 duedateat: true,
@@ -131,7 +130,6 @@ export class ExportService {
       'Descripcion_Tarea',
       'Estado_Tarea',
       'Porcentaje_Tarea',
-      'Presupuesto_Tarea',
       'Gasto_Tarea',
       'Fecha_Inicio_Tarea',
       'Fecha_Vencimiento_Tarea',
@@ -157,7 +155,6 @@ export class ExportService {
         '', // Descripción se llenará en el loop
         '', // Estado se llenará en el loop
         '', // Porcentaje se llenará en el loop
-        '', // Presupuesto se llenará en el loop
         '', // Gasto se llenará en el loop
         '', // Fecha inicio se llenará en el loop
         '', // Fecha vencimiento se llenará en el loop
@@ -188,7 +185,6 @@ export class ExportService {
               taskRow[6] = task.description || ''; // Descripción
               taskRow[7] = task.status || ''; // Estado
               taskRow[8] = task.percent || 0; // Porcentaje
-              taskRow[9] = task.budget || 0; // Presupuesto
               taskRow[10] = task.expense || 0; // Gasto
               taskRow[11] = task.startdate ? this.formatDate(task.startdate) : ''; // Fecha inicio
               taskRow[12] = task.duedateat ? this.formatDate(task.duedateat) : ''; // Fecha vencimiento

@@ -218,3 +218,8 @@ CREATE TABLE invitation (
     CONSTRAINT fk_invitation_inviter FOREIGN KEY (invited_by) REFERENCES "user"(id) ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT fk_invitation_accepter FOREIGN KEY (accepted_by) REFERENCES "user"(id) ON DELETE NO ACTION ON UPDATE NO ACTION
 );
+
+ALTER TABLE project ADD COLUMN budget INT;
+ALTER TABLE task DROP COLUMN budget;
+ALTER TABLE process ADD COLUMN expense INT;
+ALTER TABLE project ADD COLUMN expense INT;

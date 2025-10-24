@@ -37,11 +37,6 @@ export class CreateTaskInput {
   @IsEnum(TaskStatus)
   status: TaskStatus;
 
-  @Field({ nullable: true })
-  @IsInt()
-  @Min(0)
-  @IsOptional()
-  budget?: number;
 
   @Field({ nullable: true })
   @IsInt()
@@ -110,11 +105,6 @@ export class UpdateTaskInput {
   @IsOptional()
   report?: string;
 
-  @Field({ nullable: true })
-  @IsInt()
-  @Min(0)
-  @IsOptional()
-  budget?: number;
 
   @Field({ nullable: true })
   @IsInt()

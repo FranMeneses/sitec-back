@@ -5,6 +5,7 @@ import { Project } from '../entities/project.entity';
 import { ProjectMember } from '../entities/project-member.entity';
 import { Category } from '../entities/category.entity';
 import { CreateProjectInput, UpdateProjectInput, AddProjectMemberInput, UpdateProjectMemberInput } from '../dto/project.dto';
+import { UpdateProjectBudgetInput } from '../dto/project-budget.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { RequireAuth } from '../../common/decorators/roles.decorator';
@@ -123,6 +124,20 @@ export class ProjectResolver {
     @CurrentUser() user: User,
   ): Promise<Project> {
     return this.projectService.unarchiveProjectWithProcesses(id, user.id);
+  }
+
+  @Mutation(() => Project)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequireAuth()
+  async updateProjectBudget(
+    @Args('updateProjectBudgetInput') updateProjectBudgetInput: UpdateProjectBudgetInput,
+    @CurrentUser() user: User,
+  ): Promise<Project> {
+    return this.projectService.updateProjectBudget(
+      updateProjectBudgetInput.projectId,
+      updateProjectBudgetInput.budget,
+      user.id
+    );
   }
 
   @Mutation(() => ProjectMember)

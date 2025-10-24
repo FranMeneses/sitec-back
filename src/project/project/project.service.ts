@@ -11,6 +11,7 @@ import { CreateCategoryInput, UpdateCategoryInput } from '../dto/category.dto';
 import { CreateProcessInput } from '../../process/dto/process.dto';
 import { Process } from '../../process/entities/process.entity';
 import { AssignProcessMemberInput, RemoveProcessMemberInput } from '../dto/project-member.dto';
+import { UpdateProjectBudgetInput } from '../dto/project-budget.dto';
 
 @Injectable()
 export class ProjectService {
@@ -23,6 +24,57 @@ export class ProjectService {
   ) { }
 
   // ==================== VALIDATION METHODS ====================
+
+  private async validateBudgetPermissions(userId: string, projectId: string): Promise<boolean> {
+    const userWithRoles = await this.userService.findByIdWithRoles(userId);
+    const userSystemRole = userWithRoles?.systemRole?.role?.name;
+    
+    // Super admin siempre puede
+    if (userSystemRole === 'super_admin') {
+      return true;
+    }
+    
+    // Obtener información del proyecto
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        category: { include: { area: true } },
+        unit: true,
+        project_member: { where: { iduser: userId } }
+      }
+    });
+    
+    if (!project) return false;
+    
+    // Verificar si es project_member
+    if (project.project_member.length > 0) {
+      return true;
+    }
+    
+    // Verificar si es area_member del área del proyecto
+    if (userSystemRole === 'area_role' && project.category) {
+      const userAreaMembership = await this.prisma.area_member.findFirst({
+        where: {
+          iduser: userId,
+          idarea: project.category.id_area
+        }
+      });
+      if (userAreaMembership) return true;
+    }
+    
+    // Verificar si es unit_member de la unidad del proyecto
+    if (userSystemRole === 'unit_role') {
+      const userUnitMembership = await this.prisma.unit_member.findFirst({
+        where: {
+          iduser: userId,
+          idunit: project.idunit
+        }
+      });
+      if (userUnitMembership) return true;
+    }
+    
+    return false;
+  }
 
   private async validateProjectMemberAdditionPermissions(userId: string, projectId: string): Promise<void> {
     // Obtener el system_role del usuario
@@ -970,6 +1022,34 @@ export class ProjectService {
         idcreator: editorId,
         idproject: project.id,
         createdat: new Date(),
+      },
+    });
+
+    return this.mapProject(project);
+  }
+
+  async updateProjectBudget(projectId: string, budget: number, userId: string): Promise<Project> {
+    // Validar permisos
+    const hasPermission = await this.validateBudgetPermissions(userId, projectId);
+    if (!hasPermission) {
+      throw new ForbiddenException('No tienes permisos para modificar el presupuesto de este proyecto');
+    }
+
+    // Verificar que el proyecto existe
+    const existingProject = await this.findProjectById(projectId);
+    if (!existingProject) {
+      throw new NotFoundException(`Proyecto con ID ${projectId} no encontrado`);
+    }
+
+    // Actualizar budget
+    const project = await this.prisma.project.update({
+      where: { id: projectId },
+      data: { budget },
+      include: {
+        category: { include: { area: true } },
+        unit: true,
+        user: true,
+        user_project_archived_byTouser: true,
       },
     });
 

@@ -1172,7 +1172,6 @@ export class ProcessService {
         status: createTaskInput.status,
         ideditor: editorId,
         idprocess: createTaskInput.processId,
-        budget: createTaskInput.budget,
         expense: createTaskInput.expense,
         review: createTaskInput.review,
         percent: initialPercent,
@@ -1312,7 +1311,6 @@ export class ProcessService {
         updateData.duedateat = updateTaskInput.dueDate ? new Date(updateTaskInput.dueDate) : null;
       if (updateTaskInput.status !== undefined) updateData.status = updateTaskInput.status;
       if (updateTaskInput.report !== undefined) updateData.report = updateTaskInput.report;
-      if (updateTaskInput.budget !== undefined) updateData.budget = updateTaskInput.budget;
       if (updateTaskInput.expense !== undefined) updateData.expense = updateTaskInput.expense;
       if (updateTaskInput.review !== undefined) updateData.review = updateTaskInput.review;
 
@@ -1340,7 +1338,6 @@ export class ProcessService {
     if (updateTaskInput.dueDate !== undefined) updateData.duedateat = updateTaskInput.dueDate ? new Date(updateTaskInput.dueDate) : null;
     if (updateTaskInput.status !== undefined) updateData.status = updateTaskInput.status;
     if (updateTaskInput.report !== undefined) updateData.report = updateTaskInput.report;
-    if (updateTaskInput.budget !== undefined) updateData.budget = updateTaskInput.budget;
     if (updateTaskInput.expense !== undefined) updateData.expense = updateTaskInput.expense;
     if (updateTaskInput.review !== undefined) updateData.review = updateTaskInput.review;
 
@@ -1376,7 +1373,7 @@ export class ProcessService {
     return this.mapTask(task);
   }
 
-  async updateTaskAsMember(updateTaskInput: { id: string; status?: string; report?: string; budget?: number; expense?: number }, memberId: string): Promise<Task> {
+  async updateTaskAsMember(updateTaskInput: { id: string; status?: string; report?: string; expense?: number }, memberId: string): Promise<Task> {
     // Verificar permisos del usuario basado en rol y membresías
     const userWithRoles = await this.userService.findByIdWithRoles(memberId);
     const userSystemRole = userWithRoles?.systemRole?.role?.name;
@@ -1450,9 +1447,6 @@ export class ProcessService {
         updateData.report = updateTaskInput.report;
       }
 
-      if (updateTaskInput.budget !== undefined) {
-        updateData.budget = updateTaskInput.budget;
-      }
 
       if (updateTaskInput.expense !== undefined) {
         updateData.expense = updateTaskInput.expense;
@@ -1481,10 +1475,6 @@ export class ProcessService {
       updateData.report = updateTaskInput.report;
     }
 
-    if (updateTaskInput.budget !== undefined) {
-      updateData.budget = updateTaskInput.budget;
-    }
-
     if (updateTaskInput.expense !== undefined) {
       updateData.expense = updateTaskInput.expense;
     }
@@ -1497,6 +1487,12 @@ export class ProcessService {
         process: true,
       },
     });
+
+    // Sincronizar expenses si se actualizó el expense
+    if (updateTaskInput.expense !== undefined) {
+      await this.syncProcessExpense(task.idprocess);
+      await this.syncProjectExpense(task.process.idproject!);
+    }
 
     return this.mapTask(task);
   }
@@ -1981,7 +1977,6 @@ export class ProcessService {
       editedAt: task.editedat,
       editor: task.user,
       report: task.report,
-      budget: task.budget,
       expense: task.expense,
       review: task.review,
       percent: task.percent,
@@ -2453,5 +2448,43 @@ export class ProcessService {
     if (task?.idprocess) {
       await this.updateProcessPercentage(task.idprocess);
     }
+  }
+
+  // ==================== EXPENSE SYNCHRONIZATION METHODS ====================
+
+  /**
+   * Sincroniza el expense de un proceso con la suma de expenses de sus tareas
+   */
+  async syncProcessExpense(processId: string): Promise<void> {
+    const totalExpense = await this.prisma.task.aggregate({
+      where: { 
+        idprocess: processId, 
+        archived_at: null 
+      },
+      _sum: { expense: true }
+    });
+
+    await this.prisma.process.update({
+      where: { id: processId },
+      data: { expense: totalExpense._sum.expense || 0 }
+    });
+  }
+
+  /**
+   * Sincroniza el expense de un proyecto con la suma de expenses de sus procesos
+   */
+  async syncProjectExpense(projectId: string): Promise<void> {
+    const totalExpense = await this.prisma.process.aggregate({
+      where: { 
+        idproject: projectId, 
+        archived_at: null 
+      },
+      _sum: { expense: true }
+    });
+
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: { expense: totalExpense._sum.expense || 0 }
+    });
   }
 }

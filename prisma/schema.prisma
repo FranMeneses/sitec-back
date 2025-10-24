@@ -95,6 +95,7 @@ model process {
   archived_at                    DateTime?      @db.Timestamp(6)
   archived_by                    String?        @db.Uuid
   percent                        Int?
+  expense                        Int?
   logs                           logs[]
   notification                   notification[]
   user_process_archived_byTouser user?          @relation("process_archived_byTouser", fields: [archived_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -118,6 +119,8 @@ model project {
   archived_at                    DateTime?        @db.Timestamp(6)
   archived_by                    String?          @db.Uuid
   percent                        Int?
+  budget                         Int?
+  expense                        Int?
   invitation                     invitation[]
   logs                           logs[]
   notification                   notification[]
@@ -163,7 +166,6 @@ model task {
   ideditor                    String?        @db.Uuid
   idprocess                   String         @db.Uuid
   report                      String?
-  budget                      Int?
   expense                     Int?
   review                      String?
   archived_at                 DateTime?      @db.Timestamp(6)

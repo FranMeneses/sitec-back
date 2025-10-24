@@ -171,7 +171,6 @@ input CreateRoleInput {
 }
 
 input CreateTaskInput {
-  budget: Float
   description: String
   dueDate: String
   expense: Float
@@ -386,6 +385,7 @@ type Mutation {
   updateProfile(name: String): User!
   updateProject(updateProjectInput: UpdateProjectInput!): Project!
   updateProjectAsUnitMember(projectId: String!, updateProjectInput: UpdateProjectInput!): Project!
+  updateProjectBudget(updateProjectBudgetInput: UpdateProjectBudgetInput!): Project!
   updateProjectMember(updateProjectMemberInput: UpdateProjectMemberInput!): ProjectMember!
   updateRole(updateRoleInput: UpdateRoleInput!): Role!
   updateTask(updateTaskInput: UpdateTaskInput!): Task!
@@ -432,6 +432,7 @@ type Process {
   dueDate: DateTime
   editedAt: DateTime
   editor: User
+  expense: Float
   id: ID!
   name: String!
   percent: Float
@@ -448,6 +449,7 @@ type Project {
   archivedAt: DateTime
   archivedBy: String
   archivedByUser: User
+  budget: Float
   category: Category
   categoryId: String
   createdAt: DateTime!
@@ -455,6 +457,7 @@ type Project {
   dueDate: DateTime
   editedAt: DateTime
   editor: User
+  expense: Float
   id: ID!
   name: String!
   percent: Float
@@ -616,7 +619,6 @@ type Task {
   archivedAt: DateTime
   archivedBy: String
   archivedByUser: User
-  budget: Float
   createdAt: DateTime!
   description: String
   dueDate: DateTime
@@ -700,6 +702,11 @@ input UpdateProcessInput {
   startDate: String
 }
 
+input UpdateProjectBudgetInput {
+  budget: Int!
+  projectId: String!
+}
+
 input UpdateProjectInput {
   categoryId: String
   description: String
@@ -723,7 +730,6 @@ input UpdateRoleInput {
 }
 
 input UpdateTaskAsMemberInput {
-  budget: Int
   expense: Int
   id: String!
   report: String
@@ -731,7 +737,6 @@ input UpdateTaskAsMemberInput {
 }
 
 input UpdateTaskInput {
-  budget: Float
   description: String
   dueDate: String
   expense: Float

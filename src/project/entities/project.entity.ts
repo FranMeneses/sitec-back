@@ -51,6 +51,12 @@ export class Project {
   @Field({ nullable: true })
   percent?: number;
 
+  @Field({ nullable: true })
+  budget?: number;
+
+  @Field({ nullable: true })
+  expense?: number;
+
   @Field()
   createdAt?: Date;
 

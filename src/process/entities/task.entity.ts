@@ -33,9 +33,6 @@ export class Task {
   report?: string;
 
   @Field({ nullable: true })
-  budget?: number;
-
-  @Field({ nullable: true })
   expense?: number;
 
   @Field({ nullable: true })

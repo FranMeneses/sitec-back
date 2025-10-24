@@ -41,6 +41,9 @@ export class Process {
   @Field({ nullable: true })
   percent?: number;
 
+  @Field({ nullable: true })
+  expense?: number;
+
   @Field()
   projectId: string;
 
